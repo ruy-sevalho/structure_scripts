@@ -1,6 +1,7 @@
 from main import IsoTropicMaterial, Slenderness, DoublySymmetricIUserDefined, \
     GenericAreaProperties, DoublySymmetricIDimensionsUserDefined, ConstructionType, SectionProfile, Material, \
-    BeamCompressionEffectiveLength, same_units_simplify, BeamFlexureDoublySymmetric
+    BeamCompressionEffectiveLength, BeamFlexureDoublySymmetric
+from helpers import same_units_simplify
 from pytest import approx, mark
 from quantities import UnitQuantity, Quantity, GPa, MPa, cm, m, mm, N
 
@@ -74,7 +75,7 @@ def test_doubly_symmetric_i_kc_coefficient(
 def test_doubly_symmetric_i_effective_radius_of_gyration(
         profile: tuple[DoublySymmetricIUserDefined, Quantity]
 ):
-    calculated, reference = same_units_simplify(profile[0].area_properties.effective_radius_of_gyration, profile[1])
+    calculated, reference = same_units_simplify(profile[0].effective_radius_of_gyration, profile[1])
     assert calculated == approx(reference)
 
 
@@ -231,4 +232,13 @@ def test_beam_flexure_critical_stress_lateral_torsional_buckling(beam: tuple[Bea
 )
 def test_beam_flexure_strength_lateral_torsion_compact_case_c(beam: tuple[BeamFlexureDoublySymmetric, Quantity]):
     calculated, reference = same_units_simplify(beam[0].strength_lateral_torsion_compact_case_c, beam[1])
+    assert calculated == approx(reference)
+
+
+@mark.parametrize(
+    "beam",
+    [(beam_1_flexure, Quantity(15583121.77, N * mm))]
+)
+def test_beam_flexure_strength_non_compact_flange_local_buckling(beam: tuple[BeamFlexureDoublySymmetric, Quantity]):
+    calculated, reference = same_units_simplify(beam[0].strength_flange_local_buckling_non_compact, beam[1])
     assert calculated == approx(reference)
