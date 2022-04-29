@@ -282,6 +282,7 @@ class AreaProperties(Protocol):
     major_axis_radius_of_gyration: Quantity
     minor_axis_inertia: Quantity
     minor_axis_elastic_section_modulus: Quantity
+    minor_axis_plastic_section_modulus: Quantity
     minor_axis_radius_of_gyration: Quantity
     torsional_constant: Quantity
     torsional_radius_of_gyration: Quantity
@@ -341,10 +342,13 @@ class GenericAreaProperties(AreaProperties):
     torsional_constant: Quantity
     warping_constant: Quantity
     major_axis_plastic_section_modulus: Quantity | None = None
+    minor_axis_plastic_section_modulus: Quantity | None = None
 
     def __post_init__(self):
         if not self.major_axis_plastic_section_modulus:
             self.major_axis_plastic_section_modulus = self.major_axis_elastic_section_modulus
+        if not self.minor_axis_plastic_section_modulus:
+            self.minor_axis_plastic_section_modulus = self.minor_axis_elastic_section_modulus
 
     @cached_property
     def effective_radius_of_gyration(self):
@@ -763,8 +767,15 @@ class BeamFlexureDoublySymmetric:
             yield_stress=self.profile.material.yield_stress
         )
 
+    @cached_property
+    def strength_flange_local_buckling_non_compact(self):
+        # TODO Implement slender flange local buckling strength
+        return self.strength_flange_local_buckling_non_compact
+
 
 def main():
+    q: Quantity = 84 * cm ** 3
+    print(q.rescale(mm ** 3))
     steel = IsoTropicMaterial(
         modulus_linear=200 * GPa,
         modulus_shear=77 * GPa,

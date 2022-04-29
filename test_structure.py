@@ -1,6 +1,6 @@
 from main import IsoTropicMaterial, Slenderness, DoublySymmetricIUserDefined, \
     GenericAreaProperties, DoublySymmetricIDimensionsUserDefined, ConstructionType, SectionProfile, Material, \
-    BeamCompressionEffectiveLength, same_units_simplify
+    BeamCompressionEffectiveLength, same_units_simplify, BeamFlexureDoublySymmetric
 from pytest import approx, mark
 from quantities import UnitQuantity, Quantity, GPa, MPa, cm, m, mm, N
 
@@ -20,6 +20,7 @@ area_properties_127x76x13 = GenericAreaProperties(
     minor_axis_elastic_section_modulus=15 * cm ** 3,
     major_axis_inertia=473 * cm ** 4,
     major_axis_elastic_section_modulus=75 * cm ** 3,
+    major_axis_plastic_section_modulus=84 * cm ** 3,
     torsional_constant=2.85 * cm ** 4,
     warping_constant=0.002 * dm ** 6
 )
@@ -30,7 +31,7 @@ dimensions_127x76x13 = DoublySymmetricIDimensionsUserDefined(
     web_thickness=4 * mm,
     total_height=127 * mm
 )
-profile_rolled = DoublySymmetricIUserDefined(
+profile_127x76x13_rolled = DoublySymmetricIUserDefined(
     area_properties=area_properties_127x76x13,
     dimensions=dimensions_127x76x13,
     material=steel
@@ -42,10 +43,13 @@ profile_built_up = DoublySymmetricIUserDefined(
     material=steel,
     construction=ConstructionType.BUILT_UP
 )
-beam_compression_1 = BeamCompressionEffectiveLength(
-    profile=profile_rolled,
+beam_1_compression = BeamCompressionEffectiveLength(
+    profile=profile_127x76x13_rolled,
     unbraced_length=1.0 * m,
-
+)
+beam_1_flexure = BeamFlexureDoublySymmetric(
+    profile=profile_127x76x13_rolled,
+    unbraced_length=1.0 * m
 )
 
 
@@ -64,7 +68,7 @@ def test_doubly_symmetric_i_kc_coefficient(
 @mark.parametrize(
     "profile",
     [
-        (profile_rolled, 13.29195457),
+        (profile_127x76x13_rolled, 13.29195457),
         (profile_built_up, 13.24303697)
     ]
 )
@@ -75,24 +79,24 @@ def test_doubly_symmetric_i_flange_axial_slenderness_limit(
 
 
 def test_doubly_symmetric_i_web_axial_slenderness_limit():
-    assert (profile_rolled.slenderness.web_axial_compression_limit_ratio == approx(35.36609341))
+    assert (profile_127x76x13_rolled.slenderness.web_axial_compression_limit_ratio == approx(35.36609341))
 
 
 def test_doubly_symmetric_i_flange_flexural_slenderness_limit():
-    assert (profile_rolled.slenderness.flange_axial_limit_ratio == approx(13.29195457))
+    assert (profile_127x76x13_rolled.slenderness.flange_axial_limit_ratio == approx(13.29195457))
 
 
 def test_doubly_symmetric_i_web_flexural_limit():
-    assert (profile_rolled.slenderness.web_axial_compression_limit_ratio == approx(35.36609341))
+    assert (profile_127x76x13_rolled.slenderness.web_axial_compression_limit_ratio == approx(35.36609341))
 
 
 def test_doubly_symmetric_i_axial_slenderness():
-    assert (profile_rolled.slenderness.axial_compression == Slenderness.NON_SLENDER)
+    assert (profile_127x76x13_rolled.slenderness.axial_compression == Slenderness.NON_SLENDER)
 
 
 @mark.parametrize(
     "beam",
-    [(beam_compression_1, 54.28101483)]
+    [(beam_1_compression, 54.28101483)]
 )
 def test_beam_compression_effective_length_minor_axis_flexural_slenderness(
         beam: tuple[BeamCompressionEffectiveLength, float]
@@ -102,7 +106,7 @@ def test_beam_compression_effective_length_minor_axis_flexural_slenderness(
 
 @mark.parametrize(
     "beam",
-    [(beam_compression_1, Quantity(669.9367836, MPa))]
+    [(beam_1_compression, Quantity(669.9367836, MPa))]
 )
 def test_beam_compression_effective_length_elastic_flexural_buckling_stress(
         beam: tuple[BeamCompressionEffectiveLength, Quantity]
@@ -113,7 +117,7 @@ def test_beam_compression_effective_length_elastic_flexural_buckling_stress(
 
 @mark.parametrize(
     "beam",
-    [(beam_compression_1, Quantity(284.3846289, MPa))]
+    [(beam_1_compression, Quantity(284.3846289, MPa))]
 )
 def test_beam_compression_effective_length_flexural_buckling_critical_stress(
         beam: tuple[BeamCompressionEffectiveLength, Quantity]
@@ -124,7 +128,7 @@ def test_beam_compression_effective_length_flexural_buckling_critical_stress(
 
 @mark.parametrize(
     "beam",
-    [(beam_compression_1, Quantity(469234.6376, N))]
+    [(beam_1_compression, Quantity(469234.6376, N))]
 )
 def test_beam_compression_effective_length_flexural_buckling_strength(
         beam: tuple[BeamCompressionEffectiveLength, Quantity]
@@ -135,7 +139,7 @@ def test_beam_compression_effective_length_flexural_buckling_strength(
 
 @mark.parametrize(
     "beam",
-    [(beam_compression_1, Quantity(1018.305052, MPa))]
+    [(beam_1_compression, Quantity(1018.305052, MPa))]
 )
 def test_beam_compression_effective_length_torsional_buckling_elastic_stress(
         beam: tuple[BeamCompressionEffectiveLength, Quantity]
@@ -146,10 +150,28 @@ def test_beam_compression_effective_length_torsional_buckling_elastic_stress(
 
 @mark.parametrize(
     "beam",
-    [(beam_compression_1, Quantity(1680203.335, N))]
+    [(beam_1_compression, Quantity(1680203.335, N))]
 )
 def test_beam_compression_effective_length_torsional_buckling_strength(
         beam: tuple[BeamCompressionEffectiveLength, Quantity]
 ):
     calculated, reference = same_units_simplify(beam[0].strength_torsional_buckling, beam[1])
+    assert calculated == approx(reference)
+
+
+@mark.parametrize(
+    "beam",
+    [(beam_1_flexure, Quantity(29820000, N * mm))]
+)
+def test_beam_flexure_yield_strength(beam: tuple[BeamFlexureDoublySymmetric, Quantity]):
+    calculated, reference = same_units_simplify(beam[0].strength_yielding, beam[1])
+    assert calculated == approx(reference)
+
+
+@mark.parametrize(
+    "beam",
+    [(beam_1_flexure, Quantity(29820000, N * mm))]
+)
+def test_beam_flexure_lateral_torsional_strength(beam: tuple[BeamFlexureDoublySymmetric, Quantity]):
+    calculated, reference = same_units_simplify(beam[0].strength_yielding, beam[1])
     assert calculated == approx(reference)
