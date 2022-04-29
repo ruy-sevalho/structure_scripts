@@ -22,7 +22,7 @@ area_properties_127x76x13 = GenericAreaProperties(
     major_axis_elastic_section_modulus=75 * cm ** 3,
     major_axis_plastic_section_modulus=84 * cm ** 3,
     torsional_constant=2.85 * cm ** 4,
-    warping_constant=0.002 * dm ** 6
+    warping_constant=2000000000 * mm ** 6
 )
 dimensions_127x76x13 = DoublySymmetricIDimensionsUserDefined(
     flange_width=76 * mm,
@@ -63,6 +63,45 @@ def test_doubly_symmetric_i_kc_coefficient(
         profile: tuple[DoublySymmetricIUserDefined, float]
 ):
     assert (profile[0].slenderness.kc_coefficient == approx(profile[1]))
+
+
+@mark.parametrize(
+    "profile",
+    [
+        (profile_127x76x13_rolled, 21.12388887 * mm),
+    ]
+)
+def test_doubly_symmetric_i_effective_radius_of_gyration(
+        profile: tuple[DoublySymmetricIUserDefined, Quantity]
+):
+    calculated, reference = same_units_simplify(profile[0].area_properties.effective_radius_of_gyration, profile[1])
+    assert calculated == approx(reference)
+
+
+@mark.parametrize(
+    "profile",
+    [
+        (profile_127x76x13_rolled, 2912.384214 * mm),
+    ]
+)
+def test_doubly_symmetric_i_limit_length_torsional_buckling(
+        profile: tuple[DoublySymmetricIUserDefined, Quantity]
+):
+    calculated, reference = same_units_simplify(profile[0].limit_length_torsional_buckling, profile[1])
+    assert calculated == approx(reference)
+
+
+@mark.parametrize(
+    "profile",
+    [
+        (profile_127x76x13_rolled, 769.6008355 * mm),
+    ]
+)
+def test_doubly_symmetric_i_limit_length_yield(
+        profile: tuple[DoublySymmetricIUserDefined, Quantity]
+):
+    calculated, reference = same_units_simplify(profile[0].limit_length_yield, profile[1])
+    assert calculated == approx(reference)
 
 
 @mark.parametrize(
@@ -170,8 +209,26 @@ def test_beam_flexure_yield_strength(beam: tuple[BeamFlexureDoublySymmetric, Qua
 
 @mark.parametrize(
     "beam",
-    [(beam_1_flexure, Quantity(29820000, N * mm))]
+    [(beam_1_flexure, Quantity(28617620.57, N * mm))]
 )
-def test_beam_flexure_lateral_torsional_strength(beam: tuple[BeamFlexureDoublySymmetric, Quantity]):
-    calculated, reference = same_units_simplify(beam[0].strength_yielding, beam[1])
+def test_beam_flexure_strength_lateral_torsion_compact_case_b(beam: tuple[BeamFlexureDoublySymmetric, Quantity]):
+    calculated, reference = same_units_simplify(beam[0].strength_lateral_torsion_compact_case_b, beam[1])
+    assert calculated == approx(reference)
+
+
+@mark.parametrize(
+    "beam",
+    [(beam_1_flexure, Quantity(1098.821625, MPa))]
+)
+def test_beam_flexure_critical_stress_lateral_torsional_buckling(beam: tuple[BeamFlexureDoublySymmetric, Quantity]):
+    calculated, reference = same_units_simplify(beam[0].critical_stress_lateral_torsional_buckling, beam[1])
+    assert calculated == approx(reference)
+
+
+@mark.parametrize(
+    "beam",
+    [(beam_1_flexure, Quantity(82411621.84, N * mm))]
+)
+def test_beam_flexure_strength_lateral_torsion_compact_case_c(beam: tuple[BeamFlexureDoublySymmetric, Quantity]):
+    calculated, reference = same_units_simplify(beam[0].strength_lateral_torsion_compact_case_c, beam[1])
     assert calculated == approx(reference)

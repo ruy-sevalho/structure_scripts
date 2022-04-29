@@ -157,9 +157,10 @@ def _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_
         limiting_length_torsional_buckling: Quantity,
 ) -> Quantity:
     l_factor = (
-            (length_between_braces - limiting_length_yield) /
-            (limiting_length_torsional_buckling - limiting_length_yield)
+            (length_between_braces - limiting_length_yield).simplified /
+            (limiting_length_torsional_buckling - limiting_length_yield).simplified
     )
+    print(f"l_factor: {l_factor}")
     mp_factor = plastic_moment - 0.7 * yield_stress * section_modulus
     calculated_moment = mod_factor * (plastic_moment - mp_factor * l_factor)
     momt_calc, momt_plastic = same_units_simplify(calculated_moment, plastic_moment)
@@ -171,9 +172,7 @@ def _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_
         section_modulus: Quantity,
         critical_stress: Quantity
 ) -> Quantity:
-    calculated_moment = critical_stress * section_modulus
-    momt_calc, momt_plastic = same_units_simplify(calculated_moment, plastic_moment)
-    return min(momt_calc, momt_plastic)
+    return critical_stress * section_modulus
 
 
 def _flexural_lateral_torsional_buckling_strength_compact(
@@ -231,7 +230,7 @@ def _limiting_length_torsional_buckling(
 def _effective_radius_of_gyration(
         major_section_modulus: Quantity, minor_inertia: Quantity, warping_constant: Quantity
 ) -> Quantity:
-    return (minor_inertia * warping_constant) / major_section_modulus
+    return ((minor_inertia * warping_constant) ** 0.5 / major_section_modulus) ** 0.5
 
 
 def _flexural_flange_local_buckling_non_compact(
@@ -704,7 +703,7 @@ class BeamFlexureDoublySymmetric:
 
     @cached_property
     def plastic_moment(self) -> Quantity:
-        return self.profile.area_properties.major_axis_plastic_section_modulus * self.profile.material.yield_stress
+        return self.strength_yielding
 
     @cached_property
     def strength_yielding(self):
@@ -774,22 +773,21 @@ class BeamFlexureDoublySymmetric:
 
 
 def main():
-    q: Quantity = 84 * cm ** 3
-    print(q.rescale(mm ** 3))
     steel = IsoTropicMaterial(
         modulus_linear=200 * GPa,
         modulus_shear=77 * GPa,
         poisson_ratio=0.3,
         yield_stress=355 * MPa
     )
-    area_properties_p004 = GenericAreaProperties(
+    area_properties_127x76x13 = GenericAreaProperties(
         area=16.5 * cm ** 2,
         minor_axis_inertia=56 * cm ** 4,
         minor_axis_elastic_section_modulus=15 * cm ** 3,
         major_axis_inertia=473 * cm ** 4,
         major_axis_elastic_section_modulus=75 * cm ** 3,
+        major_axis_plastic_section_modulus=84 * cm ** 3,
         torsional_constant=2.85 * cm ** 4,
-        warping_constant=0.002 * dm ** 6
+        warping_constant=2000000000 * mm ** 6
     )
     dimensions_p004 = DoublySymmetricIDimensionsUserDefined(
         flange_width=250 * mm,
@@ -798,15 +796,24 @@ def main():
         web_thickness=8.5 * mm,
         total_height=250 * mm
     )
+    dimensions_127x76x13 = DoublySymmetricIDimensionsUserDefined(
+        flange_width=76 * mm,
+        flange_thickness=7.6 * mm,
+        web_height=96.6 * mm,
+        web_thickness=4 * mm,
+        total_height=127 * mm
+    )
     profile_rolled = DoublySymmetricIUserDefined(
-        area_properties=None,
-        dimensions=dimensions_p004,
+        area_properties=area_properties_127x76x13,
+        dimensions=dimensions_127x76x13,
         material=steel
     )
-    print(profile_rolled.slenderness.axial_compression)
-    print(profile_rolled.slenderness.flexural_minor_axis)
-    print(profile_rolled.slenderness.flange_flexural_minor_axis_slenderness)
-    print(profile_rolled.slenderness.web_flexural_slenderness)
+    beam_1_flex = BeamFlexureDoublySymmetric(
+        profile=profile_rolled,
+        unbraced_length=1 * m
+    )
+    print(beam_1_flex.strength_lateral_torsion_compact_case_b.simplified)
+    # print(beam_1_flex.profile.dimensions.distance_between_centroids)
 
 
 # Press the green button in the gutter to run the script.
