@@ -121,8 +121,10 @@ def _dataframe_table_columns(
             str, PrintOptions
         ] = ReportConfig().to_dict(),  # learn to use bloody config
         unit_display: Literal["header", "cell"] = "header",
+        include_description: bool = False
 ) -> Tblr:
-    width = df.shape[0] + 1
+    width_correction = 2 if include_description else 1
+    width = df.shape[0] + width_correction
     # column specifications of tabularray package for latex
     first_row = "Q[l, m]"
     remaining_rows = " Q[c, m]"
@@ -136,6 +138,9 @@ def _dataframe_table_columns(
     #     print(f"name: {name}")
     for row, name in enumerate(df.columns):
         print_config = config_dict.get(name, PrintOptions())
+        if include_description:
+            description = print_config.description or name.replace("_", " ")
+            table[row].append(description)
         # in latex _ is a special character
         label = print_config.label or name.replace("_", " ")
         # Assuming dataframe has at least one row and all objects
@@ -156,6 +161,7 @@ def _dataframe_table_columns(
             unit_display=unit_display,
         )
         table[row].append(header)
+
         # table[row].append(column[0])
         # continue
         for item in column:

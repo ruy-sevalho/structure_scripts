@@ -16,116 +16,96 @@ class PrintOptions:
 @dataclass
 class ReportConfig:
     name: PrintOptions = PrintOptions()
-    modulus_x: PrintOptions = PrintOptions(
+    modulus_linear: PrintOptions = PrintOptions(
         print_units="GPa",
-        label=r"E\textsubscript{x}",
-        description="Modulus of elasticity - x direction",
+        label=NoEscape(r"$E$"),
+        description=NoEscape(r"M\'odulo de elasticidade"),
     )
-    modulus_y: PrintOptions = PrintOptions(print_units="GPa")
-    modulus_xy: PrintOptions = PrintOptions(print_units="GPa")
-    density: PrintOptions = PrintOptions(round_precision=0)
-    max_strain_x: PrintOptions = PrintOptions()
-    max_strain_xy: PrintOptions = PrintOptions()
-    f_mass_cont: PrintOptions = PrintOptions()
-    f_area_density: PrintOptions = PrintOptions()
-    thickness: PrintOptions = PrintOptions(
-        print_units="mm", round_precision=2, label="t"
+    modulus_shear: PrintOptions = PrintOptions(
+        print_units="GPa",
+        label=NoEscape(r"$G$"),
+        description=NoEscape(r"M\ódulo de elasticidade transversal")
     )
-    thickness_outer: PrintOptions = PrintOptions(
-        print_units="mm", round_precision=2, label=NoEscape(r"t\textsubscript{o}")
+    density: PrintOptions = PrintOptions(
+        round_precision=0,
+        label=NoEscape(r"\rho"),
+        description="Densidade"
     )
-    thickness_inner: PrintOptions = PrintOptions(
-        print_units="mm", round_precision=2, label=NoEscape(r"t\textsubscript{i}")
+    flange_thickness: PrintOptions = PrintOptions(
+        print_units="mm", round_precision=2, label=NoEscape(r"$t_f$"), description="Espessura do flange"
     )
-    orientation: PrintOptions = PrintOptions()
-    multiple: PrintOptions = PrintOptions()
-    strength_shear: PrintOptions = PrintOptions()
-    modulus_shear: PrintOptions = PrintOptions()
-    strength_tens: PrintOptions = PrintOptions()
-    modulus_tens: PrintOptions = PrintOptions()
-    strength_comp: PrintOptions = PrintOptions()
-    modulus_comp: PrintOptions = PrintOptions()
-    resin_absorption: PrintOptions = PrintOptions()
-    core_type: PrintOptions = PrintOptions()
-    dimension_web: PrintOptions = PrintOptions()
-    dimension_flange: PrintOptions = PrintOptions()
-    linear_strain_ratio: PrintOptions = PrintOptions(
+    flange_width: PrintOptions = PrintOptions(
+        print_units="mm", round_precision=2, label=NoEscape(r"$b_f$"), description="Largura do flange"
+    )
+    web_height: PrintOptions = PrintOptions(
+        print_units="mm", round_precision=2, label=NoEscape(r"$w_h$"), description="Altura da alma"
+    )
+    web_thickness: PrintOptions = PrintOptions(
+        print_units="mm", round_precision=2, label=NoEscape(r"$t_w$"), description="Espessura da alma"
+    )
+    total_height: PrintOptions = PrintOptions(
+        print_units="mm", round_precision=2, label=NoEscape(r"$d$"), description="Altura total do perfil"
+    )
+    distance_between_centroids: PrintOptions = PrintOptions(
+        print_units="mm",
         round_precision=2,
-        label=NoEscape(r"$\epsilon$"),
-        description="Linear strain",
+        label=NoEscape(r"$h_0$"),
+        description=NoEscape(r"Dist\^ancia entre centro\'ides dos flanges")
     )
-    linear_strain_ratio_simp: PrintOptions = PrintOptions(
+    area: PrintOptions = PrintOptions(
+        print_units="cm ** 2",
         round_precision=2,
-        label=NoEscape(r"$\epsilon$\textsubscript{s}"),
-        description="Linear strain",
+        label=NoEscape(r"$A$"),
+        description=NoEscape(r"\'Area da se\c{c}\~ao transversal")
     )
-    linear_strain_ratio_bottom: PrintOptions = PrintOptions(
+    major_axis_inertia: PrintOptions = PrintOptions(
+        print_units="cm ** 4",
         round_precision=2,
-        label=NoEscape(r"$\epsilon$\textsubscript{B}"),
-        description="Linear strain",
+        label=NoEscape(r"$I_x$"),
+        description=NoEscape(r"Momento de in\'ercia do eixo principal")
     )
-    linear_strain_ratio_top: PrintOptions = PrintOptions(
+    minor_axis_inertia: PrintOptions = PrintOptions(
+        print_units="cm ** 4",
         round_precision=2,
-        label=NoEscape(r"$\epsilon$\textsubscript{T}"),
-        description="Linear strain",
+        label=NoEscape(r"$I_y$"),
+        description=NoEscape(r"Momento de in\'ercia do eixo secund\'ario")
     )
-    shear_strain_ratio: PrintOptions = PrintOptions(
+    major_axis_elastic_section_modulus: PrintOptions = PrintOptions(
+        print_units="cm ** 3",
         round_precision=2,
-        label=NoEscape(r"$\gamma$"),
-        description="Shear strain",
+        label=NoEscape(r"$S_x$"),
+        description=NoEscape(r"Momento de in\'ercia el\'astico do eixo principal")
     )
-    shear_strain_buckling_ratio: PrintOptions = PrintOptions(
+    major_axis_plastic_section_modulus: PrintOptions = PrintOptions(
+        print_units="cm ** 3",
         round_precision=2,
-        label=NoEscape(r"$\gamma$\textsubscript{buck}"),
-        description="Buckling shear strain",
+        label=NoEscape(r"$Z_x$"),
+        description=NoEscape(r"Momento de in\'ercia do eixo principal")
     )
-    design_pressure_type: PrintOptions = PrintOptions(
-        label=NoEscape(r"{design p\\ type}")
+    major_axis_radius_of_gyration: PrintOptions = PrintOptions(
+        print_units="cm",
+        round_precision=2,
+        label=NoEscape(r"$r_x$"),
+        description=NoEscape(r"Raio de gira\c{c}\~ao do eixo principal")
     )
-    design_pressure: PrintOptions = PrintOptions(label="design p")
-    core_shear_stress_ratio: PrintOptions = PrintOptions(
-        label=NoEscape(r"$\gamma$\textsubscript{core}")
+    minor_axis_elastic_section_modulus: PrintOptions = PrintOptions(
+        print_units="cm ** 3",
+        round_precision=2,
+        label=NoEscape(r"$S_y$"),
+        description=NoEscape(r"Momento de in\'ercia el\'astico do eixo secund\'ario")
     )
-    skin_wrinkling_ratio: PrintOptions = PrintOptions(
-        label=NoEscape(r"$\epsilon$\textsubscript{wrinkle}")
+    minor_axis_plastic_section_modulus: PrintOptions = PrintOptions(
+        print_units="cm ** 3",
+        round_precision=2,
+        label=NoEscape(r"$Z_y$"),
+        description=NoEscape(r"Momento de in\'ercia do eixo secund\'ario")
+    )
+    minor_axis_radius_of_gyration: PrintOptions = PrintOptions(
+        print_units="cm",
+        round_precision=2,
+        label=NoEscape(r"$r_y$"),
+        description=NoEscape(r"Raio de gira\c{c}\~ao do eixo secund\'ario")
     )
 
     def to_dict(self):
         return {field_.name: getattr(self, field_.name) for field_ in fields(self)}
-
-
-modulus_print_options = PrintOptions(print_units="GPa")
-density_print_options = PrintOptions(round_precision=0)
-max_strain_print_options = PrintOptions()
-f_mass_cont_print_options = PrintOptions(round_precision=0)
-f_area_density_print_options = PrintOptions(round_precision=3)
-thickness_print_options = PrintOptions(print_units="mm")
-orientation_print_options = PrintOptions(round_precision=1)
-multiple_print_options = PrintOptions(round_precision=0)
-strength_shear_print_options = PrintOptions(round_precision=0)
-dimension_web_print_options = PrintOptions(print_units="mm")
-dimension_flange_print_options = PrintOptions(print_units="mm")
-
-default_report_config = ReportConfig(
-    modulus_x=modulus_print_options,
-    modulus_y=modulus_print_options,
-    modulus_xy=modulus_print_options,
-    density=density_print_options,
-    max_strain_x=max_strain_print_options,
-    max_strain_xy=max_strain_print_options,
-    f_mass_cont=f_mass_cont_print_options,
-    f_area_density=f_area_density_print_options,
-    thickness=thickness_print_options,
-    orientation=orientation_print_options,
-    multiple=multiple_print_options,
-    strength_shear=strength_shear_print_options,
-    modulus_shear=modulus_print_options,
-    strength_tens=strength_shear_print_options,
-    modulus_tens=modulus_print_options,
-    strength_comp=strength_shear_print_options,
-    modulus_comp=modulus_print_options,
-    resin_absorption=PrintOptions(),
-    core_type=PrintOptions(),
-    dimension_flange=dimension_flange_print_options,
-    dimension_web=dimension_web_print_options,
-)
