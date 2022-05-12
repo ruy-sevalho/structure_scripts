@@ -1,6 +1,6 @@
 from dataclasses import dataclass, fields
 from typing import Optional
-from pylatex import NoEscape
+from pylatex import NoEscape, Math
 
 
 @dataclass
@@ -17,6 +17,7 @@ class PrintOptions:
 class ReportConfig:
     name: PrintOptions = PrintOptions()
     modulus_linear: PrintOptions = PrintOptions(
+        round_precision=0,
         print_units="GPa",
         label=NoEscape(r"$E$"),
         description=NoEscape(r"M\'odulo de elasticidade"),
@@ -24,18 +25,27 @@ class ReportConfig:
     modulus_shear: PrintOptions = PrintOptions(
         print_units="GPa",
         label=NoEscape(r"$G$"),
-        description=NoEscape(r"M\ódulo de elasticidade transversal")
+        description=NoEscape(r"M\ódulo de elasticidade transversal"),
+        round_precision=0,
     )
     density: PrintOptions = PrintOptions(
         round_precision=0,
         label=NoEscape(r"\rho"),
         description="Densidade"
     )
+    yield_stress: PrintOptions = PrintOptions(
+        round_precision=0,
+        label=NoEscape(r"$F_y$"),
+        description=NoEscape(r"Tens\ão de escoamento")
+    )
     flange_thickness: PrintOptions = PrintOptions(
         print_units="mm", round_precision=2, label=NoEscape(r"$t_f$"), description="Espessura do flange"
     )
     flange_width: PrintOptions = PrintOptions(
-        print_units="mm", round_precision=2, label=NoEscape(r"$b_f$"), description="Largura do flange"
+        print_units="mm", round_precision=0, label=NoEscape(r"$b_f$"), description="Largura do flange"
+    )
+    flange_axial_limit_ratio: PrintOptions = PrintOptions(
+        round_precision=2, label=NoEscape(r"$\alpha_r$"), description="Limite esbeltez"
     )
     web_height: PrintOptions = PrintOptions(
         print_units="mm", round_precision=2, label=NoEscape(r"$w_h$"), description="Altura da alma"
@@ -44,7 +54,7 @@ class ReportConfig:
         print_units="mm", round_precision=2, label=NoEscape(r"$t_w$"), description="Espessura da alma"
     )
     total_height: PrintOptions = PrintOptions(
-        print_units="mm", round_precision=2, label=NoEscape(r"$d$"), description="Altura total do perfil"
+        print_units="mm", round_precision=0, label=NoEscape(r"$d$"), description="Altura total do perfil"
     )
     distance_between_centroids: PrintOptions = PrintOptions(
         print_units="mm",
@@ -105,6 +115,16 @@ class ReportConfig:
         round_precision=2,
         label=NoEscape(r"$r_y$"),
         description=NoEscape(r"Raio de gira\c{c}\~ao do eixo secund\'ario")
+    )
+    torsional_constant: PrintOptions = PrintOptions(
+        print_units="cm ** 4",
+        round_precision=2,
+        label=NoEscape(r"$J$"),
+        description=NoEscape(r"Momento Polar de In\'ercia")
+    )
+    construction: PrintOptions = PrintOptions(
+        label="-",
+        description=NoEscape(r"Tipo de constru\c{c}\~ao")
     )
 
     def to_dict(self):

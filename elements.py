@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import Protocol
+from typing import Protocol, Any
 from dataclasses import dataclass, field
 import pandas as pd
 
@@ -24,11 +24,30 @@ dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilonewton", 1000 * N, symbol="kN")
 
 
+def _extract_dataframe(obj: Any, extraction_type: Any, filter_names: list[str] = None):
+    filter_names = filter_names or []
+    dict_ = {key: [getattr(obj, key)] for key in extraction_type.__annotations__.keys() if key not in filter_names}
+    return pd.DataFrame(dict_)
+
+
+class TableKeys(Protocol):
+    @classmethod
+    def table_keys(cls):
+        return cls.__annotations__.keys()
+
+
 class Material(Protocol):
     modulus_linear: Quantity
     modulus_shear: Quantity
     poisson_ratio: float
     yield_stress: Quantity
+
+    def table(self, filter_names: list[str] = None):
+        return _extract_dataframe(obj=self, extraction_type=Material, filter_names=filter_names)
+
+    @cached_property
+    def default_table(self):
+        return self.table(filter_names=["poisson_ratio"])
 
 
 @dataclass
@@ -54,14 +73,13 @@ class AreaProperties(Protocol):
     torsional_radius_of_gyration: Quantity
     warping_constant: Quantity
 
-    @classmethod
-    def table_keys(cls):
-        return cls.__annotations__.keys()
-
     # Don't be mad future me. At least it worked
-    def table(self, filter_names: list[str] = field(default_factory=list)):
-        dict_ = {key: [getattr(self, key)] for key in AreaProperties.table_keys() if key not in filter_names}
-        return pd.DataFrame(dict_)
+    def table(self, filter_names: list[str] = None):
+        return _extract_dataframe(obj=self, extraction_type=AreaProperties, filter_names=filter_names)
+
+    @cached_property
+    def default_table(self):
+        return self.table(filter_names=["warping_constant", "torsional_radius_of_gyration"])
 
 
 class ProfileSlenderness(Protocol):
@@ -88,6 +106,13 @@ class DoublySymmetricIDimensions(Protocol):
     web_thickness: Quantity
     total_height: Quantity
     distance_between_centroids: Quantity
+
+    def table(self, filter_names: list[str] = None):
+        return _extract_dataframe(obj=self, extraction_type=DoublySymmetricIDimensions, filter_names=filter_names)
+
+    @cached_property
+    def default_table(self):
+        return self.table()
 
 
 @dataclass
@@ -237,11 +262,6 @@ class DoublySymmetricIDimensionsUserDefined(DoublySymmetricIDimensions):
 
 
 @dataclass
-class DoublySymmetricIAreaProperties(AreaProperties):
-    dimensions: DoublySymmetricIDimensions
-
-
-@dataclass
 class GenericAreaProperties(AreaProperties):
     area: Quantity
     major_axis_inertia: Quantity
@@ -269,11 +289,6 @@ class GenericAreaProperties(AreaProperties):
             self.torsional_radius_of_gyration = _radius_of_gyration(self.torsional_constant, self.area)
 
 
-class SlendernessAreaProperties(Protocol):
-    major_axis_section_modulus: Quantity
-    minor_axis_section_modulus: Quantity
-
-
 @dataclass
 class DoublySymmetricISlenderness(ProfileSlenderness):
     area_properties: AreaProperties
@@ -292,6 +307,10 @@ class DoublySymmetricISlenderness(ProfileSlenderness):
             stress=self.material.yield_stress,
             factor=0.56,
         )
+
+    @cached_property
+    def flange_axial_limit_ratio_rolled_latex(self):
+        return
 
     @cached_property
     def flange_axial_limit_ratio_built_up(self):
@@ -463,6 +482,17 @@ class DoublySymmetricIUserDefined(SectionProfile):
     def __post_init__(self):
         if not self.area_properties:
             self.area_properties = DoublySymmetricIAreaPropertiesFromDimensions(self.dimensions)
+
+    @cached_property
+    def default_table(self):
+        dimensions_table = self.dimensions.default_table
+        area_properties_table = self.area_properties.default_table
+        extra_table = _extract_dataframe(
+            obj=self,
+            extraction_type=DoublySymmetricIUserDefined,
+            filter_names=["dimensions", "area_properties", "material"]
+        )
+        return pd.concat((dimensions_table, area_properties_table, extra_table), axis=1)
 
     @cached_property
     def warping_constant(self):

@@ -1,11 +1,14 @@
+from enum import Enum
 from typing import Literal, Optional, Union
 from functools import partial
+
 import pandas as pd
+from jinja2 import Template, PackageLoader, FileSystemLoader
+from jinja2 import Environment as JinjaEnvironment
 from pylatex import (
     Document,
     MiniPage,
     NoEscape,
-    Quantity,
     Section,
     Subsection,
     Subsubsection,
@@ -14,13 +17,17 @@ from pylatex import (
     Package,
     NewPage,
 )
+from pylatex import Quantity as LatexQuantity
 from pylatex.base_classes import Environment, CommandBase, Command
 from pylatex.labelref import Label
 from pylatex.math import Math
 from pylatex.utils import dumps_list
 import quantities as pq
+from quantities import Quantity, percent
 
 from report_config import ReportConfig, PrintOptions
+
+env = JinjaEnvironment(loader=FileSystemLoader("templates"))
 
 
 class Center(Environment):
@@ -39,6 +46,26 @@ class ListOfTables(CommandBase):
     pass
 
 
+class Alpha(CommandBase):
+    pass
+
+
+class Lambda(CommandBase):
+    pass
+
+
+class Frac(CommandBase):
+    pass
+
+
+class Sqrt(CommandBase):
+    pass
+
+
+alpha = Alpha()
+lambda_ = Lambda()
+
+
 class Tblr(Tabular):
     """Blank copy of Tabular class from pylatex, but with tblr tables, from tabularray package."""
 
@@ -48,8 +75,8 @@ def _get_header(
         units: Optional[str] = None,
         unit_display: Literal["header", "cell"] = "header",
 ) -> Union[str, NoEscape]:
-    if unit_display == "header" and not units == pq.percent:  # or units == criteria:
-        units_string = Quantity(pq.Quantity(1, units)).dumps()
+    if unit_display == "header" and not units == percent:  # or units == criteria:
+        units_string = LatexQuantity(Quantity(1, units)).dumps()
         units_string = units_string[:4] + units_string[5:]
         header = ["{", label, r"\\ ", units_string, "}"]
         header = dumps_list(header, escape=False, token="")
@@ -58,26 +85,27 @@ def _get_header(
     return header
 
 
+def _process_quantity_entry(
+        entry: Quantity,
+        convert_units: Optional[str] = None,
+        round_precision: int = 2,
+        unit_display: Literal["header", "cell"] = "header",
+):
+    if pd.isna(entry):
+        return "-"
+    if convert_units is not None:
+        entry = entry.rescale(convert_units)
+    if unit_display == "header" and not entry.units == percent:
+        entry = entry.magnitude
+    return LatexQuantity(entry, options={"round-precision": round_precision})
+
+
 def _process_entry(
-        entry: pq.Quantity | int | float | str,  # Criteria
+        entry: Quantity | int | float | str,  # Criteria
         convert_units: Optional[str],
         round_precision: int = 2,
         unit_display: Literal["header", "cell"] = "header",
 ):
-    def _process_quantity_entry(
-            entry: pq.Quantity,
-            convert_units: Optional[str] = None,
-            round_precision: int = 2,
-            unit_display: Literal["header", "cell"] = "header",
-    ):
-        if pd.isna(entry):
-            return "-"
-        if convert_units is not None:
-            entry = entry.rescale(convert_units)
-        if unit_display == "header" and not entry.units == pq.percent:
-            entry = entry.magnitude
-        return Quantity(entry, options={"round-precision": round_precision})
-
     process_quantity = partial(
         _process_quantity_entry,
         convert_units=convert_units,
@@ -87,12 +115,15 @@ def _process_entry(
     # process_criteria = lambda x: x.to_latex(round_precision=round_precision)
     process_nan = lambda x: "-"
     process_others = lambda x: x
-    if isinstance(entry, pq.Quantity):
+    process_enum = lambda x: x.value
+    if isinstance(entry, Quantity):
         process_function = process_quantity
     # elif isinstance(entry, Criteria):
     #     process_function = process_criteria
     elif pd.isna(entry):
         process_function = process_nan
+    elif isinstance(entry, Enum):
+        process_function = process_enum
     else:
         process_function = process_others
     return process_function(entry)
@@ -149,7 +180,7 @@ def _dataframe_table_columns(
         # to determine what type the column is populated
         instance = df[name].dropna().head(1).reset_index(drop=True).at[0]
 
-        if isinstance(instance, pq.Quantity):
+        if isinstance(instance, Quantity):
             units = print_config.print_units or instance.units
             header = _get_header(label=label, units=units, unit_display=unit_display)
         else:
@@ -198,7 +229,7 @@ def _dataframe_table_rows(
         # to determine what type the column is populated
         instance = df[name].dropna().head(1).reset_index(drop=True).at[0]
 
-        if isinstance(instance, pq.Quantity):
+        if isinstance(instance, Quantity):
             units = print_config.print_units or instance.units
             header = _get_header(label=label, units=units, unit_display=unit_display)
         else:
@@ -247,3 +278,42 @@ def _add_df_table_transposed(
     )
     table.append(tblr)
     return table
+
+
+def nolew():
+    pass
+
+
+def _process_quantity_entry_config(entry, print_config: PrintOptions):
+    return _process_quantity_entry(
+        entry=entry,
+        round_precision=print_config.round_precision,
+        convert_units=print_config.print_units,
+        unit_display="cell"
+    )
+
+
+def _compression_slenderness_rolled_flange_equation(
+        modulus: Quantity,
+        yield_stress: Quantity,
+        flange_axial_limit_ratio: float,
+        config_dict: ReportConfig = ReportConfig()
+):
+    modulus = _process_quantity_entry_config(entry=modulus, print_config=config_dict.modulus_linear).dumps()
+    yield_stress = _process_quantity_entry_config(entry=yield_stress, print_config=config_dict.yield_stress).dumps()
+    flange_axial_limit_ratio = _process_quantity_entry_config(
+        entry=flange_axial_limit_ratio,
+        print_config=config_dict.flange_axial_limit_ratio
+    ).dumps()
+    # template = Template(
+    #     r'''{% raw %}\[ \lambda_r = 1,49 \sqrt{\frac{E}{F_y}} = 1,49 \sqrt{\frac{{% endraw %}{{modulus}} {{
+    #     "}{"}}{{yield_stress}} {{ "}}" }} = {{flange_axial_limit_ratio}}'''
+    # )
+    template = env.get_template("compression_slenderness_rolled_flange_equation.tex")
+    return template.render(
+        modulus=modulus,
+        yield_stress=yield_stress,
+        flange_axial_limit_ratio=flange_axial_limit_ratio
+    )
+
+# def _compression_slenderness_web_equation

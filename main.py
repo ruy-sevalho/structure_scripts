@@ -1,18 +1,21 @@
 # Module for calculating beam in accordance to ANSI/AISC 360-10
 # Author: Ruy Sevalho Goncalves
-
-
+from pylatex.base_classes import CommandBase
 from quantities import Quantity, dimensionless, cm, UnitQuantity, m, mm, GPa, MPa, N
 
 from elements import IsoTropicMaterial, DoublySymmetricIUserDefined, \
     BeamCompressionFlexureDoublySymmetricEffectiveLength, DoublySymmetricIDimensionsUserDefined, GenericAreaProperties, \
     SectionProfile, BeamCompressionEffectiveLength, BeamFlexureDoublySymmetric, Material
-from latex import _dataframe_table_columns
+from latex import _dataframe_table_columns, Alpha, Frac, \
+    _compression_slenderness_rolled_flange_equation
+from pylatex import Quantity as plQ
 from helpers import Slenderness, ConstructionType
+
+from pylatex import Command, Document
 
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilonewton", 1000 * N, symbol="kN")
-LATEX_ABREVIATION = 'latex'
+LATEX_ABBREVIATION = 'latex'
 
 
 def main():
@@ -48,8 +51,6 @@ def main():
         major_axis_plastic_section_modulus=584 * cm ** 3,
         torsional_constant=66 * cm ** 4,
     )
-    # print(area_properties_w_arbitrary.table_keys())
-    # print(area_properties_w_arbitrary.as_table())
     dimensions_w_arbitrary = DoublySymmetricIDimensionsUserDefined(
         flange_width=250 * mm,
         flange_thickness=9.5 * mm,
@@ -65,16 +66,34 @@ def main():
         dimensions=dimensions_wx250x250x73,
         material=steel
     )
-    table_str = _dataframe_table_columns(
-        profile_wx250x250x73_calculated.area_properties.table(
-            filter_names=["torsional_constant", "torsional_radius_of_gyration", "warping_constant"]
-        ),
+
+    table_str_dimensions = _dataframe_table_columns(
+        profile_wx250x250x73_calculated.dimensions.default_table,
         unit_display="cell",
         include_description=True
     )
-    with open("section_tables.tex", "w") as f:
-        table_str.dump(f)
-    print(table_str.dumps())
+    table_str_area_prop = _dataframe_table_columns(
+        profile_wx250x250x73_calculated.area_properties.default_table,
+        unit_display="cell",
+        include_description=True
+    )
+    df = profile_wx250x250x73_calculated.default_table
+    table_profile = _dataframe_table_columns(
+        df,
+        unit_display="cell",
+        include_description=True
+    )
+    with open("latex/section_tables.tex", "w") as f:
+        table_profile.dump(f)
+
+    steel_table = _dataframe_table_columns(
+        steel.default_table,
+        unit_display="cell",
+        include_description=True
+    )
+    with open("latex/steel.tex", "w") as f:
+        steel_table.dump(f)
+
     profile_arbitrary = DoublySymmetricIUserDefined(
         dimensions=dimensions_w_arbitrary,
         material=steel
@@ -139,11 +158,24 @@ def print_obj_pairs_attributes(pair: tuple, attributes):
         print(f"{attribute}_2: {attrs[1]}")
 
 
+def test_pascal():
+    p = plQ(Quantity(10, GPa))
+    doc = Document()
+    doc.append(p)
+    doc.append(Frac(arguments="10", extra_arguments="20"))
+    with open("test.tex", "w") as f:
+        doc.dump(f)
+
+
+def test_jinja():
+    q = Quantity(100, "MPa")
+    r = Quantity(1.2049323948)
+    print(_compression_slenderness_rolled_flange_equation(q, q, r))
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    beam_10, beam_14 = main()
-    # attrs = ('area', "minor_axis_inertia", "minor_axis_radius_of_gyration", "minor_axis_elastic_section_modulus",
-    #          "minor_axis_plastic_section_modulus", "major_axis_inertia", "major_axis_radius_of_gyration",
-    #          "major_axis_elastic_section_modulus",
-    #          "major_axis_plastic_section_modulus", "torsional_constant")
+    test_pascal()
+    test_jinja()
+    # beam_10, beam_14 = main()
     # print_obj_pairs_attributes((user_defined.area_properties, calculated.area_properties), attrs)
