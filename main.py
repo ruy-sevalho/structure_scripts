@@ -3,13 +3,18 @@
 from pylatex.base_classes import CommandBase
 from quantities import Quantity, dimensionless, cm, UnitQuantity, m, mm, GPa, MPa, N
 
-from elements import IsoTropicMaterial, DoublySymmetricIUserDefined, \
-    BeamCompressionFlexureDoublySymmetricEffectiveLength, DoublySymmetricIDimensionsUserDefined, GenericAreaProperties, \
+from aisc360_10.elements import (
+    IsoTropicMaterial, DoublySymmetricIUserDefined,
+    BeamCompressionFlexureDoublySymmetricEffectiveLength, DoublySymmetricIDimensionsUserDefined,
+    GenericAreaProperties,
     SectionProfile, BeamCompressionEffectiveLength, BeamFlexureDoublySymmetric, Material
-from latex import _dataframe_table_columns, Alpha, Frac, \
-    _compression_slenderness_rolled_flange_equation
+)
+from aisc360_10.latex import (
+    _dataframe_table_columns, Alpha, Frac,
+    _slenderness_default_limit_ratio
+)
 from pylatex import Quantity as plQ
-from helpers import Slenderness, ConstructionType
+from aisc360_10.helpers import Slenderness, ConstructionType
 
 from pylatex import Command, Document
 
@@ -170,7 +175,7 @@ def test_pascal():
 def test_jinja():
     q = Quantity(100, "MPa")
     r = Quantity(1.2049323948)
-    print(_compression_slenderness_rolled_flange_equation(q, q, r))
+    print(_slenderness_default_limit_ratio(1.23, q, q, r))
 
 
 # Press the green button in the gutter to run the script.

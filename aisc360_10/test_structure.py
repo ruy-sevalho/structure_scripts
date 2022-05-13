@@ -1,7 +1,13 @@
-from main import IsoTropicMaterial, Slenderness, DoublySymmetricIUserDefined, \
-    GenericAreaProperties, DoublySymmetricIDimensionsUserDefined, ConstructionType, SectionProfile, Material, \
-    BeamCompressionEffectiveLength, BeamFlexureDoublySymmetric
-from helpers import same_units_simplify
+from aisc360_10.elements import (
+    IsoTropicMaterial,
+    DoublySymmetricIUserDefined,
+    GenericAreaProperties,
+    BeamCompressionEffectiveLength,
+    BeamFlexureDoublySymmetric,
+    DoublySymmetricIDimensionsUserDefined
+)
+
+from aisc360_10.helpers import same_units_simplify, Slenderness, ConstructionType
 from pytest import approx, mark
 from quantities import UnitQuantity, Quantity, GPa, MPa, cm, m, mm, N
 
@@ -63,7 +69,7 @@ beam_1_flexure = BeamFlexureDoublySymmetric(
 def test_doubly_symmetric_i_kc_coefficient(
         profile: tuple[DoublySymmetricIUserDefined, float]
 ):
-    assert (profile[0].slenderness.kc_coefficient == approx(profile[1]))
+    assert (profile[0].slenderness.flange.kc_coefficient == approx(profile[1]))
 
 
 @mark.parametrize(
@@ -115,23 +121,19 @@ def test_doubly_symmetric_i_limit_length_yield(
 def test_doubly_symmetric_i_flange_axial_slenderness_limit(
         profile: tuple[DoublySymmetricIUserDefined, float]
 ):
-    assert (profile[0].slenderness.flange_axial_limit_ratio == approx(profile[1]))
+    assert (profile[0].slenderness.flange.axial_compression.limit_ratio == approx(profile[1]))
 
 
 def test_doubly_symmetric_i_web_axial_slenderness_limit():
-    assert (profile_127x76x13_rolled.slenderness.web_axial_compression_limit_ratio == approx(35.36609341))
+    assert (profile_127x76x13_rolled.slenderness.web.axial_compression.limit_ratio == approx(35.36609341))
 
 
 def test_doubly_symmetric_i_flange_flexural_slenderness_limit():
-    assert (profile_127x76x13_rolled.slenderness.flange_axial_limit_ratio == approx(13.29195457))
+    assert (profile_127x76x13_rolled.slenderness.flange.axial_limit_ratio == approx(13.29195457))
 
 
 def test_doubly_symmetric_i_web_flexural_limit():
-    assert (profile_127x76x13_rolled.slenderness.web_axial_compression_limit_ratio == approx(35.36609341))
-
-
-def test_doubly_symmetric_i_axial_slenderness():
-    assert (profile_127x76x13_rolled.slenderness.axial_compression == Slenderness.NON_SLENDER)
+    assert (profile_127x76x13_rolled.slenderness.web.axial_compression_limit_ratio == approx(35.36609341))
 
 
 @mark.parametrize(

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import total_ordering, cached_property
 from quantities import Quantity
-from helpers import same_units_simplify
+from aisc360_10.helpers import same_units_simplify
 
 
 class SafetyFactorType(str, Enum):

@@ -5,20 +5,23 @@ import pandas as pd
 
 from quantities import Quantity, UnitQuantity, cm, UnitQuantity, m, mm, GPa, MPa, N
 
-from criteria import SafetyFactor, SafetyFactorType
-from helpers import _areas_centroid, _critical_compression_stress_buckling_default, \
-    _doubly_symmetric_i_torsional_constant, _effective_radius_of_gyration, _elastic_flexural_buckling_stress, \
-    _elastic_torsional_buckling_stress_doubly_symmetric_member, _flexural_flange_local_buckling_non_compact, \
-    _flexural_lateral_torsional_buckling_critical_stress_compact_doubly_symmetric, \
-    _flexural_lateral_torsional_buckling_strength_compact, \
-    _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_b, \
-    _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_c, _flexural_major_axis_yield_strength, \
-    _flexural_minor_axis_yield_strength, _flexural_slenderness_per_element, _flexural_slenderness_several_elements, \
-    _flexure_and_axial_compression_h1_1_criteria, _kc_coefficient, \
-    _lateral_torsional_buckling_modification_factor_default, _limit_ratio_default, _limit_stress_built_up_sections, \
-    _limiting_length_torsional_buckling, _limiting_length_yield, _member_slenderness_ratio, _minimum_allowed_strength, \
-    _nominal_compressive_strength, _radius_of_gyration, _rectangle_area, _section_modulus, _self_inertia, \
+from aisc360_10.criteria import SafetyFactor, SafetyFactorType
+from aisc360_10.helpers import (
+    _areas_centroid, _critical_compression_stress_buckling_default,
+    _doubly_symmetric_i_torsional_constant, _effective_radius_of_gyration, _elastic_flexural_buckling_stress,
+    _elastic_torsional_buckling_stress_doubly_symmetric_member, _flexural_flange_local_buckling_non_compact,
+    _flexural_lateral_torsional_buckling_critical_stress_compact_doubly_symmetric,
+    _flexural_lateral_torsional_buckling_strength_compact,
+    _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_b,
+    _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_c,
+    _flexural_major_axis_yield_strength,
+    _flexural_minor_axis_yield_strength, _flexural_slenderness_per_element, _flexural_slenderness_several_elements,
+    _flexure_and_axial_compression_h1_1_criteria, _kc_coefficient,
+    _lateral_torsional_buckling_modification_factor_default, _limit_ratio_default, _limit_stress_built_up_sections,
+    _limiting_length_torsional_buckling, _limiting_length_yield, _member_slenderness_ratio, _minimum_allowed_strength,
+    _nominal_compressive_strength, _radius_of_gyration, _rectangle_area, _section_modulus, _self_inertia,
     _transfer_inertia, _warping_constant, ConstructionType, Slenderness
+)
 
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilonewton", 1000 * N, symbol="kN")
@@ -82,10 +85,55 @@ class AreaProperties(Protocol):
         return self.table(filter_names=["warping_constant", "torsional_radius_of_gyration"])
 
 
-class ProfileSlenderness(Protocol):
-    axial_compression: Slenderness
-    flexural_minor_axis: Slenderness
-    flexural_major_axis: Slenderness
+class AxialSlenderness(Protocol):
+    value: Slenderness
+    limit_ratio: float
+    ratio: float
+
+
+@dataclass
+class AxialSlendernessImplementation(AxialSlenderness):
+    value: Slenderness
+    limit_ratio: float
+
+
+class FlexuralSlenderness(Protocol):
+    value: Slenderness
+    slender_limit_ratio: float
+    compact_limit_ratio: float
+
+
+@dataclass
+class FlexuralSlendernessImplementation(FlexuralSlenderness):
+    value: Slenderness
+    slender_limit_ratio: float
+    compact_limit_ratio: float
+
+
+class ElementSlenderness(Protocol):
+    axial_compression: AxialSlenderness
+    flexural_minor_axis: FlexuralSlenderness
+    flexural_major_axis: FlexuralSlenderness
+    ratio: float
+
+
+@dataclass
+class ElementSlendernessDefaultImplementation(ElementSlenderness):
+    axial_compression: AxialSlenderness
+    flexural_minor_axis: FlexuralSlenderness
+    flexural_major_axis: FlexuralSlenderness
+    ratio: float
+
+
+class FlangeWebSectionSlenderness(Protocol):
+    flange: ElementSlenderness
+    web: ElementSlenderness
+
+
+@dataclass
+class FlangeWebSectionSlendernessDefaultImplementation(FlangeWebSectionSlenderness):
+    flange: "DoublySymmetricIFlangeSlenderness"
+    web: "DoublySymmetricIWebSlenderness"
 
 
 class SectionProfile(Protocol):
@@ -168,7 +216,8 @@ class DoublySymmetricIAreaPropertiesFromDimensions(AreaProperties):
 
     @cached_property
     def major_axis_inertia(self):
-        return 2 * self._flange_transfer_inertia_major_axis + 2 * self._flange_self_inertia_major_axis + self._web_self_inertia_major_axis
+        return 2 * self._flange_transfer_inertia_major_axis + 2 * self._flange_self_inertia_major_axis + \
+               self._web_self_inertia_major_axis
 
     @cached_property
     def major_axis_elastic_section_modulus(self) -> Quantity:
@@ -290,7 +339,81 @@ class GenericAreaProperties(AreaProperties):
 
 
 @dataclass
-class DoublySymmetricISlenderness(ProfileSlenderness):
+class DoublySymmetricIWebSlenderness(ElementSlenderness):
+    area_properties: AreaProperties
+    dimensions: DoublySymmetricIDimensions
+    construction: ConstructionType
+    material: Material
+
+    @cached_property
+    def axial_compression_limit_ratio(self):
+        return _limit_ratio_default(
+            modulus_linear=self.material.modulus_linear,
+            stress=self.material.yield_stress,
+            factor=1.49
+        )
+
+    @cached_property
+    def ratio(self) -> float:
+        return self.dimensions.web_height / self.dimensions.web_thickness
+
+    @cached_property
+    def axial_compression_value(self):
+        limit = self.axial_compression_limit_ratio
+        ratio = self.ratio
+        if ratio < limit:
+            return Slenderness.NON_SLENDER
+        return Slenderness.SLENDER
+
+    @cached_property
+    def flexural_compact_limit_ratio(self):
+        return _limit_ratio_default(
+            modulus_linear=self.material.modulus_linear,
+            stress=self.material.yield_stress,
+            factor=3.76
+        )
+
+    @cached_property
+    def flexural_slender_limit_ratio(self):
+        return _limit_ratio_default(
+            modulus_linear=self.material.modulus_linear,
+            stress=self.material.yield_stress,
+            factor=5.7
+        )
+
+    @cached_property
+    def flexural_value(self):
+        limit_slender = self.flexural_slender_limit_ratio
+        limit_compact = self.flexural_compact_limit_ratio
+        ratio = self.ratio
+        return _flexural_slenderness_per_element(limit_slender=limit_slender, limit_compact=limit_compact, ratio=ratio)
+
+    @cached_property
+    def axial_compression(self):
+        return AxialSlendernessImplementation(
+            value=self.axial_compression_value,
+            limit_ratio=self.axial_compression_limit_ratio,
+        )
+
+    @cached_property
+    def flexural_minor_axis(self):
+        return FlexuralSlendernessImplementation(
+            value=self.flexural_value,
+            slender_limit_ratio=self.flexural_slender_limit_ratio,
+            compact_limit_ratio=self.flexural_compact_limit_ratio
+        )
+
+    @cached_property
+    def flexural_major_axis(self):
+        return FlexuralSlendernessImplementation(
+            value=self.flexural_value,
+            slender_limit_ratio=self.flexural_slender_limit_ratio,
+            compact_limit_ratio=self.flexural_compact_limit_ratio
+        )
+
+
+@dataclass
+class DoublySymmetricIFlangeSlenderness(ElementSlenderness):
     area_properties: AreaProperties
     dimensions: DoublySymmetricIDimensions
     construction: ConstructionType
@@ -301,7 +424,7 @@ class DoublySymmetricISlenderness(ProfileSlenderness):
         return _kc_coefficient(web_height=self.dimensions.web_height, web_thickness=self.dimensions.web_thickness)
 
     @cached_property
-    def flange_axial_limit_ratio_rolled(self):
+    def axial_limit_ratio_rolled(self):
         return _limit_ratio_default(
             modulus_linear=self.material.modulus_linear,
             stress=self.material.yield_stress,
@@ -309,11 +432,11 @@ class DoublySymmetricISlenderness(ProfileSlenderness):
         )
 
     @cached_property
-    def flange_axial_limit_ratio_rolled_latex(self):
+    def axial_limit_ratio_rolled_latex(self):
         return
 
     @cached_property
-    def flange_axial_limit_ratio_built_up(self):
+    def axial_limit_ratio_built_up(self):
         return _limit_ratio_default(
             modulus_linear=self.material.modulus_linear,
             stress=self.material.yield_stress,
@@ -322,47 +445,27 @@ class DoublySymmetricISlenderness(ProfileSlenderness):
         )
 
     @cached_property
-    def flange_axial_limit_ratio(self):
+    def axial_limit_ratio(self):
         table = {
-            ConstructionType.ROLLED: self.flange_axial_limit_ratio_rolled,
-            ConstructionType.BUILT_UP: self.flange_axial_limit_ratio_built_up
+            ConstructionType.ROLLED: self.axial_limit_ratio_rolled,
+            ConstructionType.BUILT_UP: self.axial_limit_ratio_built_up
         }
         return table[self.construction]
 
     @cached_property
-    def flange_ratio(self):
+    def ratio(self):
         return self.dimensions.flange_width / 2 / self.dimensions.flange_thickness
 
     @cached_property
-    def flange_axial_compression_slenderness(self):
-        limit = self.flange_axial_limit_ratio
-        ratio = self.flange_ratio
+    def axial_compression_value(self):
+        limit = self.axial_limit_ratio
+        ratio = self.ratio
         if ratio < limit:
             return Slenderness.NON_SLENDER
         return Slenderness.SLENDER
 
     @cached_property
-    def web_axial_compression_limit_ratio(self):
-        return _limit_ratio_default(
-            modulus_linear=self.material.modulus_linear,
-            stress=self.material.yield_stress,
-            factor=1.49
-        )
-
-    @cached_property
-    def web_ratio(self) -> float:
-        return self.dimensions.web_height / self.dimensions.web_thickness
-
-    @cached_property
-    def web_axial_compression_slenderness(self):
-        limit = self.web_axial_compression_limit_ratio
-        ratio = self.web_ratio
-        if ratio < limit:
-            return Slenderness.NON_SLENDER
-        return Slenderness.SLENDER
-
-    @cached_property
-    def flange_flexural_compact_limit_ratio(self):
+    def flexural_compact_limit_ratio(self):
         return _limit_ratio_default(
             modulus_linear=self.material.modulus_linear,
             stress=self.material.yield_stress,
@@ -370,7 +473,7 @@ class DoublySymmetricISlenderness(ProfileSlenderness):
         )
 
     @cached_property
-    def flange_flexural_slender_limit_ratio_rolled(self):
+    def flexural_slender_limit_ratio_rolled(self):
         return _limit_ratio_default(
             modulus_linear=self.material.modulus_linear,
             stress=self.material.yield_stress,
@@ -378,7 +481,7 @@ class DoublySymmetricISlenderness(ProfileSlenderness):
         )
 
     @cached_property
-    def flange_flexural_slender_limit_ratio_built_up(self):
+    def flexural_slender_limit_ratio_built_up(self):
         stress = _limit_stress_built_up_sections(
             yield_stress=self.material.yield_stress,
             section_modulus_tension=self.area_properties.major_axis_elastic_section_modulus,
@@ -392,15 +495,15 @@ class DoublySymmetricISlenderness(ProfileSlenderness):
         )
 
     @cached_property
-    def flange_flexural_major_axis_slender_limit_ratio(self):
+    def flexural_major_axis_slender_limit_ratio(self):
         table = {
-            ConstructionType.ROLLED: self.flange_flexural_slender_limit_ratio_rolled,
-            ConstructionType.BUILT_UP: self.flange_flexural_slender_limit_ratio_built_up
+            ConstructionType.ROLLED: self.flexural_slender_limit_ratio_rolled,
+            ConstructionType.BUILT_UP: self.flexural_slender_limit_ratio_built_up
         }
         return table[self.construction]
 
     @cached_property
-    def flange_flexural_minor_axis_slender_limit_ratio(self):
+    def flexural_minor_axis_slender_limit_ratio(self):
         return _limit_ratio_default(
             modulus_linear=self.material.modulus_linear,
             stress=self.material.yield_stress,
@@ -408,67 +511,45 @@ class DoublySymmetricISlenderness(ProfileSlenderness):
         )
 
     @cached_property
-    def flange_flexural_minor_axis_slenderness(self):
-        limit_slender = self.flange_flexural_minor_axis_slender_limit_ratio
-        limit_compact = self.flange_flexural_compact_limit_ratio
-        ratio = self.flange_ratio
+    def flexural_minor_axis_value(self):
+        limit_slender = self.flexural_minor_axis_slender_limit_ratio
+        limit_compact = self.flexural_compact_limit_ratio
+        ratio = self.ratio
         return _flexural_slenderness_per_element(limit_slender=limit_slender, limit_compact=limit_compact, ratio=ratio)
 
     @cached_property
-    def flange_flexural_major_axis_slenderness(self):
-        limit_slender = self.flange_flexural_major_axis_slender_limit_ratio
-        limit_compact = self.flange_flexural_compact_limit_ratio
-        ratio = self.flange_ratio
+    def flexural_major_axis_value(self):
+        limit_slender = self.flexural_major_axis_slender_limit_ratio
+        limit_compact = self.flexural_compact_limit_ratio
+        ratio = self.ratio
         return _flexural_slenderness_per_element(limit_slender=limit_slender, limit_compact=limit_compact, ratio=ratio)
 
     @cached_property
-    def web_flexural_slenderness(self):
-        limit_slender = self.web_flexural_slender_limit_ratio
-        limit_compact = self.web_flexural_compact_limit_ratio
-        ratio = self.web_ratio
-        return _flexural_slenderness_per_element(limit_slender=limit_slender, limit_compact=limit_compact, ratio=ratio)
-
-    @cached_property
-    def web_flexural_compact_limit_ratio(self):
-        return _limit_ratio_default(
-            modulus_linear=self.material.modulus_linear,
-            stress=self.material.yield_stress,
-            factor=3.76
+    def axial_compression(self):
+        return AxialSlendernessImplementation(
+            value=self.axial_compression_value,
+            limit_ratio=self.axial_limit_ratio,
         )
 
     @cached_property
-    def web_flexural_slender_limit_ratio(self):
-        return _limit_ratio_default(
-            modulus_linear=self.material.modulus_linear,
-            stress=self.material.yield_stress,
-            factor=5.7
+    def flexural_minor_axis(self):
+        return FlexuralSlendernessImplementation(
+            value=self.flexural_minor_axis_value,
+            slender_limit_ratio=self.flexural_minor_axis_slender_limit_ratio,
+            compact_limit_ratio=self.flexural_compact_limit_ratio
         )
 
     @cached_property
     def flexural_major_axis(self):
-        slenderness_list = [
-            self.flange_flexural_major_axis_slenderness,
-            self.web_axial_compression_slenderness
-        ]
-        return _flexural_slenderness_several_elements(slenderness_list)
+        return FlexuralSlendernessImplementation(
+            value=self.flexural_major_axis_value,
+            slender_limit_ratio=self.flexural_major_axis_slender_limit_ratio,
+            compact_limit_ratio=self.flexural_compact_limit_ratio
+        )
 
     @cached_property
-    def flexural_minor_axis(self):
-        slenderness_list = [
-            self.flange_flexural_minor_axis_slenderness,
-            self.web_axial_compression_slenderness
-        ]
-        return _flexural_slenderness_several_elements(slenderness_list)
-
-    @cached_property
-    def axial_compression(self):
-        slenderness = [
-            self.flange_axial_compression_slenderness,
-            self.web_axial_compression_slenderness
-        ]
-        if Slenderness.SLENDER in slenderness:
-            return Slenderness.SLENDER
-        return Slenderness.NON_SLENDER
+    def axial_compression_latex(self):
+        return
 
 
 @dataclass
@@ -533,12 +614,26 @@ class DoublySymmetricIUserDefined(SectionProfile):
 
     @cached_property
     def slenderness(self):
-        return DoublySymmetricISlenderness(
-            area_properties=self.area_properties,
-            dimensions=self.dimensions,
-            construction=self.construction,
-            material=self.material
+        return FlangeWebSectionSlendernessDefaultImplementation(
+            flange=DoublySymmetricIFlangeSlenderness(
+                area_properties=self.area_properties,
+                dimensions=self.dimensions,
+                construction=self.construction,
+                material=self.material
+            ),
+            web=DoublySymmetricIWebSlenderness(
+                area_properties=self.area_properties,
+                dimensions=self.dimensions,
+                construction=self.construction,
+                material=self.material
+            )
         )
+        # return DoublySymmetricISlenderness(
+        #     area_properties=self.area_properties,
+        #     dimensions=self.dimensions,
+        #     construction=self.construction,
+        #     material=self.material
+        # )
 
     def elastic_torsional_buckling_stress(self, beam: "BeamCompressionEffectiveLength"):
         return _elastic_torsional_buckling_stress_doubly_symmetric_member(
@@ -721,9 +816,9 @@ class BeamFlexureDoublySymmetric:
     @cached_property
     def strength_major_axis_flange_local_buckling_non_compact(self) -> Quantity:
         return _flexural_flange_local_buckling_non_compact(
-            compact_limit_ratio=self.profile.slenderness.flange_flexural_compact_limit_ratio,
-            slender_limit_ratio=self.profile.slenderness.flange_flexural_major_axis_slender_limit_ratio,
-            flange_ratio=self.profile.slenderness.flange_ratio,
+            compact_limit_ratio=self.profile.slenderness.flange.flexural_major_axis.compact_limit_ratio,
+            slender_limit_ratio=self.profile.slenderness.flange.flexural_major_axis.slender_limit_ratio,
+            flange_ratio=self.profile.slenderness.flange.ratio,
             plastic_moment=self.plastic_moment_major_axis,
             section_modulus=self.profile.area_properties.major_axis_elastic_section_modulus,
             yield_stress=self.profile.material.yield_stress
@@ -732,9 +827,9 @@ class BeamFlexureDoublySymmetric:
     @cached_property
     def strength_minor_axis_flange_local_buckling_non_compact(self) -> Quantity:
         return _flexural_flange_local_buckling_non_compact(
-            compact_limit_ratio=self.profile.slenderness.flange_flexural_compact_limit_ratio,
-            slender_limit_ratio=self.profile.slenderness.flange_flexural_minor_axis_slender_limit_ratio,
-            flange_ratio=self.profile.slenderness.flange_ratio,
+            compact_limit_ratio=self.profile.slenderness.flange.flexural_minor_axis.compact_limit_ratio,
+            slender_limit_ratio=self.profile.slenderness.flange.flexural_minor_axis.slender_limit_ratio,
+            flange_ratio=self.profile.slenderness.flange.ratio,
             plastic_moment=self.plastic_momento_minor_axis,
             section_modulus=self.profile.area_properties.minor_axis_elastic_section_modulus,
             yield_stress=self.profile.material.yield_stress
@@ -763,17 +858,16 @@ class BeamFlexureDoublySymmetric:
             Slenderness.NON_COMPACT: self.strength_major_axis_flange_local_buckling_non_compact,
             # Slenderness.SLENDER: self.strength_major_axis_flange_local_buckling_slender,
         }
-        return table[self.profile.slenderness.flange_flexural_major_axis_slenderness]
+        return table[self.profile.slenderness.flange.flexural_major_axis.value]
 
     @cached_property
     def strength_minor_axis_flange_local_buckling(self) -> Quantity:
-        # TODO Implement slender flange local buckling strength
         table = {
             Slenderness.COMPACT: None,
             Slenderness.NON_COMPACT: self.strength_minor_axis_flange_local_buckling_non_compact,
             Slenderness.SLENDER: self.strength_minor_axis_flange_local_buckling_slender,
         }
-        return table[self.profile.slenderness.flange_flexural_major_axis_slenderness]
+        return table[self.profile.slenderness.flange.flexural_major_axis.value]
 
     def strength_major_axis(self, mod_factor: float = 1.) -> Quantity:
         yield_ = self.strength_major_axis_yield
@@ -784,7 +878,7 @@ class BeamFlexureDoublySymmetric:
 
     def strength_minor_axis(self, mod_factor: float = 1.) -> Quantity:
         yield_ = self.strength_minor_axis_yield
-        flange_local_buckling = self.strength_major_axis_flange_local_buckling
+        flange_local_buckling = self.strength_minor_axis_flange_local_buckling
         strengths = (yield_, flange_local_buckling)
         return _minimum_allowed_strength(strengths)
 
