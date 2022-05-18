@@ -25,9 +25,10 @@ from pylatex.utils import dumps_list
 import quantities as pq
 from quantities import Quantity, percent
 
+from aisc360_10.criteria import AllowableStrengthDesign, LoadAndResistanceFactorDesign, SafetyFactor
 from aisc360_10.report_config import ReportConfig, PrintOptions
 
-env = JinjaEnvironment(loader=FileSystemLoader("templates"))
+env = JinjaEnvironment(loader=PackageLoader("aisc360_10"))
 
 
 class Center(Environment):
@@ -64,6 +65,10 @@ class Sqrt(CommandBase):
 
 alpha = Alpha()
 lambda_ = Lambda()
+axis_index_table = {
+    "major": "x",
+    "minor": "y"
+}
 
 
 class Tblr(Tabular):
@@ -98,6 +103,21 @@ def _process_quantity_entry(
     if unit_display == "header" and not entry.units == percent:
         entry = entry.magnitude
     return LatexQuantity(entry, options={"round-precision": round_precision})
+
+
+def _process_quantity_entry_to_string(
+        entry: Quantity,
+        convert_units: Optional[str] = None,
+        round_precision: int = 2,
+        unit_display: Literal["header", "cell"] = "header",
+):
+    if pd.isna(entry):
+        return "-"
+    if convert_units is not None:
+        entry = entry.rescale(convert_units)
+    if unit_display == "header" and not entry.units == percent:
+        entry = entry.magnitude
+    return LatexQuantity(entry, options={"round-precision": round_precision}).dumps()
 
 
 def _process_entry(
@@ -280,12 +300,10 @@ def _add_df_table_transposed(
     return table
 
 
-def nolew():
-    pass
-
-
 def _process_quantity_entry_config(entry, print_config: PrintOptions):
-    return _process_quantity_entry(
+    if isinstance(entry, float | int):
+        entry = Quantity(entry)
+    return _process_quantity_entry_to_string(
         entry=entry,
         round_precision=print_config.round_precision,
         convert_units=print_config.print_units,
@@ -293,29 +311,221 @@ def _process_quantity_entry_config(entry, print_config: PrintOptions):
     )
 
 
-def _slenderness_default_limit_ratio(
-        factor: float,
-        modulus: Quantity,
-        yield_stress: Quantity,
-        flange_axial_limit_ratio: float,
-        config_dict: ReportConfig = ReportConfig()
+def _slenderness_default_limit_ratio_latex(
+        factor: str,
+        modulus: str,
+        yield_stress: str,
+        limit_ratio: str,
+        limit_ratio_type: Literal["slender", "compact"],
 ):
-    modulus = _process_quantity_entry_config(entry=modulus, print_config=config_dict.modulus_linear).dumps()
-    yield_stress = _process_quantity_entry_config(entry=yield_stress, print_config=config_dict.yield_stress).dumps()
-    flange_axial_limit_ratio = _process_quantity_entry_config(
-        entry=flange_axial_limit_ratio,
-        print_config=config_dict.flange_axial_limit_ratio
-    ).dumps()
-    # template = Template(
-    #     r'''{% raw %}\[ \lambda_r = 1,49 \sqrt{\frac{E}{F_y}} = 1,49 \sqrt{\frac{{% endraw %}{{modulus}} {{
-    #     "}{"}}{{yield_stress}} {{ "}}" }} = {{flange_axial_limit_ratio}}'''
-    # )
+    table = {
+        "slender": "r",
+        "compact": "p"
+    }
+    slenderness_type_subscript = table[limit_ratio_type]
     template = env.get_template("slenderness_default_limit_ratio.tex")
     return template.render(
         factor=factor,
         modulus=modulus,
         yield_stress=yield_stress,
-        flange_axial_limit_ratio=flange_axial_limit_ratio
+        limit_ratio=limit_ratio,
+        slenderness_type=slenderness_type_subscript
     )
 
-# def _compression_slenderness_web_equation
+
+def _member_slenderness_minor_axis_flexural_bucking_latex(
+        factor_k: str,
+        length: str,
+        radius_of_gyration: str,
+        slenderness_value: str,
+        modulus: str,
+        yield_stress: str,
+        slenderness_limit: str,
+        inequality_sign: Literal[r"\leq", ">"],
+):
+    template = env.get_template("member_minor_axis_flexural_buckling_slenderness.tex")
+    return template.render(
+        factor_k=factor_k,
+        length=length,
+        radius_of_gyration=radius_of_gyration,
+        slenderness_value=slenderness_value,
+        inequality_sign=inequality_sign,
+        modulus=modulus,
+        yield_stress=yield_stress,
+        slenderness_limit=slenderness_limit
+    )
+
+
+def _elastic_buckling_critical_stress_latex(
+        modulus: str,
+        length: str,
+        factor_k: str,
+        radius_of_gyration: str,
+        elastic_buckling_critical_stress: str,
+):
+    template = env.get_template("elastic_buckling_critical_stress.tex")
+    return template.render(
+        modulus=modulus,
+        length=length,
+        factor_k=factor_k,
+        radius_of_gyration=radius_of_gyration,
+        elastic_buckling_critical_stress=elastic_buckling_critical_stress
+    )
+
+
+def _axial_compression_non_slender_critical_stress_lower_than(
+        yield_stress: str,
+        elastic_buckling_critical_stress: str,
+        critical_stress: str
+):
+    template = env.get_template("axial_compression_critical_stress_lower_than.tex")
+    return template.render(
+        yield_stress=yield_stress,
+        elastic_buckling_critical_stress=elastic_buckling_critical_stress,
+        critical_stress=critical_stress
+    )
+
+
+def _axial_compression_non_slender_critical_stress_greater_than(
+        yield_stress: str,
+        elastic_buckling_critical_stress: str,
+        critical_stress: str,
+):
+    template = env.get_template("axial_compression_critical_stress_greater_than.tex")
+    return template.render(
+        yield_stress=yield_stress,
+        elastic_buckling_critical_stress=elastic_buckling_critical_stress,
+        critical_stress=critical_stress
+    )
+
+
+def _axial_compression_nominal_strength(
+        critical_stress: str,
+        area: str,
+        nominal_strength: str,
+):
+    template = env.get_template("nominal_strength_force.tex")
+    return template.render(
+        critical_stress=critical_stress,
+        area=area,
+        nominal_strength=nominal_strength,
+    )
+
+
+def _design_strength_asd(
+        nominal_strength: str,
+        safety_factor: str,
+        design_strength: str
+):
+    template = env.get_template("design_strength_asd.tex")
+    return template.render(
+        nominal_strength=nominal_strength,
+        safety_factor=safety_factor,
+        design_strength=design_strength
+    )
+
+
+def _design_strength_lfrd(
+        nominal_strength: str,
+        safety_factor: str,
+        design_strength: str
+):
+    template = env.get_template("design_strength_lfrd.tex")
+    return template.render(
+        nominal_strength=nominal_strength,
+        safety_factor=safety_factor,
+        design_strength=design_strength
+    )
+
+
+def _design_strength(
+        nominal_strength: str,
+        safety_factor: str,
+        design_strength: str,
+        safety_factor_type: SafetyFactor
+):
+    table = {
+        AllowableStrengthDesign: _design_strength_asd,
+        LoadAndResistanceFactorDesign: _design_strength_lfrd
+    }
+    return table[type(safety_factor_type)](
+        nominal_strength=nominal_strength,
+        safety_factor=safety_factor,
+        design_strength=design_strength,
+    )
+
+
+def _flexural_yield_nominal_strength(
+        yield_stress: str,
+        plastic_section_modulus: str,
+        nominal_strength: str,
+        axis: Literal["major", "minor"]
+):
+    template = env.get_template("flexural_yield_nominal_strength.tex")
+    return template.render(
+        yield_stress=yield_stress,
+        plastic_section_modulus=plastic_section_modulus,
+        nominal_strength=nominal_strength,
+        axis_index=axis_index_table[axis]
+    )
+
+
+def _limit_length_yield(
+        minor_axis_radius_of_gyration: str,
+        modulus_linear: str,
+        yield_stress: str,
+        limit_length: str,
+):
+    template = env.get_template("limit_length_yield.tex")
+    return template.render(
+        minor_axis_radius_of_gyration=minor_axis_radius_of_gyration,
+        modulus_linear=modulus_linear,
+        yield_stress=yield_stress,
+        limit_length=limit_length
+    )
+
+
+def _limit_length_lateral_torsional_buckling(
+        effective_radius_of_gyration: str,
+        modulus_linear: str,
+        yield_stress: str,
+        elastic_major_axis_section_modulus: str,
+        torsional_constant: str,
+        coefficient_c: str,
+        distance_between_centroids: str,
+        limit_length: str,
+):
+    template = env.get_template("limit_length_lateral_torsional_buckling.tex")
+    return template.render(
+        effective_radius_of_gyration=effective_radius_of_gyration,
+        modulus_linear=modulus_linear,
+        yield_stress=yield_stress,
+        elastic_major_axis_section_modulus=elastic_major_axis_section_modulus,
+        torsional_constant=torsional_constant,
+        coefficient_c=coefficient_c,
+        distance_between_centroids=distance_between_centroids,
+        limit_length=limit_length
+    )
+
+
+def _flexural_lateral_torsional_buckling_strength_case_b(
+        mod_factor: str,
+        plastic_moment: str,
+        yield_stress: str,
+        elastic_major_axis_section_modulus: str,
+        unbraced_length: str,
+        limit_length_yield: str,
+        limit_length_lateral_torsional_buckling: str,
+        nominal_strength: str
+):
+    template = env.get_template("flexural_lateral_torsional_buckling_strength_case_b.tex")
+    return template.render(
+        mod_factor=mod_factor,
+        plastic_moment=plastic_moment,
+        yield_stress=yield_stress,
+        elastic_major_axis_section_modulus=elastic_major_axis_section_modulus,
+        unbraced_length=unbraced_length,
+        limit_length_yield=limit_length_yield,
+        limit_length_lateral_torsional_buckling=limit_length_lateral_torsional_buckling,
+        nominal_strength=nominal_strength
+    )

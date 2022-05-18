@@ -1,11 +1,15 @@
+from collections import namedtuple
 from functools import cached_property
-from typing import Protocol, Any
-from dataclasses import dataclass, field
+from typing import Protocol, Any, Collection, runtime_checkable, NamedTuple
+from dataclasses import dataclass, field, is_dataclass, make_dataclass, asdict
 import pandas as pd
 
 from quantities import Quantity, UnitQuantity, cm, UnitQuantity, m, mm, GPa, MPa, N
 
-from aisc360_10.criteria import SafetyFactor, SafetyFactorType
+from aisc360_10.criteria import (
+    DesignStrength, SafetyFactorType, SafetyFactor, AllowableStrengthDesign,
+    LoadAndResistanceFactorDesign
+)
 from aisc360_10.helpers import (
     _areas_centroid, _critical_compression_stress_buckling_default,
     _doubly_symmetric_i_torsional_constant, _effective_radius_of_gyration, _elastic_flexural_buckling_stress,
@@ -20,11 +24,27 @@ from aisc360_10.helpers import (
     _lateral_torsional_buckling_modification_factor_default, _limit_ratio_default, _limit_stress_built_up_sections,
     _limiting_length_torsional_buckling, _limiting_length_yield, _member_slenderness_ratio, _minimum_allowed_strength,
     _nominal_compressive_strength, _radius_of_gyration, _rectangle_area, _section_modulus, _self_inertia,
-    _transfer_inertia, _warping_constant, ConstructionType, Slenderness
+    _transfer_inertia, _warping_constant, ConstructionType, Slenderness, _member_slenderness_limit
 )
+from aisc360_10.latex import (
+    _slenderness_default_limit_ratio_latex, _member_slenderness_minor_axis_flexural_bucking_latex,
+    _dataframe_table_columns, _elastic_buckling_critical_stress_latex,
+    _axial_compression_non_slender_critical_stress_lower_than,
+    _axial_compression_non_slender_critical_stress_greater_than, _axial_compression_nominal_strength,
+    _process_quantity_entry_config, _design_strength_asd, _design_strength_lfrd, _design_strength,
+    _flexural_yield_nominal_strength, _limit_length_yield, _limit_length_lateral_torsional_buckling,
+    _flexural_lateral_torsional_buckling_strength_case_b
+)
+from aisc360_10.report_config import ReportConfig
 
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilonewton", 1000 * N, symbol="kN")
+
+
+@runtime_checkable
+class DataClass(Protocol):
+    def __dataclass_fields__(self):
+        ...
 
 
 def _extract_dataframe(obj: Any, extraction_type: Any, filter_names: list[str] = None):
@@ -49,8 +69,20 @@ class Material(Protocol):
         return _extract_dataframe(obj=self, extraction_type=Material, filter_names=filter_names)
 
     @cached_property
-    def default_table(self):
+    def data_table_df(self):
         return self.table(filter_names=["poisson_ratio"])
+
+    @cached_property
+    def data_table_latex(self):
+        return _dataframe_table_columns(
+            df=self.data_table_df,
+            unit_display="cell",
+            include_description=True
+        ).dumps()
+
+    @cached_property
+    def latex(self):
+        return MaterialLatex(self)
 
 
 @dataclass
@@ -60,6 +92,57 @@ class IsoTropicMaterial(Material):
     poisson_ratio: float
     yield_stress: Quantity
     density: Quantity | None = None
+
+
+def latex_wrapper_class(class_: DataClass, filtered_names: Collection[str] = None):
+    filtered_names = filtered_names or []
+    name = f"{class_.__name__}Latex"
+    return make_dataclass(name, class_.__dataclass_fields__.keys())
+
+
+IsoTropicMaterialLatex = latex_wrapper_class(IsoTropicMaterial)
+
+
+def latex_wrapper(obj_: DataClass, filtered_names: Collection[str] = None, config_dict: ReportConfig = ReportConfig()):
+    filtered_names = filtered_names or []
+    attributes = {
+        name: _process_quantity_entry_config(
+            entry=getattr(obj_, name),
+            print_config=getattr(config_dict, name)
+        )
+        for name in obj_.__dataclass_fields__
+        if name not in filtered_names
+    }
+    # Latex = namedtuple("Latex", attributes.keys())
+    Latex = make_dataclass("Latex", attributes.keys())
+    return Latex(**attributes)
+
+
+@dataclass
+class MaterialLatex:
+    material: Material
+    report_config: ReportConfig = ReportConfig()
+
+    @cached_property
+    def modulus_linear(self):
+        return _process_quantity_entry_config(
+            entry=self.material.modulus_linear,
+            print_config=self.report_config.modulus_linear
+        )
+
+    @cached_property
+    def modulus_shear(self):
+        return _process_quantity_entry_config(
+            entry=self.material.modulus_shear,
+            print_config=self.report_config.modulus_shear
+        )
+
+    @cached_property
+    def yield_stress(self):
+        return _process_quantity_entry_config(
+            entry=self.material.yield_stress,
+            print_config=self.report_config.yield_stress
+        )
 
 
 class AreaProperties(Protocol):
@@ -81,8 +164,110 @@ class AreaProperties(Protocol):
         return _extract_dataframe(obj=self, extraction_type=AreaProperties, filter_names=filter_names)
 
     @cached_property
-    def default_table(self):
+    def data_table_df(self):
         return self.table(filter_names=["warping_constant", "torsional_radius_of_gyration"])
+
+    @cached_property
+    def data_table_latex(self):
+        return _dataframe_table_columns(
+            df=self.data_table_df,
+            unit_display="cell",
+            include_description=True
+        ).dumps()
+
+    @cached_property
+    def latex(self):
+        return AreaPropertiesLatex(data=self)
+
+
+@dataclass
+class AreaPropertiesLatex:
+    data: AreaProperties
+    report_config: ReportConfig = ReportConfig()
+
+    @cached_property
+    def area(self):
+        return _process_quantity_entry_config(
+            entry=self.data.area,
+            print_config=self.report_config.area
+        )
+
+    @cached_property
+    def major_axis_inertia(self):
+        return _process_quantity_entry_config(
+            entry=self.data.major_axis_inertia,
+            print_config=self.report_config.major_axis_inertia
+        )
+
+    @cached_property
+    def major_axis_elastic_section_modulus(self):
+        return _process_quantity_entry_config(
+            entry=self.data.major_axis_elastic_section_modulus,
+            print_config=self.report_config.major_axis_elastic_section_modulus
+        )
+
+    @cached_property
+    def major_axis_plastic_section_modulus(self):
+        return _process_quantity_entry_config(
+            entry=self.data.major_axis_plastic_section_modulus,
+            print_config=self.report_config.major_axis_plastic_section_modulus
+        )
+
+    @cached_property
+    def major_axis_radius_of_gyration(self):
+        return _process_quantity_entry_config(
+            entry=self.data.major_axis_radius_of_gyration,
+            print_config=self.report_config.major_axis_radius_of_gyration
+        )
+
+    @cached_property
+    def minor_axis_inertia(self):
+        return _process_quantity_entry_config(
+            entry=self.data.minor_axis_inertia,
+            print_config=self.report_config.minor_axis_inertia
+        )
+
+    @cached_property
+    def minor_axis_elastic_section_modulus(self):
+        return _process_quantity_entry_config(
+            entry=self.data.minor_axis_elastic_section_modulus,
+            print_config=self.report_config.minor_axis_elastic_section_modulus
+        )
+
+    @cached_property
+    def minor_axis_plastic_section_modulus(self):
+        return _process_quantity_entry_config(
+            entry=self.data.minor_axis_plastic_section_modulus,
+            print_config=self.report_config.minor_axis_plastic_section_modulus
+        )
+
+    @cached_property
+    def minor_axis_radius_of_gyration(self):
+        return _process_quantity_entry_config(
+            entry=self.data.minor_axis_radius_of_gyration,
+            print_config=self.report_config.minor_axis_radius_of_gyration
+        )
+
+    @cached_property
+    def torsional_constant(self):
+        return _process_quantity_entry_config(
+            entry=self.data.torsional_constant,
+            print_config=self.report_config.torsional_constant
+        )
+
+    @cached_property
+    def torsional_constant(self):
+        return _process_quantity_entry_config(
+            entry=self.data.torsional_constant,
+            print_config=self.report_config.torsional_constant
+        )
+
+    @cached_property
+    def warping_constant(self):
+        return _process_quantity_entry_config(
+            entry=self.data.warping_constant,
+            print_config=self.report_config.warping_constant
+        )
 
 
 class AxialSlenderness(Protocol):
@@ -162,14 +347,27 @@ class DoublySymmetricIDimensions(Protocol):
     def default_table(self):
         return self.table()
 
+    @cached_property
+    def latex(self):
+        return DoublySymmetricIDimensionsLatex(self)
+
+
+@dataclass
+class DoublySymmetricIDimensionsLatex:
+    model: DoublySymmetricIDimensions
+    config_dict: ReportConfig = ReportConfig()
+
+    @cached_property
+    def distance_between_centroids(self):
+        return _process_quantity_entry_config(
+            entry=self.model.distance_between_centroids,
+            print_config=self.config_dict.distance_between_centroids
+        )
+
 
 @dataclass
 class DoublySymmetricIAreaPropertiesFromDimensions(AreaProperties):
     dimensions: DoublySymmetricIDimensions
-
-    # @cached_property
-    # def table(self):
-    #     return AreaProperties.table_keys()
 
     @cached_property
     def _flange_area(self):
@@ -432,10 +630,6 @@ class DoublySymmetricIFlangeSlenderness(ElementSlenderness):
         )
 
     @cached_property
-    def axial_limit_ratio_rolled_latex(self):
-        return
-
-    @cached_property
     def axial_limit_ratio_built_up(self):
         return _limit_ratio_default(
             modulus_linear=self.material.modulus_linear,
@@ -547,9 +741,242 @@ class DoublySymmetricIFlangeSlenderness(ElementSlenderness):
             compact_limit_ratio=self.flexural_compact_limit_ratio
         )
 
+
+@dataclass
+class DoublySymmetricIFlangeAxialCompressionSlendernessLatex:
+    model: "DoublySymmetricIFlangeSlenderness"
+    config_dict: ReportConfig = ReportConfig()
+
     @cached_property
-    def axial_compression_latex(self):
-        return
+    def axial_limit_ratio_rolled(self):
+        return _process_quantity_entry_config(
+            entry=Quantity(self.model.axial_limit_ratio_rolled),
+            print_config=self.config_dict.slender_limit_ratio
+        )
+
+    @cached_property
+    def slender_limit_ratio_rolled(self):
+        return _slenderness_default_limit_ratio_latex(
+            factor="0.56",
+            modulus=self.model.material.latex.modulus_linear,
+            yield_stress=self.model.material.latex.yield_stress,
+            limit_ratio=self.axial_limit_ratio_rolled,
+            limit_ratio_type="slender"
+        )
+
+    @cached_property
+    def slender_limit_ratio_built_up(self):
+        return "Not Implemented"
+
+    @cached_property
+    def limit_ratio(self):
+        table = {
+            ConstructionType.ROLLED: self.slender_limit_ratio_rolled,
+            ConstructionType.BUILT_UP: self.slender_limit_ratio_built_up
+        }
+        return table[self.model.construction]
+
+
+@dataclass
+class DoublySymmetricIFlangeFlexuralMajorAxisSlendernessLatex:
+    model: "DoublySymmetricIFlangeSlenderness"
+    config_dict: ReportConfig = ReportConfig()
+
+    @cached_property
+    def flexural_slender_limit_ratio_rolled(self):
+        return _process_quantity_entry_config(
+            entry=Quantity(self.model.flexural_slender_limit_ratio_rolled),
+            print_config=self.config_dict.slender_limit_ratio
+        )
+
+    @cached_property
+    def slender_limit_ratio_rolled(self):
+        return _slenderness_default_limit_ratio_latex(
+            factor="1.0",
+            modulus=self.model.material.latex.modulus_linear,
+            yield_stress=self.model.material.latex.yield_stress,
+            limit_ratio=self.flexural_slender_limit_ratio_rolled,
+            limit_ratio_type="slender"
+        )
+
+    @cached_property
+    def flexural_major_axis_compact_limit_ratio(self):
+        return _process_quantity_entry_config(
+            entry=Quantity(self.model.flexural_major_axis.compact_limit_ratio),
+            print_config=self.config_dict.compact_limit_ratio
+        )
+
+    @cached_property
+    def compact_limit_ratio(self):
+        return _slenderness_default_limit_ratio_latex(
+            factor="0.38",
+            modulus=self.model.material.latex.modulus_linear,
+            yield_stress=self.model.material.latex.yield_stress,
+            limit_ratio=self.flexural_major_axis_compact_limit_ratio,
+            limit_ratio_type="compact"
+        )
+
+    @cached_property
+    def slender_limit_ratio_built_up(self):
+        return "Not Implemented"
+
+    @cached_property
+    def slender_limit_ratio(self):
+        table = {
+            ConstructionType.ROLLED: self.slender_limit_ratio_rolled,
+            ConstructionType.BUILT_UP: self.slender_limit_ratio_built_up
+        }
+        return table[self.model.construction]
+
+    @cached_property
+    def limit_ratio(self):
+        return f"{self.slender_limit_ratio} \n {self.compact_limit_ratio}"
+
+
+@dataclass
+class DoublySymmetricIFlangeFlexuralMinorAxisSlendernessLatex:
+    model: "DoublySymmetricIFlangeSlenderness"
+    config_dict: ReportConfig = ReportConfig()
+
+    @cached_property
+    def flexural_minor_axis_slender_limit_ratio(self):
+        return _process_quantity_entry_config(
+            entry=Quantity(self.model.flexural_minor_axis.slender_limit_ratio),
+            print_config=self.config_dict.slender_limit_ratio
+        )
+
+    @cached_property
+    def flexural_minor_axis_compact_limit_ratio(self):
+        return _process_quantity_entry_config(
+            entry=Quantity(self.model.flexural_minor_axis.compact_limit_ratio),
+            print_config=self.config_dict.compact_limit_ratio
+        )
+
+    @cached_property
+    def slender_limit_ratio(self):
+        return _slenderness_default_limit_ratio_latex(
+            factor="1.0",
+            modulus=self.model.material.latex.modulus_linear,
+            yield_stress=self.model.material.latex.yield_stress,
+            limit_ratio=self.flexural_minor_axis_slender_limit_ratio,
+            limit_ratio_type="slender"
+        )
+
+    @cached_property
+    def compact_limit_ratio(self):
+        return _slenderness_default_limit_ratio_latex(
+            factor="0.38",
+            modulus=self.model.material.latex.modulus_linear,
+            yield_stress=self.model.material.latex.yield_stress,
+            limit_ratio=self.flexural_minor_axis_compact_limit_ratio,
+            limit_ratio_type="compact"
+        )
+
+    @cached_property
+    def limit_ratio(self):
+        return f"{self.slender_limit_ratio} \n {self.compact_limit_ratio}"
+
+
+@dataclass
+class DoublySymmetricIWebAxialCompressionSlendernessLatex:
+    model: "DoublySymmetricIWebSlenderness"
+    config_dict: ReportConfig = ReportConfig()
+
+    @cached_property
+    def axial_compression_limit_ratio(self):
+        return _process_quantity_entry_config(
+            entry=Quantity(self.model.axial_compression.limit_ratio),
+            print_config=self.config_dict.compact_limit_ratio
+        )
+
+    @cached_property
+    def limit_ratio(self):
+        return _slenderness_default_limit_ratio_latex(
+            factor="1.49",
+            modulus=self.model.material.latex.modulus_linear,
+            yield_stress=self.model.material.latex.yield_stress,
+            limit_ratio=self.axial_compression_limit_ratio,
+            limit_ratio_type="slender"
+        )
+
+
+@dataclass
+class DoublySymmetricIWebFlexuralSlendernessLatex:
+    model: "DoublySymmetricIWebSlenderness"
+    config_dict: ReportConfig = ReportConfig()
+
+    @cached_property
+    def flexural_slender_limit_ratio(self):
+        return _process_quantity_entry_config(
+            entry=Quantity(self.model.flexural_slender_limit_ratio),
+            print_config=self.config_dict.slender_limit_ratio
+        )
+
+    @cached_property
+    def flexural_compact_limit_ratio(self):
+        return _process_quantity_entry_config(
+            entry=Quantity(self.model.flexural_compact_limit_ratio),
+            print_config=self.config_dict.compact_limit_ratio
+        )
+
+    @cached_property
+    def slender_limit_ratio(self):
+        return _slenderness_default_limit_ratio_latex(
+            factor="3.76",
+            modulus=self.model.material.latex.modulus_linear,
+            yield_stress=self.model.material.latex.yield_stress,
+            limit_ratio=self.flexural_slender_limit_ratio,
+            limit_ratio_type="slender"
+        )
+
+    @cached_property
+    def compact_limit_ratio(self):
+        return _slenderness_default_limit_ratio_latex(
+            factor="5.70",
+            modulus=self.model.material.latex.modulus_linear,
+            yield_stress=self.model.material.latex.yield_stress,
+            limit_ratio=self.flexural_compact_limit_ratio,
+            limit_ratio_type="compact"
+        )
+
+    @cached_property
+    def limit_ratio(self):
+        return f"{self.slender_limit_ratio} \n {self.compact_limit_ratio}"
+
+
+@dataclass
+class DoublySymmetricIAxialCompressionSlendernessLatex:
+    flange: DoublySymmetricIFlangeAxialCompressionSlendernessLatex
+    web: DoublySymmetricIWebAxialCompressionSlendernessLatex
+
+    @cached_property
+    def limit_ratios_latex(self):
+        # TODO Extract method out to latex module
+        return f"Flange: \n {self.flange.limit_ratio} \n Web: \n {self.web.limit_ratio}"
+
+
+@dataclass
+class DoublySymmetricIFlexuralMajorAxisSlendernessLatex:
+    flange: DoublySymmetricIFlangeFlexuralMajorAxisSlendernessLatex
+    web: DoublySymmetricIWebFlexuralSlendernessLatex
+
+    @cached_property
+    def limit_ratios_latex(self):
+        # TODO Extract method out to latex module
+        return f"""
+            Flange: \n 
+            {self.flange.slender_limit_ratio} \n
+            {self.flange.compact_limit_ratio} \n 
+            Web: \n 
+            {self.web.slender_limit_ratio} \n
+            {self.web.compact_limit_ratio}
+        """
+
+
+@dataclass
+class DoublySymmetricISlendernessLatex:
+    axial_compression: DoublySymmetricIAxialCompressionSlendernessLatex
+    flexural_major_axis: DoublySymmetricIFlexuralMajorAxisSlendernessLatex
 
 
 @dataclass
@@ -558,7 +985,7 @@ class DoublySymmetricIUserDefined(SectionProfile):
     material: Material
     area_properties: AreaProperties | None = None
     construction: ConstructionType = ConstructionType.ROLLED
-    coefficient_c = 1.0
+    coefficient_c: float = 1.0
 
     def __post_init__(self):
         if not self.area_properties:
@@ -567,7 +994,7 @@ class DoublySymmetricIUserDefined(SectionProfile):
     @cached_property
     def default_table(self):
         dimensions_table = self.dimensions.default_table
-        area_properties_table = self.area_properties.default_table
+        area_properties_table = self.area_properties.data_table_df
         extra_table = _extract_dataframe(
             obj=self,
             extraction_type=DoublySymmetricIUserDefined,
@@ -628,12 +1055,6 @@ class DoublySymmetricIUserDefined(SectionProfile):
                 material=self.material
             )
         )
-        # return DoublySymmetricISlenderness(
-        #     area_properties=self.area_properties,
-        #     dimensions=self.dimensions,
-        #     construction=self.construction,
-        #     material=self.material
-        # )
 
     def elastic_torsional_buckling_stress(self, beam: "BeamCompressionEffectiveLength"):
         return _elastic_torsional_buckling_stress_doubly_symmetric_member(
@@ -650,9 +1071,99 @@ class DoublySymmetricIUserDefined(SectionProfile):
     def torsional_buckling_critical_stress_effective_length(self, beam: "BeamCompressionEffectiveLength"):
         return _critical_compression_stress_buckling_default(
             member_slenderness=beam.torsional_slenderness,
-            modulus_linear=self.material.modulus_linear,
+            member_slenderness_limit=beam.member_slenderness_limit,
             yield_stress=self.material.yield_stress,
             elastic_buckling_stress=self.elastic_torsional_buckling_stress(beam),
+        )
+
+    @cached_property
+    def latex(self):
+        return DoublySymmetricIUserDefinedLatex(self)
+
+
+@dataclass
+class DoublySymmetricIUserDefinedLatex:
+    model: DoublySymmetricIUserDefined
+    config_dict: ReportConfig = ReportConfig()
+
+    @cached_property
+    def limit_length_flexural_yield(self):
+        return _process_quantity_entry_config(
+            entry=self.model.limit_length_yield,
+            print_config=self.config_dict.limit_length_flexural_yield
+        )
+
+    @cached_property
+    def limit_length_flexural_yield_equation(self):
+        return _limit_length_yield(
+            minor_axis_radius_of_gyration=self.model.area_properties.latex.minor_axis_radius_of_gyration,
+            modulus_linear=self.model.material.latex.modulus_linear,
+            yield_stress=self.model.material.latex.yield_stress,
+            limit_length=self.limit_length_flexural_yield
+        )
+
+    @cached_property
+    def limit_length_flexural_lateral_torsional_buckling(self):
+        return _process_quantity_entry_config(
+            entry=self.model.limit_length_torsional_buckling,
+            print_config=self.config_dict.limit_length_flexural_lateral_torsional_buckling
+        )
+
+    @cached_property
+    def effective_radius_of_gyration(self):
+        return _process_quantity_entry_config(
+            entry=self.model.effective_radius_of_gyration,
+            print_config=self.config_dict.effective_radius_of_gyration
+        )
+
+    @cached_property
+    def effective_radius_of_gyration_equation(self):
+        return _process_quantity_entry_config(
+            entry=self.model.effective_radius_of_gyration,
+            print_config=self.config_dict.effective_radius_of_gyration
+        )
+
+    @cached_property
+    def coefficient_c(self):
+        return _process_quantity_entry_config(
+            entry=Quantity(self.model.coefficient_c),
+            print_config=self.config_dict.coefficient_c
+        )
+
+    @cached_property
+    def limit_length_flexural_lateral_torsional_buckling_equation(self):
+        return _limit_length_lateral_torsional_buckling(
+            effective_radius_of_gyration=self.effective_radius_of_gyration,
+            modulus_linear=self.model.material.latex.modulus_linear,
+            yield_stress=self.model.material.latex.yield_stress,
+            limit_length=self.limit_length_flexural_lateral_torsional_buckling,
+            torsional_constant=self.model.area_properties.latex.torsional_constant,
+            coefficient_c=self.coefficient_c,
+            distance_between_centroids=self.model.dimensions.latex.distance_between_centroids,
+            elastic_major_axis_section_modulus=self.model.area_properties.latex.major_axis_elastic_section_modulus
+        )
+
+    @cached_property
+    def slenderness(self):
+        axial_compression = DoublySymmetricIAxialCompressionSlendernessLatex(
+            flange=DoublySymmetricIFlangeAxialCompressionSlendernessLatex(
+                model=self.model.slenderness.flange
+            ),
+            web=DoublySymmetricIWebAxialCompressionSlendernessLatex(
+                model=self.model.slenderness.web
+            )
+        )
+        flexural_major_axis = DoublySymmetricIFlexuralMajorAxisSlendernessLatex(
+            flange=DoublySymmetricIFlangeFlexuralMajorAxisSlendernessLatex(
+                model=self.model.slenderness.flange
+            ),
+            web=DoublySymmetricIWebFlexuralSlendernessLatex(
+                model=self.model.slenderness.web
+            )
+        )
+        return DoublySymmetricISlendernessLatex(
+            axial_compression=axial_compression,
+            flexural_major_axis=flexural_major_axis
         )
 
 
@@ -663,11 +1174,12 @@ class BeamCompression(Protocol):
 
 @dataclass
 class BeamCompressionEffectiveLength(BeamCompression):
-    profile: SectionProfile
+    profile: DoublySymmetricIUserDefined
     unbraced_length: Quantity
     factor_k_minor_axis: float = 1.0
     factor_k_major_axis: float = 1.0
     factor_k_torsion: float = 1.0
+    safety_factor: SafetyFactor = AllowableStrengthDesign()
 
     @cached_property
     def minor_axis_slenderness(self):
@@ -693,11 +1205,18 @@ class BeamCompressionEffectiveLength(BeamCompression):
         )
 
     @cached_property
+    def member_slenderness_limit(self):
+        return _member_slenderness_limit(
+            modulus_linear=self.profile.material.modulus_linear,
+            yield_stress=self.profile.material.yield_stress
+        )
+
+    @cached_property
     def flexural_buckling_critical_stress(self):
         return _critical_compression_stress_buckling_default(
             member_slenderness=self.minor_axis_slenderness,
             elastic_buckling_stress=self.elastic_flexural_buckling_stress,
-            modulus_linear=self.profile.material.modulus_linear,
+            member_slenderness_limit=self.member_slenderness_limit,
             yield_stress=self.profile.material.yield_stress
         )
 
@@ -720,15 +1239,174 @@ class BeamCompressionEffectiveLength(BeamCompression):
         )
 
     @cached_property
+    def nominal_strength(self):
+        return self.strength_flexural_buckling
+
+    @cached_property
+    def design_strength(self):
+        return self.safety_factor.allowable_value(self.nominal_strength)
+
+    @cached_property
     def strength_resume(self):
         return pd.DataFrame(
             {
-                "strength flexural buckling": [SafetyFactor(
-                    theoretical_limit_value=self.strength_flexural_buckling,
-                    safety_factor=1.67,
-                    type_=SafetyFactorType.ASD,
-                ).allowable_value.rescale(kN)]
+                "strength flexural buckling": [self.safety_factor.allowable_value(self.nominal_strength)]
             }
+        )
+
+    @cached_property
+    def calculation_memory(self):
+        return BeamCompressionEffectiveLengthLatex(self)
+
+
+@dataclass
+class BeamCompressionEffectiveLengthLatex:
+    model: BeamCompressionEffectiveLength
+    config_dict: ReportConfig = ReportConfig()
+    safety_factor: SafetyFactor = AllowableStrengthDesign()
+
+    @cached_property
+    def factor_k_minor_axis(self):
+        return _process_quantity_entry_config(
+            entry=self.model.factor_k_minor_axis,
+            print_config=self.config_dict.factor_k
+        )
+
+    @cached_property
+    def unbraced_length(self):
+        return _process_quantity_entry_config(
+            entry=self.model.unbraced_length,
+            print_config=self.config_dict.unbraced_length
+        )
+
+    @cached_property
+    def minor_axis_slenderness(self):
+        return _process_quantity_entry_config(
+            entry=Quantity(self.model.minor_axis_slenderness),
+            print_config=self.config_dict.minor_axis_slenderness
+        )
+
+    @cached_property
+    def slenderness_limit(self):
+        return _process_quantity_entry_config(
+            entry=Quantity(self.model.member_slenderness_limit),
+            print_config=self.config_dict.slenderness_limit
+        )
+
+    @cached_property
+    def minor_axis_slenderness_equation(self):
+        slenderness_value = self.model.minor_axis_slenderness
+        slenderness_limit = self.model.member_slenderness_limit
+        inequality_sign = r"\leq" if slenderness_value <= slenderness_limit else ">"
+        return _member_slenderness_minor_axis_flexural_bucking_latex(
+            factor_k=self.factor_k_minor_axis,
+            length=self.unbraced_length,
+            radius_of_gyration=self.model.profile.area_properties.latex.minor_axis_radius_of_gyration,
+            slenderness_value=self.minor_axis_slenderness,
+            inequality_sign=inequality_sign,
+            modulus=self.model.profile.material.latex.modulus_linear,
+            slenderness_limit=self.slenderness_limit,
+            yield_stress=self.model.profile.material.latex.yield_stress
+        )
+
+    @cached_property
+    def elastic_flexural_buckling_stress(self):
+        return _process_quantity_entry_config(
+            entry=self.model.elastic_flexural_buckling_stress,
+            print_config=self.config_dict.elastic_buckling_critical_stress
+        )
+
+    @cached_property
+    def elastic_buckling_critical_stress_equation(self):
+        return _elastic_buckling_critical_stress_latex(
+            modulus=self.model.profile.material.latex.modulus_linear,
+            length=self.unbraced_length,
+            factor_k=self.factor_k_minor_axis,
+            radius_of_gyration=self.model.profile.area_properties.latex.minor_axis_radius_of_gyration,
+            elastic_buckling_critical_stress=self.elastic_flexural_buckling_stress,
+        )
+
+    @cached_property
+    def flexural_buckling_critical_stress(self):
+        return _process_quantity_entry_config(
+            entry=self.model.flexural_buckling_critical_stress,
+            print_config=self.config_dict.critical_stress
+        )
+
+    @cached_property
+    def non_slender_critical_stress_lower_than(self):
+        return _axial_compression_non_slender_critical_stress_lower_than(
+            yield_stress=self.model.profile.material.latex.yield_stress,
+            elastic_buckling_critical_stress=self.elastic_flexural_buckling_stress,
+            critical_stress=self.flexural_buckling_critical_stress
+        )
+
+    @cached_property
+    def non_slender_critical_stress_greater_than(self):
+        return _axial_compression_non_slender_critical_stress_greater_than(
+            yield_stress=self.model.profile.material.latex.yield_stress,
+            elastic_buckling_critical_stress=self.elastic_flexural_buckling_stress,
+            critical_stress=self.flexural_buckling_critical_stress
+        )
+
+    @cached_property
+    def non_slender_critical_stress(self):
+        if self.model.minor_axis_slenderness <= self.model.member_slenderness_limit:
+            return self.non_slender_critical_stress_lower_than
+        else:
+            return self.non_slender_critical_stress_greater_than
+
+    @cached_property
+    def slender_critical_stress(self):
+        return "Not implemented"
+
+    @cached_property
+    def strength_flexural_buckling(self):
+        return _process_quantity_entry_config(
+            entry=self.model.strength_flexural_buckling,
+            print_config=self.config_dict.strength_force
+        )
+
+    @cached_property
+    def nominal_strength(self):
+        return self.strength_flexural_buckling
+
+    @cached_property
+    def nominal_strength_equation(self):
+        return _axial_compression_nominal_strength(
+            critical_stress=self.flexural_buckling_critical_stress,
+            area=self.model.profile.area_properties.latex.area,
+            nominal_strength=self.strength_flexural_buckling
+        )
+
+    @cached_property
+    def design_strength(self):
+        return _process_quantity_entry_config(
+            entry=self.model.design_strength,
+            print_config=self.config_dict.strength_force
+        )
+
+    @cached_property
+    def design_strength_equation(self):
+        return _design_strength(
+            nominal_strength=self.nominal_strength,
+            safety_factor=str(self.safety_factor.value),
+            design_strength=self.design_strength,
+            safety_factor_type=self.safety_factor
+        )
+
+    @cached_property
+    def resume(self):
+        string = r"\newpage"
+        return string.join(
+            (
+                self.model.profile.latex.slenderness.axial_compression.limit_ratios_latex,
+                self.minor_axis_slenderness_equation,
+                self.elastic_buckling_critical_stress_equation,
+                self.non_slender_critical_stress,
+                self.nominal_strength_equation,
+                self.design_strength_equation
+            )
         )
 
 
@@ -738,14 +1416,15 @@ class BeamFlexure(Protocol):
     strength_compression_local_buckling: Quantity | None
 
 
-class LateralTorsionalBucklingModificationFactor:
+@dataclass
+class LateralTorsionalBucklingModificationFactorDefault:
     moment_max: Quantity
     moment_quarter: Quantity
     moment_center: Quantity
     moment_three_quarter: Quantity
 
     @cached_property
-    def mod_factor(self):
+    def value(self):
         return _lateral_torsional_buckling_modification_factor_default(
             self.moment_max,
             self.moment_quarter,
@@ -754,10 +1433,25 @@ class LateralTorsionalBucklingModificationFactor:
         )
 
 
+def lateral_torsional_buckling_modification_factor_default(
+        moment_max: Quantity,
+        moment_quarter: Quantity,
+        moment_center: Quantity,
+        moment_three_quarter: Quantity
+):
+    return _lateral_torsional_buckling_modification_factor_default(
+        moment_max,
+        moment_quarter,
+        moment_center,
+        moment_three_quarter
+    )
+
+
 @dataclass
 class BeamFlexureDoublySymmetric:
     profile: DoublySymmetricIUserDefined
     unbraced_length: Quantity
+    safety_factor: SafetyFactor = AllowableStrengthDesign()
 
     @cached_property
     def plastic_moment_major_axis(self) -> Quantity:
@@ -830,7 +1524,7 @@ class BeamFlexureDoublySymmetric:
             compact_limit_ratio=self.profile.slenderness.flange.flexural_minor_axis.compact_limit_ratio,
             slender_limit_ratio=self.profile.slenderness.flange.flexural_minor_axis.slender_limit_ratio,
             flange_ratio=self.profile.slenderness.flange.ratio,
-            plastic_moment=self.plastic_momento_minor_axis,
+            plastic_moment=self.plastic_moment_minor_axis,
             section_modulus=self.profile.area_properties.minor_axis_elastic_section_modulus,
             yield_stress=self.profile.material.yield_stress
         )
@@ -847,7 +1541,7 @@ class BeamFlexureDoublySymmetric:
         )
 
     @cached_property
-    def plastic_momento_minor_axis(self) -> Quantity:
+    def plastic_moment_minor_axis(self) -> Quantity:
         return self.strength_minor_axis_yield
 
     @cached_property
@@ -869,44 +1563,157 @@ class BeamFlexureDoublySymmetric:
         }
         return table[self.profile.slenderness.flange.flexural_major_axis.value]
 
-    def strength_major_axis(self, mod_factor: float = 1.) -> Quantity:
+    def nominal_strength_major_axis(self, mod_factor: float = 1.) -> Quantity:
         yield_ = self.strength_major_axis_yield
         lateral_torsional_buckling = self.strength_lateral_torsion(mod_factor)
         flange_local_buckling = self.strength_major_axis_flange_local_buckling
         strengths = (yield_, lateral_torsional_buckling, flange_local_buckling)
         return _minimum_allowed_strength(strengths)
 
-    def strength_minor_axis(self, mod_factor: float = 1.) -> Quantity:
+    def nominal_strength_minor_axis(self, mod_factor: float = 1.) -> Quantity:
         yield_ = self.strength_minor_axis_yield
         flange_local_buckling = self.strength_minor_axis_flange_local_buckling
         strengths = (yield_, flange_local_buckling)
         return _minimum_allowed_strength(strengths)
 
+    def design_strength_major_axis(self, mod_factor=1.) -> Quantity:
+        return self.safety_factor.allowable_value(self.nominal_strength_major_axis(mod_factor=mod_factor))
+
+    def design_strength_minor_axis(self, mod_factor=1.) -> Quantity:
+        return self.safety_factor.allowable_value(self.nominal_strength_minor_axis(mod_factor=mod_factor))
+
     def strength_resume(self, mod_factor: float = 1.) -> pd.DataFrame:
         strength_local_buckling = self.strength_major_axis_flange_local_buckling
         df = {
-            "strength yield": [SafetyFactor(
-                theoretical_limit_value=self.strength_major_axis_yield,
-                safety_factor=1.67,
-                type_=SafetyFactorType.ASD,
-            ).allowable_value.rescale(kN * m)],
-            "strength lateral torsion": [SafetyFactor(
-                theoretical_limit_value=self.strength_lateral_torsion(),
-                safety_factor=1.67,
-                type_=SafetyFactorType.ASD,
-            ).allowable_value.rescale(kN * m)]
+            "strength yield": [self.safety_factor.allowable_value(self.strength_major_axis_yield)],
+            "strength lateral torsion": [
+                self.safety_factor.allowable_value(
+                    self.strength_lateral_torsion(mod_factor=mod_factor)
+                )
+            ]
         }
         if strength_local_buckling:
             df.update(
                 {
-                    "strength lateral torsion": [SafetyFactor(
-                        theoretical_limit_value=self.strength_lateral_torsion(mod_factor),
-                        safety_factor=1.67,
-                        type_=SafetyFactorType.ASD,
-                    ).allowable_value.rescale(kN * m)]
+                    "strength lateral torsion": [self.safety_factor.allowable_value(strength_local_buckling)]
                 }
             )
         return pd.DataFrame(df)
+
+    @cached_property
+    def calculation_memory(self):
+        return BeamFlexureDoublySymmetricLatex(self)
+
+
+@dataclass
+class BeamFlexureDoublySymmetricLatex:
+    model: BeamFlexureDoublySymmetric
+
+    @cached_property
+    def major_axis(self):
+        return BeamFlexureMajorAxisDoublySymmetricLatex(self.model)
+
+    @cached_property
+    def minor_axis(self):
+        return BeamFlexureMinorAxisDoublySymmetricLatex(self.model)
+
+
+@dataclass
+class BeamFlexureMajorAxisDoublySymmetricLatex:
+    model: BeamFlexureDoublySymmetric
+    config_dict: ReportConfig = ReportConfig()
+
+    def resume(self, mod_factor: float):
+        string = r"\newpage"
+        return string.join(
+            (
+                self.model.profile.latex.slenderness.flexural_major_axis.limit_ratios_latex,
+                self.yield_strength_equation,
+                self.model.profile.latex.limit_length_flexural_yield_equation,
+                self.model.profile.latex.limit_length_flexural_lateral_torsional_buckling_equation,
+                self.lateral_torsional_buckling_strength_equation(mod_factor=mod_factor)
+            )
+        )
+
+    @cached_property
+    def yield_strength(self):
+        return _process_quantity_entry_config(
+            entry=self.model.strength_major_axis_yield,
+            print_config=self.config_dict.strength_moment
+        )
+
+    @cached_property
+    def yield_strength_equation(self):
+        return _flexural_yield_nominal_strength(
+            yield_stress=self.model.profile.material.latex.yield_stress,
+            plastic_section_modulus=self.model.profile.area_properties.latex.major_axis_plastic_section_modulus,
+            nominal_strength=self.yield_strength,
+            axis="major"
+        )
+
+    # @cached_property
+    # def limit_length_yield(self):
+    #     return _process_quantity_entry_config(
+    #         entry=self.model.profile
+    #     )
+    #
+    # @cached_property
+    # def limit_length_lateral_torsional_buckling(self):
+    #     return _process_quantity_entry_config(
+    #
+    #     )
+
+    def mod_factor(self, mod_factor: float):
+        return _process_quantity_entry_config(
+            entry=mod_factor,
+            print_config=self.config_dict.mod_factor
+        )
+
+    @cached_property
+    def unbraced_length(self):
+        return _process_quantity_entry_config(
+            entry=self.model.unbraced_length,
+            print_config=self.config_dict.unbraced_length
+        )
+
+    def lateral_torsional_buckling_strength_case_b(self, mod_factor: float):
+        return _process_quantity_entry_config(
+            entry=self.model.strength_lateral_torsion_compact_case_b(mod_factor=mod_factor),
+            print_config=self.config_dict.strength_moment
+        )
+
+    def lateral_torsional_buckling_strength_case_b_equation(self, mod_factor: float):
+        return _flexural_lateral_torsional_buckling_strength_case_b(
+            mod_factor=self.mod_factor(mod_factor),
+            yield_stress=self.model.profile.material.latex.yield_stress,
+            plastic_moment=self.yield_strength,
+            elastic_major_axis_section_modulus=self.model.profile.area_properties.latex
+                .major_axis_elastic_section_modulus,
+            unbraced_length=self.unbraced_length,
+            limit_length_yield=self.model.profile.latex.limit_length_flexural_yield,
+            limit_length_lateral_torsional_buckling=self.model.profile.latex
+                .limit_length_flexural_lateral_torsional_buckling,
+            nominal_strength=self.lateral_torsional_buckling_strength_case_b(mod_factor=mod_factor)
+        )
+
+    def lateral_torsional_buckling_strength_equation(self, mod_factor: float):
+        # TODO implement case c and check which case is appropriate
+        return self.lateral_torsional_buckling_strength_case_b_equation(mod_factor=mod_factor)
+
+
+@dataclass
+class BeamFlexureMinorAxisDoublySymmetricLatex:
+    model: BeamFlexureDoublySymmetric
+    config_dict: ReportConfig = ReportConfig()
+
+    @cached_property
+    def resume(self):
+        string = r"\newpage"
+        return string.join(
+            (
+                "Not Implemented",
+            )
+        )
 
 
 @dataclass
@@ -916,6 +1723,15 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
     factor_k_minor_axis: float = 1.0
     factor_k_major_axis: float = 1.0
     factor_k_torsion: float = 1.0
+    safety_factor: SafetyFactor = AllowableStrengthDesign()
+
+    def stand_alone_report(self, mod_factor: float = 1.0):
+        material = self.profile.material.data_table_latex
+        area_properties = self.profile.area_properties.data_table_latex
+        compression = self.compression.calculation_memory.resume
+        flexure_major_axis = self.flexure.calculation_memory.major_axis.resume(mod_factor=mod_factor)
+        string = r"\newpage"
+        return string.join((material, area_properties, compression, flexure_major_axis))
 
     @cached_property
     def compression(self):
@@ -941,21 +1757,13 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
             required_minor_axis_flexure_strength: Quantity,
             lateral_torsional_buckling_modification_factor: float = 1.
     ) -> float:
-        available_axial_strength = SafetyFactor(
-            self.compression.strength_flexural_buckling,
-            safety_factor=1.67,
-            type_=SafetyFactorType.ASD
-        ).allowable_value
-        available_major_axis_strength = SafetyFactor(
-            self.flexure.strength_major_axis(lateral_torsional_buckling_modification_factor),
-            safety_factor=1.67,
-            type_=SafetyFactorType.ASD
-        ).allowable_value
-        available_minor_axis_strength = SafetyFactor(
-            self.flexure.strength_minor_axis(lateral_torsional_buckling_modification_factor),
-            safety_factor=1.67,
-            type_=SafetyFactorType.ASD
-        ).allowable_value
+        available_axial_strength = self.compression.design_strength
+        available_major_axis_strength = self.flexure.design_strength_major_axis(
+            mod_factor=lateral_torsional_buckling_modification_factor
+        )
+        available_minor_axis_strength = self.flexure.design_strength_minor_axis(
+            mod_factor=lateral_torsional_buckling_modification_factor
+        )
         return _flexure_and_axial_compression_h1_1_criteria(
             available_axial_strength=available_axial_strength,
             required_axial_strength=required_axial_strength,

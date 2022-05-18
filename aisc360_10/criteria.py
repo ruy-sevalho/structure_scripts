@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
 from functools import total_ordering, cached_property
+from typing import Protocol
+
 from quantities import Quantity
 from aisc360_10.helpers import same_units_simplify
 
@@ -10,26 +12,49 @@ class SafetyFactorType(str, Enum):
     LRFD = "LRFD"
 
 
-@dataclass(frozen=True)
 class SafetyFactor:
-    theoretical_limit_value: Quantity
-    safety_factor: float
+    value: float
     type_: SafetyFactorType
+
+
+class SafetyFactor(Protocol):
+    value: float
+    
+    def allowable_value(self, theoretical_limit_value: Quantity) -> Quantity:
+        ...
+
+
+@dataclass
+class AllowableStrengthDesign(SafetyFactor):
+    value: float = 1.67
+
+    def allowable_value(self, theoretical_limit_value: Quantity) -> Quantity:
+        return theoretical_limit_value / self.value
+
+
+@dataclass
+class LoadAndResistanceFactorDesign(SafetyFactor):
+    value: float = 0.90
+
+    def allowable_value(self, theoretical_limit_value: Quantity) -> Quantity:
+        return theoretical_limit_value * self.value
+
+
+@dataclass
+class DesignStrength:
+    theoretical_limit_value: Quantity
+    safety_factor: SafetyFactor
 
     @cached_property
     def allowable_value(self) -> Quantity:
-        table = {
-            SafetyFactorType.ASD: self.theoretical_limit_value / self.safety_factor,
-            SafetyFactorType.LRFD: self.theoretical_limit_value * self.safety_factor
-        }
-        return table[self.type_]
+        return self.safety_factor.allowable_value(self.theoretical_limit_value)
 
 
 @dataclass
 @total_ordering
 class Criteria:
     calculated_value: Quantity
-    safety_factor: SafetyFactor
+    safety_factor: DesignStrength
 
     def __post_init__(self) -> None:
         q1, q2 = same_units_simplify(self.calculated_value, self.safety_factor.theoretical_limit_value)

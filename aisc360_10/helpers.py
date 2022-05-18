@@ -44,15 +44,23 @@ def _nominal_compressive_strength(critical_stress: Quantity, sectional_area: Qua
     return critical_stress * sectional_area
 
 
-def _critical_compression_stress_buckling_default(
-        member_slenderness: float,
+def _member_slenderness_limit(
         modulus_linear: Quantity,
         yield_stress: Quantity,
-        elastic_buckling_stress: Quantity
-) -> Quantity:
+
+):
     member_slenderness_limit: Quantity = 4.71 * (modulus_linear / yield_stress) ** 0.5
     member_slenderness_limit = member_slenderness_limit.simplified
-    if member_slenderness <= member_slenderness_limit.magnitude:
+    return member_slenderness_limit.magnitude
+
+
+def _critical_compression_stress_buckling_default(
+        member_slenderness: float,
+        yield_stress: Quantity,
+        elastic_buckling_stress: Quantity,
+        member_slenderness_limit: float,
+) -> Quantity:
+    if member_slenderness <= member_slenderness_limit:
         # (E3-2)
         ratio = _ratio_simplify(yield_stress, elastic_buckling_stress)
         return 0.658 ** ratio * yield_stress

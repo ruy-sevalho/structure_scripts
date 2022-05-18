@@ -7,11 +7,11 @@ from aisc360_10.elements import (
     IsoTropicMaterial, DoublySymmetricIUserDefined,
     BeamCompressionFlexureDoublySymmetricEffectiveLength, DoublySymmetricIDimensionsUserDefined,
     GenericAreaProperties,
-    SectionProfile, BeamCompressionEffectiveLength, BeamFlexureDoublySymmetric, Material
+    SectionProfile, BeamCompressionEffectiveLength, BeamFlexureDoublySymmetric, Material, latex_wrapper
 )
 from aisc360_10.latex import (
     _dataframe_table_columns, Alpha, Frac,
-    _slenderness_default_limit_ratio
+    _slenderness_default_limit_ratio_latex
 )
 from pylatex import Quantity as plQ
 from aisc360_10.helpers import Slenderness, ConstructionType
@@ -71,34 +71,6 @@ def main():
         dimensions=dimensions_wx250x250x73,
         material=steel
     )
-
-    table_str_dimensions = _dataframe_table_columns(
-        profile_wx250x250x73_calculated.dimensions.default_table,
-        unit_display="cell",
-        include_description=True
-    )
-    table_str_area_prop = _dataframe_table_columns(
-        profile_wx250x250x73_calculated.area_properties.default_table,
-        unit_display="cell",
-        include_description=True
-    )
-    df = profile_wx250x250x73_calculated.default_table
-    table_profile = _dataframe_table_columns(
-        df,
-        unit_display="cell",
-        include_description=True
-    )
-    with open("latex/section_tables.tex", "w") as f:
-        table_profile.dump(f)
-
-    steel_table = _dataframe_table_columns(
-        steel.default_table,
-        unit_display="cell",
-        include_description=True
-    )
-    with open("latex/steel.tex", "w") as f:
-        steel_table.dump(f)
-
     profile_arbitrary = DoublySymmetricIUserDefined(
         dimensions=dimensions_w_arbitrary,
         material=steel
@@ -112,6 +84,9 @@ def main():
         profile=profile_wx250x250x73,
         unbraced_length=beam_length
     )
+    latex_report_str = beam_combined_14.stand_alone_report()
+    with open("latex/report.tex", "w") as f:
+        f.write(latex_report_str)
     required_axial_strength = 60 * kN
     required_major_axis_strength = 120 * kN * m
     required_minor_axis_strength = 0 * kN * m
@@ -172,15 +147,8 @@ def test_pascal():
         doc.dump(f)
 
 
-def test_jinja():
-    q = Quantity(100, "MPa")
-    r = Quantity(1.2049323948)
-    print(_slenderness_default_limit_ratio(1.23, q, q, r))
-
-
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    test_pascal()
-    test_jinja()
-    # beam_10, beam_14 = main()
+    beam_10, beam_14 = main()
     # print_obj_pairs_attributes((user_defined.area_properties, calculated.area_properties), attrs)
+    print(1.67)
