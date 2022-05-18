@@ -30,7 +30,7 @@ class ReportConfig:
     modulus_shear: PrintOptions = PrintOptions(
         print_units="GPa",
         label=NoEscape(r"$G$"),
-        description=NoEscape(r"M\ódulo de elasticidade transversal"),
+        description=NoEscape(r"M\'odulo de elasticidade transversal"),
         round_precision=0,
     )
     density: PrintOptions = PrintOptions(
@@ -41,7 +41,7 @@ class ReportConfig:
     yield_stress: PrintOptions = PrintOptions(
         round_precision=0,
         label=NoEscape(r"$F_y$"),
-        description=NoEscape(r"Tens\ão de escoamento"),
+        description=NoEscape(r"Tens\~ao de escoamento"),
         print_units="MPa"
     )
     flange_thickness: PrintOptions = PrintOptions(

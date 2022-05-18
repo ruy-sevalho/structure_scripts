@@ -9,7 +9,7 @@ from aisc360_10.elements import (
     GenericAreaProperties,
     SectionProfile, BeamCompressionEffectiveLength, BeamFlexureDoublySymmetric, Material, latex_wrapper
 )
-from aisc360_10.latex import (
+from aisc360_10.latex_helpers import (
     _dataframe_table_columns, Alpha, Frac,
     _slenderness_default_limit_ratio_latex
 )
@@ -75,7 +75,7 @@ def main():
         dimensions=dimensions_w_arbitrary,
         material=steel
     )
-    beam_length = 2.60 * m
+    beam_length = 3.60 * m
     beam_combined_10 = BeamCompressionFlexureDoublySymmetricEffectiveLength(
         profile=profile_arbitrary,
         unbraced_length=beam_length
@@ -85,7 +85,7 @@ def main():
         unbraced_length=beam_length
     )
     latex_report_str = beam_combined_14.stand_alone_report()
-    with open("latex/report.tex", "w") as f:
+    with open("latex/calculation_memory.tex", "w") as f:
         f.write(latex_report_str)
     required_axial_strength = 60 * kN
     required_major_axis_strength = 120 * kN * m
@@ -138,17 +138,6 @@ def print_obj_pairs_attributes(pair: tuple, attributes):
         print(f"{attribute}_2: {attrs[1]}")
 
 
-def test_pascal():
-    p = plQ(Quantity(10, GPa))
-    doc = Document()
-    doc.append(p)
-    doc.append(Frac(arguments="10", extra_arguments="20"))
-    with open("test.tex", "w") as f:
-        doc.dump(f)
-
-
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     beam_10, beam_14 = main()
-    # print_obj_pairs_attributes((user_defined.area_properties, calculated.area_properties), attrs)
-    print(1.67)

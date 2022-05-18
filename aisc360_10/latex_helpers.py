@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 from typing import Literal, Optional, Union
 from functools import partial
@@ -29,6 +30,8 @@ from aisc360_10.criteria import AllowableStrengthDesign, LoadAndResistanceFactor
 from aisc360_10.report_config import ReportConfig, PrintOptions
 
 env = JinjaEnvironment(loader=PackageLoader("aisc360_10"))
+
+CONCATENATE_STRING = env.get_template("concatenation.tex").render()
 
 
 class Center(Environment):
@@ -403,7 +406,9 @@ def _axial_compression_nominal_strength(
         critical_stress: str,
         area: str,
         nominal_strength: str,
+
 ):
+    table = {"force": "P", "moment": "m"}
     template = env.get_template("nominal_strength_force.tex")
     return template.render(
         critical_stress=critical_stress,
@@ -412,29 +417,36 @@ def _axial_compression_nominal_strength(
     )
 
 
+TABLE_STRENGTH_STRINGS = {"force": "P", "moment": "M"}
+
+
 def _design_strength_asd(
         nominal_strength: str,
         safety_factor: str,
-        design_strength: str
+        design_strength: str,
+        strength_type: Literal["force", "moment"]
 ):
     template = env.get_template("design_strength_asd.tex")
     return template.render(
         nominal_strength=nominal_strength,
         safety_factor=safety_factor,
-        design_strength=design_strength
+        design_strength=design_strength,
+        strength_type=TABLE_STRENGTH_STRINGS[strength_type]
     )
 
 
 def _design_strength_lfrd(
         nominal_strength: str,
         safety_factor: str,
-        design_strength: str
+        design_strength: str,
+        strength_type: Literal["force", "moment"]
 ):
     template = env.get_template("design_strength_lfrd.tex")
     return template.render(
         nominal_strength=nominal_strength,
         safety_factor=safety_factor,
-        design_strength=design_strength
+        design_strength=design_strength,
+        strength_type=TABLE_STRENGTH_STRINGS[strength_type]
     )
 
 
@@ -442,7 +454,8 @@ def _design_strength(
         nominal_strength: str,
         safety_factor: str,
         design_strength: str,
-        safety_factor_type: SafetyFactor
+        safety_factor_type: SafetyFactor,
+        strength_type: Literal["force", "moment"]
 ):
     table = {
         AllowableStrengthDesign: _design_strength_asd,
@@ -452,6 +465,7 @@ def _design_strength(
         nominal_strength=nominal_strength,
         safety_factor=safety_factor,
         design_strength=design_strength,
+        strength_type=strength_type
     )
 
 
@@ -508,6 +522,20 @@ def _limit_length_lateral_torsional_buckling(
     )
 
 
+def _effective_radius_of_gyration_equation(
+        minor_axis_inertia: str,
+        warping_constant: str,
+        major_axis_section_modulus: str,
+        effective_radius_of_gyration: str
+):
+    return env.get_template("effective_radius_of_gyration.tex").render(
+        minor_axis_inertia=minor_axis_inertia,
+        warping_constant=warping_constant,
+        major_axis_section_modulus=major_axis_section_modulus,
+        effective_radius_of_gyration=effective_radius_of_gyration,
+    )
+
+
 def _flexural_lateral_torsional_buckling_strength_case_b(
         mod_factor: str,
         plastic_moment: str,
@@ -528,4 +556,12 @@ def _flexural_lateral_torsional_buckling_strength_case_b(
         limit_length_yield=limit_length_yield,
         limit_length_lateral_torsional_buckling=limit_length_lateral_torsional_buckling,
         nominal_strength=nominal_strength
+    )
+
+
+def _build_doc(document: str, date: str = datetime.now()):
+    template = env.get_template("document.tex")
+    return template.render(
+        body=document,
+        date=date
     )

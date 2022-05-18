@@ -189,9 +189,9 @@ def _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_
     return critical_stress * section_modulus
 
 
-def _flexural_lateral_torsional_buckling_strength_compact(
-        case_b: Quantity,
-        case_c: Quantity,
+def _flexural_lateral_torsional_buckling_strength(
+        case_b: Quantity | str,
+        case_c: Quantity | str,
         length_between_braces: Quantity,
         limiting_length_yield: Quantity,
         limiting_length_torsional_buckling: Quantity,

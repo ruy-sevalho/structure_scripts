@@ -15,7 +15,7 @@ from aisc360_10.helpers import (
     _doubly_symmetric_i_torsional_constant, _effective_radius_of_gyration, _elastic_flexural_buckling_stress,
     _elastic_torsional_buckling_stress_doubly_symmetric_member, _flexural_flange_local_buckling_non_compact,
     _flexural_lateral_torsional_buckling_critical_stress_compact_doubly_symmetric,
-    _flexural_lateral_torsional_buckling_strength_compact,
+    _flexural_lateral_torsional_buckling_strength,
     _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_b,
     _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_c,
     _flexural_major_axis_yield_strength,
@@ -26,14 +26,15 @@ from aisc360_10.helpers import (
     _nominal_compressive_strength, _radius_of_gyration, _rectangle_area, _section_modulus, _self_inertia,
     _transfer_inertia, _warping_constant, ConstructionType, Slenderness, _member_slenderness_limit
 )
-from aisc360_10.latex import (
+from aisc360_10.latex_helpers import (
     _slenderness_default_limit_ratio_latex, _member_slenderness_minor_axis_flexural_bucking_latex,
     _dataframe_table_columns, _elastic_buckling_critical_stress_latex,
     _axial_compression_non_slender_critical_stress_lower_than,
     _axial_compression_non_slender_critical_stress_greater_than, _axial_compression_nominal_strength,
     _process_quantity_entry_config, _design_strength_asd, _design_strength_lfrd, _design_strength,
     _flexural_yield_nominal_strength, _limit_length_yield, _limit_length_lateral_torsional_buckling,
-    _flexural_lateral_torsional_buckling_strength_case_b
+    _flexural_lateral_torsional_buckling_strength_case_b, _build_doc, CONCATENATE_STRING,
+    _effective_radius_of_gyration_equation
 )
 from aisc360_10.report_config import ReportConfig
 
@@ -1110,6 +1111,13 @@ class DoublySymmetricIUserDefinedLatex:
         )
 
     @cached_property
+    def warping_constant(self):
+        return _process_quantity_entry_config(
+            entry=self.model.warping_constant,
+            print_config=self.config_dict.warping_constant
+        )
+
+    @cached_property
     def effective_radius_of_gyration(self):
         return _process_quantity_entry_config(
             entry=self.model.effective_radius_of_gyration,
@@ -1118,9 +1126,11 @@ class DoublySymmetricIUserDefinedLatex:
 
     @cached_property
     def effective_radius_of_gyration_equation(self):
-        return _process_quantity_entry_config(
-            entry=self.model.effective_radius_of_gyration,
-            print_config=self.config_dict.effective_radius_of_gyration
+        return _effective_radius_of_gyration_equation(
+            minor_axis_inertia=self.model.area_properties.latex.minor_axis_inertia,
+            warping_constant=self.model.latex.warping_constant,
+            major_axis_section_modulus=self.model.area_properties.latex.major_axis_elastic_section_modulus,
+            effective_radius_of_gyration=self.effective_radius_of_gyration
         )
 
     @cached_property
@@ -1376,7 +1386,8 @@ class BeamCompressionEffectiveLengthLatex:
         return _axial_compression_nominal_strength(
             critical_stress=self.flexural_buckling_critical_stress,
             area=self.model.profile.area_properties.latex.area,
-            nominal_strength=self.strength_flexural_buckling
+            nominal_strength=self.strength_flexural_buckling,
+
         )
 
     @cached_property
@@ -1392,12 +1403,13 @@ class BeamCompressionEffectiveLengthLatex:
             nominal_strength=self.nominal_strength,
             safety_factor=str(self.safety_factor.value),
             design_strength=self.design_strength,
-            safety_factor_type=self.safety_factor
+            safety_factor_type=self.safety_factor,
+            strength_type="force"
         )
 
     @cached_property
     def resume(self):
-        string = r"\newpage"
+        string = CONCATENATE_STRING
         return string.join(
             (
                 self.model.profile.latex.slenderness.axial_compression.limit_ratios_latex,
@@ -1495,7 +1507,7 @@ class BeamFlexureDoublySymmetric:
         )
 
     def strength_lateral_torsion(self, mod_factor: float = 1.) -> Quantity:
-        return _flexural_lateral_torsional_buckling_strength_compact(
+        return _flexural_lateral_torsional_buckling_strength(
             case_b=self.strength_lateral_torsion_compact_case_b(mod_factor),
             case_c=self.strength_lateral_torsion_compact_case_c(mod_factor),
             length_between_braces=self.unbraced_length,
@@ -1624,14 +1636,16 @@ class BeamFlexureMajorAxisDoublySymmetricLatex:
     config_dict: ReportConfig = ReportConfig()
 
     def resume(self, mod_factor: float):
-        string = r"\newpage"
+        string = CONCATENATE_STRING
         return string.join(
             (
                 self.model.profile.latex.slenderness.flexural_major_axis.limit_ratios_latex,
                 self.yield_strength_equation,
                 self.model.profile.latex.limit_length_flexural_yield_equation,
+                self.model.profile.latex.effective_radius_of_gyration_equation,
                 self.model.profile.latex.limit_length_flexural_lateral_torsional_buckling_equation,
-                self.lateral_torsional_buckling_strength_equation(mod_factor=mod_factor)
+                self.lateral_torsional_buckling_strength_equation(mod_factor=mod_factor) or "",
+                self.design_strength_equation(mod_factor=mod_factor)
             )
         )
 
@@ -1650,18 +1664,6 @@ class BeamFlexureMajorAxisDoublySymmetricLatex:
             nominal_strength=self.yield_strength,
             axis="major"
         )
-
-    # @cached_property
-    # def limit_length_yield(self):
-    #     return _process_quantity_entry_config(
-    #         entry=self.model.profile
-    #     )
-    #
-    # @cached_property
-    # def limit_length_lateral_torsional_buckling(self):
-    #     return _process_quantity_entry_config(
-    #
-    #     )
 
     def mod_factor(self, mod_factor: float):
         return _process_quantity_entry_config(
@@ -1696,9 +1698,36 @@ class BeamFlexureMajorAxisDoublySymmetricLatex:
             nominal_strength=self.lateral_torsional_buckling_strength_case_b(mod_factor=mod_factor)
         )
 
-    def lateral_torsional_buckling_strength_equation(self, mod_factor: float):
+    def lateral_torsional_buckling_strength_equation(self, mod_factor: float) -> str | None:
         # TODO implement case c and check which case is appropriate
-        return self.lateral_torsional_buckling_strength_case_b_equation(mod_factor=mod_factor)
+        return _flexural_lateral_torsional_buckling_strength(
+            case_b=self.lateral_torsional_buckling_strength_case_b_equation(mod_factor=mod_factor),
+            case_c="Case c: Not Implemented",
+            length_between_braces=self.model.unbraced_length,
+            limiting_length_yield=self.model.profile.limit_length_yield,
+            limiting_length_torsional_buckling=self.model.profile.limit_length_torsional_buckling
+        )
+
+    def nominal_strength(self, mod_factor: float):
+        return _process_quantity_entry_config(
+            entry=self.model.nominal_strength_major_axis(mod_factor=mod_factor),
+            print_config=self.config_dict.strength_moment
+        )
+
+    def design_strength(self, mod_factor: float):
+        return _process_quantity_entry_config(
+            entry=self.model.design_strength_major_axis(mod_factor=mod_factor),
+            print_config=self.config_dict.strength_moment
+        )
+
+    def design_strength_equation(self, mod_factor: float):
+        return _design_strength(
+            nominal_strength=self.nominal_strength(mod_factor=mod_factor),
+            safety_factor_type=self.model.safety_factor,
+            safety_factor=str(self.model.safety_factor.value),
+            design_strength=self.design_strength(mod_factor=mod_factor),
+            strength_type="moment"
+        )
 
 
 @dataclass
@@ -1708,7 +1737,7 @@ class BeamFlexureMinorAxisDoublySymmetricLatex:
 
     @cached_property
     def resume(self):
-        string = r"\newpage"
+        string = CONCATENATE_STRING
         return string.join(
             (
                 "Not Implemented",
@@ -1730,8 +1759,9 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
         area_properties = self.profile.area_properties.data_table_latex
         compression = self.compression.calculation_memory.resume
         flexure_major_axis = self.flexure.calculation_memory.major_axis.resume(mod_factor=mod_factor)
-        string = r"\newpage"
-        return string.join((material, area_properties, compression, flexure_major_axis))
+        string = CONCATENATE_STRING
+        document_string = string.join((material, area_properties, compression, flexure_major_axis))
+        return _build_doc(document_string)
 
     @cached_property
     def compression(self):
