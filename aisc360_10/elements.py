@@ -1636,9 +1636,11 @@ class BeamFlexureMajorAxisDoublySymmetricLatex:
     config_dict: ReportConfig = ReportConfig()
 
     def resume(self, mod_factor: float):
+        title = "Major axis"
         string = CONCATENATE_STRING
         return string.join(
             (
+                title,
                 self.model.profile.latex.slenderness.flexural_major_axis.limit_ratios_latex,
                 self.yield_strength_equation,
                 self.model.profile.latex.limit_length_flexural_yield_equation,
@@ -1735,13 +1737,52 @@ class BeamFlexureMinorAxisDoublySymmetricLatex:
     model: BeamFlexureDoublySymmetric
     config_dict: ReportConfig = ReportConfig()
 
-    @cached_property
-    def resume(self):
+    def resume(self, mod_factor: float):
+        title = "Minor axis"
         string = CONCATENATE_STRING
         return string.join(
             (
-                "Not Implemented",
+                title,
+                self.yield_strength_equation,
+                self.design_strength_equation(mod_factor=mod_factor)
             )
+        )
+
+    @cached_property
+    def yield_strength(self):
+        return _process_quantity_entry_config(
+            entry=self.model.strength_minor_axis_yield,
+            print_config=self.config_dict.strength_moment
+        )
+
+    @cached_property
+    def yield_strength_equation(self):
+        return _flexural_yield_nominal_strength(
+            yield_stress=self.model.profile.material.latex.yield_stress,
+            plastic_section_modulus=self.model.profile.area_properties.latex.minor_axis_plastic_section_modulus,
+            nominal_strength=self.yield_strength,
+            axis="minor"
+        )
+
+    def nominal_strength(self, mod_factor: float):
+        return _process_quantity_entry_config(
+            entry=self.model.nominal_strength_minor_axis(mod_factor=mod_factor),
+            print_config=self.config_dict.strength_moment
+        )
+
+    def design_strength(self, mod_factor: float):
+        return _process_quantity_entry_config(
+            entry=self.model.design_strength_minor_axis(mod_factor=mod_factor),
+            print_config=self.config_dict.strength_moment
+        )
+
+    def design_strength_equation(self, mod_factor: float):
+        return _design_strength(
+            nominal_strength=self.nominal_strength(mod_factor=mod_factor),
+            safety_factor_type=self.model.safety_factor,
+            safety_factor=str(self.model.safety_factor.value),
+            design_strength=self.design_strength(mod_factor=mod_factor),
+            strength_type="moment"
         )
 
 
@@ -1754,13 +1795,32 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
     factor_k_torsion: float = 1.0
     safety_factor: SafetyFactor = AllowableStrengthDesign()
 
-    def stand_alone_report(self, mod_factor: float = 1.0):
+    def stand_alone_report(
+            self,
+            required_axial_strength: Quantity,
+            required_major_axis_flexure_strength: Quantity,
+            required_minor_axis_flexure_strength: Quantity,
+            lateral_torsional_buckling_modification_factor: float = 1.
+    ):
         material = self.profile.material.data_table_latex
         area_properties = self.profile.area_properties.data_table_latex
         compression = self.compression.calculation_memory.resume
-        flexure_major_axis = self.flexure.calculation_memory.major_axis.resume(mod_factor=mod_factor)
+        flexure_major_axis = self.flexure.calculation_memory.major_axis.resume(
+            mod_factor=lateral_torsional_buckling_modification_factor
+        )
+        flexure_minor_axis = self.flexure.calculation_memory.minor_axis.resume(
+            mod_factor=lateral_torsional_buckling_modification_factor
+        )
         string = CONCATENATE_STRING
-        document_string = string.join((material, area_properties, compression, flexure_major_axis))
+        document_string = string.join(
+            (
+                material,
+                area_properties,
+                compression,
+                flexure_major_axis,
+                flexure_minor_axis
+            )
+        )
         return _build_doc(document_string)
 
     @cached_property

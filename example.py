@@ -84,34 +84,17 @@ def main():
         profile=profile_wx250x250x73,
         unbraced_length=beam_length
     )
-    latex_report_str = beam_combined_14.stand_alone_report()
-    with open("latex/calculation_memory.tex", "w") as f:
-        f.write(latex_report_str)
+
     required_axial_strength = 60 * kN
     required_major_axis_strength = 120 * kN * m
     required_minor_axis_strength = 0 * kN * m
-    # print(profile_wx250x250x73.warping_constant.rescale(dm ** 6))
-    # print(profile_wx250x250x73.dimensions.distance_between_centroids.rescale(mm))
-    # print(profile_wx250x250x73.slenderness.flange_axial_limit_ratio)
-    # print(profile_wx250x250x73.slenderness.flange_ratio)
-    # print(profile_wx250x250x73.slenderness.web_axial_compression_limit_ratio)
-    # print(profile_wx250x250x73.slenderness.web_ratio)
-    # print(profile_wx250x250x73.area_properties.minor_axis_radius_of_gyration)
-    # print("compression")
-    # print(beam_compression.minor_axis_slenderness)
-    # print((4.71 * (steel.modulus_linear / steel.yield_stress) ** 0.5).simplified)
-    # print(beam_compression.elastic_flexural_buckling_stress)
-    # print(beam_compression.flexural_buckling_critical_stress)
-    # print(beam_compression.strength_flexural_buckling.rescale(kN))
-    # print('flexure')
-    # print(profile_wx250x250x73.slenderness.flange_flexural_compact_limit_ratio)
-    # print(profile_wx250x250x73.slenderness.web_flexural_compact_limit_ratio)
-    # print(beam_flexure.strength_major_axis_yield.rescale(kN * m))
-    # print(profile_wx250x250x73.limit_length_yield.rescale(m))
-    # print(profile_wx250x250x73.limit_length_torsional_buckling.rescale(m))
-    # print(profile_wx250x250x73.warping_constant.rescale(cm ** 6))
-    # print(profile_wx250x250x73.effective_radius_of_gyration.rescale(mm))
-
+    latex_report_str = beam_combined_14.stand_alone_report(
+        required_axial_strength=required_axial_strength,
+        required_minor_axis_flexure_strength=required_major_axis_strength,
+        required_major_axis_flexure_strength=required_minor_axis_strength,
+    )
+    with open("latex/calculation_memory.tex", "w") as f:
+        f.write(latex_report_str)
     # print("10 mm")
     # print(
     #     beam_combined_10.compression_flexure_combined_criteria_h1_1(
@@ -129,13 +112,6 @@ def main():
     #     )
     # )
     return beam_combined_10, beam_combined_14
-
-
-def print_obj_pairs_attributes(pair: tuple, attributes):
-    for attribute in attributes:
-        attrs = [getattr(obj, attribute) for obj in pair]
-        print(f"{attribute}_1: {attrs[0]}")
-        print(f"{attribute}_2: {attrs[1]}")
 
 
 # Press the green button in the gutter to run the script.

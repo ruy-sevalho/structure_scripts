@@ -1,0 +1,3 @@
+{% raw %}\[
+	M_n={% endraw %} {{ mod_factor }} {%raw%} \left[{%endraw%} {{ plastic_moment }} {%raw%}\left({%endraw%} {{ plastic_moment  }} {{" - 0.7 \cdot "}} {{ yield_stress }} {{"\cdot"}} {{ elastic_major_axis_section_modulus }} {%raw%}\right) \left(\frac{{%endraw%} {{ unbraced_length }} - {{ limit_length_yield }} {{"}{"}} {{ limit_length_lateral_torsional_buckling }} - {{ limit_length_yield }}{%raw%} }\right) \right]= {%endraw%} {{ nominal_strength}}
+{{"\]"}}
