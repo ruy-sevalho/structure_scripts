@@ -565,3 +565,34 @@ def _build_doc(document: str, date: str = datetime.now()):
         body=document,
         date=date
     )
+
+
+def _flexure_compression_h1_criteria_equation(
+        axial_strength_ratio: Literal["lower_than_0_2", "greater_than_0_2"],
+        required_axial_strength: str,
+        design_axial_strength: str,
+        required_flexural_major_axis_strength: str,
+        design_strength_flexural_major_axis: str,
+        required_flexural_minor_axis_strength: str,
+        design_strength_flexural_minor_axis: str,
+        criteria: str
+):
+    force_factor = {
+        "lower_than_0_2": "",
+        "greater_than_0_2": "2"
+    }
+    moment_factor = {
+        "lower_than_0_2": r"\frac{8}{9}",
+        "greater_than_0_2": ""
+    }
+    return env.get_template("flexure_compression_h1_criteria.tex").render(
+        force_factor=force_factor[axial_strength_ratio],
+        moment_factor=moment_factor[axial_strength_ratio],
+        required_axial_strength=required_axial_strength,
+        required_flexural_major_axis_strength=required_flexural_major_axis_strength,
+        required_flexural_minor_axis_strength=required_flexural_minor_axis_strength,
+        design_axial_strength=design_axial_strength,
+        design_strength_flexural_major_axis=design_strength_flexural_major_axis,
+        design_strength_flexural_minor_axis=design_strength_flexural_minor_axis,
+        criteria=criteria
+    )

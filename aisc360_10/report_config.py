@@ -218,6 +218,7 @@ class ReportConfig:
         description="Comprimento limite em flexão para o caso de flambagem lateral tosrional.",
         print_units="mm"
     )
+    criteria: PrintOptions = PrintOptions(round_precision=2)
 
     def to_dict(self):
         return {field_.name: getattr(self, field_.name) for field_ in fields(self)}

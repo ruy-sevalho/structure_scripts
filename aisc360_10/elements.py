@@ -24,7 +24,8 @@ from aisc360_10.helpers import (
     _lateral_torsional_buckling_modification_factor_default, _limit_ratio_default, _limit_stress_built_up_sections,
     _limiting_length_torsional_buckling, _limiting_length_yield, _member_slenderness_ratio, _minimum_allowed_strength,
     _nominal_compressive_strength, _radius_of_gyration, _rectangle_area, _section_modulus, _self_inertia,
-    _transfer_inertia, _warping_constant, ConstructionType, Slenderness, _member_slenderness_limit
+    _transfer_inertia, _warping_constant, ConstructionType, Slenderness, _member_slenderness_limit,
+    _axial_strength_ratio
 )
 from aisc360_10.latex_helpers import (
     _slenderness_default_limit_ratio_latex, _member_slenderness_minor_axis_flexural_bucking_latex,
@@ -34,7 +35,7 @@ from aisc360_10.latex_helpers import (
     _process_quantity_entry_config, _design_strength_asd, _design_strength_lfrd, _design_strength,
     _flexural_yield_nominal_strength, _limit_length_yield, _limit_length_lateral_torsional_buckling,
     _flexural_lateral_torsional_buckling_strength_case_b, _build_doc, CONCATENATE_STRING,
-    _effective_radius_of_gyration_equation
+    _effective_radius_of_gyration_equation, _flexure_compression_h1_criteria_equation
 )
 from aisc360_10.report_config import ReportConfig
 
@@ -1268,8 +1269,14 @@ class BeamCompressionEffectiveLength(BeamCompression):
     def calculation_memory(self):
         return BeamCompressionEffectiveLengthLatex(self)
 
+    def axial_strength_ratio(self, required_axial_strength):
+        return _axial_strength_ratio(
+            required_axial_strength=required_axial_strength,
+            available_axial_strength=self.design_strength
+        )
 
-@dataclass
+
+@dataclass(frozen=True)
 class BeamCompressionEffectiveLengthLatex:
     model: BeamCompressionEffectiveLength
     config_dict: ReportConfig = ReportConfig()
@@ -1865,3 +1872,90 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
 
     def resume(self, mod_factor=1.):
         return pd.concat((self.compression.strength_resume, self.flexure.strength_resume(mod_factor)), axis=1)
+
+    @cached_property
+    def latex(self):
+        return BeamCompressionFlexureDoublySymmetricEffectiveLengthLatex(self)
+
+
+@dataclass
+class BeamCompressionFlexureDoublySymmetricEffectiveLengthLatex:
+    model: BeamCompressionFlexureDoublySymmetricEffectiveLength
+    config_dict: ReportConfig = ReportConfig()
+
+    def stand_alone_report(
+            self,
+            required_axial_strength: Quantity,
+            required_major_axis_flexure_strength: Quantity,
+            required_minor_axis_flexure_strength: Quantity,
+            lateral_torsional_buckling_modification_factor: float = 1.
+    ):
+        material = self.model.profile.material.data_table_latex
+        area_properties = self.model.profile.area_properties.data_table_latex
+        compression = self.model.compression.calculation_memory.resume
+        flexure_major_axis = self.model.flexure.calculation_memory.major_axis.resume(
+            mod_factor=lateral_torsional_buckling_modification_factor
+        )
+        flexure_minor_axis = self.model.flexure.calculation_memory.minor_axis.resume(
+            mod_factor=lateral_torsional_buckling_modification_factor
+        )
+        string = CONCATENATE_STRING
+        document_string = string.join(
+            (
+                material,
+                area_properties,
+                compression,
+                flexure_major_axis,
+                flexure_minor_axis
+            )
+        )
+        return _build_doc(document_string)
+
+    def flexure_compression_h1_criteria(
+            self,
+            required_axial_strength: Quantity,
+            required_major_axis_flexure_strength: Quantity,
+            required_minor_axis_flexure_strength: Quantity,
+            lateral_torsional_buckling_modification_factor: float = 1.
+    ):
+        return _process_quantity_entry_config(
+            entry=self.model.compression_flexure_combined_criteria_h1_1(
+                required_axial_strength=required_axial_strength,
+                required_minor_axis_flexure_strength=required_minor_axis_flexure_strength,
+                required_major_axis_flexure_strength=required_major_axis_flexure_strength,
+                lateral_torsional_buckling_modification_factor=lateral_torsional_buckling_modification_factor
+            ),
+            print_config=self.config_dict.criteria
+        )
+
+    def flexure_compression_h1_criteria_equation(
+            self,
+            required_axial_strength: Quantity,
+            required_major_axis_flexure_strength: Quantity,
+            required_minor_axis_flexure_strength: Quantity,
+            lateral_torsional_buckling_modification_factor: float = 1.
+    ):
+        criteria = self.flexure_compression_h1_criteria(
+            required_major_axis_flexure_strength=required_major_axis_flexure_strength,
+            required_axial_strength=required_axial_strength,
+            required_minor_axis_flexure_strength=required_minor_axis_flexure_strength,
+            lateral_torsional_buckling_modification_factor=lateral_torsional_buckling_modification_factor
+        )
+        axial_strength_ratio_value = self.model.compression.axial_strength_ratio(
+            required_axial_strength=required_axial_strength
+        )
+        if axial_strength_ratio_value < 0.2:
+            axial_strength_ratio = "lower_than_0_2"
+        else:
+            axial_strength_ratio = "greater_than_0_2"
+        return
+        # return _flexure_compression_h1_criteria_equation(
+        #     axial_strength_ratio=axial_strength_ratio,
+        #                           required_axial_strength=,
+        # design_axial_strength: str,
+        # required_flexural_major_axis_strength: str,
+        # design_strength_flexural_major_axis: str,
+        # required_flexural_minor_axis_strength: str,
+        # design_strength_flexural_minor_axis: str,
+        # criteria: str
+        # )

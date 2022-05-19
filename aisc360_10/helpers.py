@@ -267,6 +267,10 @@ def _flexure_and_axial_compression_h1_1_validity(
     return 0.1 <= ratio <= 0.9
 
 
+def _axial_strength_ratio(required_axial_strength, available_axial_strength):
+    return _ratio_simplify(required_axial_strength, available_axial_strength)
+
+
 def _flexure_and_axial_compression_h1_1_criteria(
         required_axial_strength: Quantity,
         available_axial_strength: Quantity,
