@@ -567,6 +567,18 @@ def _build_doc(document: str, date: str = datetime.now()):
     )
 
 
+def _axial_strength_ratio_equation(
+        required_strength: str,
+        design_strength: str,
+        ratio: str
+):
+    return env.get_template("axial_strength_ratio.tex").render(
+        required_strength=required_strength,
+        design_strength=design_strength,
+        ratio=ratio
+    )
+
+
 def _flexure_compression_h1_criteria_equation(
         axial_strength_ratio: Literal["lower_than_0_2", "greater_than_0_2"],
         required_axial_strength: str,
@@ -578,12 +590,12 @@ def _flexure_compression_h1_criteria_equation(
         criteria: str
 ):
     force_factor = {
-        "lower_than_0_2": "",
-        "greater_than_0_2": "2"
+        "lower_than_0_2": "2",
+        "greater_than_0_2": ""
     }
     moment_factor = {
-        "lower_than_0_2": r"\frac{8}{9}",
-        "greater_than_0_2": ""
+        "lower_than_0_2": "",
+        "greater_than_0_2": r"\frac{8}{9}"
     }
     return env.get_template("flexure_compression_h1_criteria.tex").render(
         force_factor=force_factor[axial_strength_ratio],
@@ -595,4 +607,22 @@ def _flexure_compression_h1_criteria_equation(
         design_strength_flexural_major_axis=design_strength_flexural_major_axis,
         design_strength_flexural_minor_axis=design_strength_flexural_minor_axis,
         criteria=criteria
+    )
+
+
+def _ratio_equation(
+        numerator_symbol: str,
+        numerator_value: str,
+        denominator_symbol: str,
+        denominator_value: str,
+        ratio_value: str,
+        ratio_symbol: str,
+):
+    return env.get_template("ratio.tex").render(
+        numerator_value=numerator_value,
+        numerator_symbol=numerator_symbol,
+        denominator_symbol=denominator_symbol,
+        denominator_value=denominator_value,
+        ratio_value=ratio_value,
+        ratio_symbol=ratio_symbol
     )

@@ -50,6 +50,16 @@ class ReportConfig:
     flange_width: PrintOptions = PrintOptions(
         print_units="mm", round_precision=0, label=NoEscape(r"$b_f$"), description="Largura do flange"
     )
+    flange_slenderness: PrintOptions = PrintOptions(
+        round_precision=2,
+        label=NoEscape(r"$\alpha_f$"),
+        description=NoEscape(r"Raz\~ao de esbeltez do flange")
+    )
+    web_slenderness: PrintOptions = PrintOptions(
+        round_precision=2,
+        label=NoEscape(r"$\alpha_w$"),
+        description=NoEscape(r"Raz\~ao de esbeltez da alma")
+    )
     slender_limit_ratio: PrintOptions = PrintOptions(
         round_precision=2,
         label=NoEscape(r"$\alpha_p$"),

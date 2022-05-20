@@ -212,31 +212,31 @@ def test_beam_flexure_yield_strength(beam: tuple[BeamFlexureDoublySymmetric, Qua
 
 @mark.parametrize(
     "beam",
-    [(beam_1_flexure, 1., Quantity(28617620.57, N * mm))]
+    [(beam_1_flexure, Quantity(28617620.57, N * mm))]
 )
-def test_beam_flexure_strength_lateral_torsion_compact_case_b(beam: tuple[BeamFlexureDoublySymmetric, float, Quantity]):
-    calculated, reference = same_units_simplify(beam[0].strength_lateral_torsion_compact_case_b(beam[1]), beam[2])
+def test_beam_flexure_strength_lateral_torsion_compact_case_b(beam: tuple[BeamFlexureDoublySymmetric, Quantity]):
+    calculated, reference = same_units_simplify(beam[0].strength_lateral_torsion_compact_case_b, beam[1])
     assert calculated == approx(reference)
 
 
 @mark.parametrize(
     "beam",
-    [(beam_1_flexure, 1., Quantity(1098.821625, MPa))]
+    [(beam_1_flexure, Quantity(1098.821625, MPa))]
 )
 def test_beam_flexure_critical_stress_lateral_torsional_buckling(
         beam: tuple[BeamFlexureDoublySymmetric,
-                    float, Quantity]
+                    Quantity]
 ):
-    calculated, reference = same_units_simplify(beam[0].critical_stress_lateral_torsional_buckling(beam[1]), beam[2])
+    calculated, reference = same_units_simplify(beam[0].critical_stress_lateral_torsional_buckling, beam[1])
     assert calculated == approx(reference)
 
 
 @mark.parametrize(
     "beam",
-    [(beam_1_flexure, 1., Quantity(82411621.84, N * mm))]
+    [(beam_1_flexure, Quantity(82411621.84, N * mm))]
 )
-def test_beam_flexure_strength_lateral_torsion_compact_case_c(beam: tuple[BeamFlexureDoublySymmetric, float, Quantity]):
-    calculated, reference = same_units_simplify(beam[0].strength_lateral_torsion_compact_case_c(beam[1]), beam[2])
+def test_beam_flexure_strength_lateral_torsion_compact_case_c(beam: tuple[BeamFlexureDoublySymmetric, Quantity]):
+    calculated, reference = same_units_simplify(beam[0].strength_lateral_torsion_compact_case_c, beam[1])
     assert calculated == approx(reference)
 
 

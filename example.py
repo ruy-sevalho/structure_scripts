@@ -76,23 +76,24 @@ def main():
         material=steel
     )
     beam_length = 3.60 * m
-    beam_combined_10 = BeamCompressionFlexureDoublySymmetricEffectiveLength(
-        profile=profile_arbitrary,
-        unbraced_length=beam_length
-    )
-    beam_combined_14 = BeamCompressionFlexureDoublySymmetricEffectiveLength(
-        profile=profile_wx250x250x73,
-        unbraced_length=beam_length
-    )
-
     required_axial_strength = 60 * kN
     required_major_axis_strength = 120 * kN * m
     required_minor_axis_strength = 0 * kN * m
-    latex_report_str = beam_combined_14.stand_alone_report(
+    beam_combined_10 = BeamCompressionFlexureDoublySymmetricEffectiveLength(
+        profile=profile_arbitrary,
+        unbraced_length=beam_length,
         required_axial_strength=required_axial_strength,
-        required_minor_axis_flexure_strength=required_major_axis_strength,
-        required_major_axis_flexure_strength=required_minor_axis_strength,
+        required_minor_axis_flexure_strength=required_minor_axis_strength,
+        required_major_axis_flexure_strength=required_major_axis_strength
     )
+    beam_combined_14 = BeamCompressionFlexureDoublySymmetricEffectiveLength(
+        profile=profile_wx250x250x73,
+        unbraced_length=beam_length,
+        required_axial_strength=required_axial_strength,
+        required_minor_axis_flexure_strength=required_minor_axis_strength,
+        required_major_axis_flexure_strength=required_major_axis_strength
+    )
+    latex_report_str = beam_combined_14.latex.stand_alone_report
     with open("latex/calculation_memory.tex", "w") as f:
         f.write(latex_report_str)
     # print("10 mm")
