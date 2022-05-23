@@ -96,6 +96,7 @@ def main():
     latex_report_str = beam_combined_14.latex.stand_alone_report
     with open("latex/calculation_memory.tex", "w") as f:
         f.write(latex_report_str)
+    print(beam_combined_14.profile.slenderness.flange.flexural_major_axis_value)
     # print("10 mm")
     # print(
     #     beam_combined_10.compression_flexure_combined_criteria_h1_1(

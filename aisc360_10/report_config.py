@@ -52,12 +52,12 @@ class ReportConfig:
     )
     flange_slenderness: PrintOptions = PrintOptions(
         round_precision=2,
-        label=NoEscape(r"$\alpha_f$"),
+        label=NoEscape(r"$\lambda_f$"),
         description=NoEscape(r"Raz\~ao de esbeltez do flange")
     )
     web_slenderness: PrintOptions = PrintOptions(
         round_precision=2,
-        label=NoEscape(r"$\alpha_w$"),
+        label=NoEscape(r"$\lambda_w$"),
         description=NoEscape(r"Raz\~ao de esbeltez da alma")
     )
     slender_limit_ratio: PrintOptions = PrintOptions(
@@ -91,6 +91,11 @@ class ReportConfig:
         description=NoEscape(r"Coeficiente $c$")
     )
     mod_factor: PrintOptions = PrintOptions(
+        round_precision=1,
+        label=NoEscape(r"$C_b$"),
+        description=NoEscape(r"Coeficiente de modifica\c{c}\~ao de flambagem lateral torsional")
+    )
+    lateral_torsional_buckling_modification_factor: PrintOptions = PrintOptions(
         round_precision=1,
         label=NoEscape(r"$C_b$"),
         description=NoEscape(r"Coeficiente de modifica\c{c}\~ao de flambagem lateral torsional")
@@ -178,9 +183,19 @@ class ReportConfig:
         description=NoEscape(r"Tipo de constru\c{c}\~ao")
     )
     factor_k: PrintOptions = PrintOptions(
-        label=NoEscape(r"$k$"),
+        label=NoEscape(r"$K$"),
         round_precision=1,
         description="Fator de comprimento efetivo (flambagem)"
+    )
+    factor_k_minor_axis: PrintOptions = PrintOptions(
+        label=NoEscape(r"$K_y$"),
+        round_precision=1,
+        description=NoEscape(r"Fator de comprimento efetivo (flambagem) eixo secund\'ario")
+    )
+    factor_k_major_axis: PrintOptions = PrintOptions(
+        label=NoEscape(r"$K_x$"),
+        round_precision=1,
+        description=NoEscape(r"Fator de comprimento efetivo (flambagem) eixo principal")
     )
     unbraced_length: PrintOptions = PrintOptions(
         label=NoEscape(r"$L$"),
@@ -210,6 +225,24 @@ class ReportConfig:
         print_units="kN",
         description=NoEscape(r"Carga cr\'itica nomimal")
     )
+    required_axial_strength: PrintOptions = PrintOptions(
+        label=NoEscape(r"P_{r}"),
+        round_precision=2,
+        print_units="kN",
+        description=NoEscape(r"Carga axial aplicada")
+    )
+    required_major_axis_flexure_strength: PrintOptions = PrintOptions(
+        label=NoEscape(r"M_{rx}"),
+        round_precision=2,
+        print_units="kN*m",
+        description=NoEscape(r"Momento fletor aplicado - eixo principal"),
+    )
+    required_minor_axis_flexure_strength: PrintOptions = PrintOptions(
+        label=NoEscape(r"M_{ry}"),
+        round_precision=2,
+        print_units="kN*m",
+        description=NoEscape(r"Momento fletor aplicado - eixo secund\'ario"),
+    )
     strength_moment: PrintOptions = PrintOptions(
         label=NoEscape(r"M_{n}"),
         round_precision=2,
@@ -225,7 +258,7 @@ class ReportConfig:
     limit_length_flexural_lateral_torsional_buckling: PrintOptions = PrintOptions(
         label=NoEscape(r"L_r"),
         round_precision=0,
-        description="Comprimento limite em flexão para o caso de flambagem lateral tosrional.",
+        description=NoEscape("Comprimento limite em flex\~ao para o caso de flambagem lateral tosrional"),
         print_units="mm"
     )
     criteria: PrintOptions = PrintOptions(round_precision=2)
