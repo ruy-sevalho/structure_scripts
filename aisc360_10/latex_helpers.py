@@ -590,7 +590,7 @@ def _flexure_compression_h1_criteria_equation(
         criteria: str
 ):
     force_factor = {
-        "lower_than_0_2": "2",
+        "lower_than_0_2": r"2 \cdot",
         "greater_than_0_2": ""
     }
     moment_factor = {

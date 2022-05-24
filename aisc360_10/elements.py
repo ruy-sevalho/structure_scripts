@@ -2016,21 +2016,39 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
             required_minor_axis_flexural_strength=self.required_minor_axis_flexure_strength,
         )
 
-    def resume(self, mod_factor=1.):
+    @cached_property
+    def resume(self):
         return pd.concat((self.compression.strength_resume, self.flexure.strength_resume), axis=1)
 
     @cached_property
     def latex(self):
         return BeamCompressionFlexureDoublySymmetricEffectiveLengthLatex(self)
 
+    @cached_property
+    def required_strengths_df(self):
+        return pd.DataFrame(
+            {
+                "required_axial_strength": [self.required_axial_strength],
+                "required_major_axis_flexure_strength": [self.required_major_axis_flexure_strength],
+                "required_minor_axis_flexure_strength": [self.required_minor_axis_flexure_strength],
+            }
+        )
+
+    @cached_property
+    def results_h1_df(self):
+        required_df = self.required_strengths_df
+        return pd.concat(
+            (required_df, pd.DataFrame({"h1_criteria": [self.compression_flexure_combined_criteria_h1_1]}),),
+            axis=1,
+        )
+
 
 @dataclass
 class BeamCompressionFlexureDoublySymmetricEffectiveLengthLatex:
     model: BeamCompressionFlexureDoublySymmetricEffectiveLength
-    config_dict: ReportConfig = ReportConfig()
 
     @cached_property
-    def stand_alone_report(self):
+    def critical_loads_report(self):
         title = r"\section{Cargas cr\'iticas}"
         material = self.model.profile.material.data_table_latex
         title_material = r"\section{Material}"

@@ -1,8 +1,12 @@
 # Module for calculating beam in accordance to ANSI/AISC 360-10
 # Author: Ruy Sevalho Goncalves
+from functools import partial
+
+import pandas as pd
 from pylatex.base_classes import CommandBase
 from quantities import Quantity, dimensionless, cm, UnitQuantity, m, mm, GPa, MPa, N
 
+from aisc360_10.batch_cases import several_loads_results
 from aisc360_10.elements import (
     IsoTropicMaterial, DoublySymmetricIUserDefined,
     BeamCompressionFlexureDoublySymmetricEffectiveLength, DoublySymmetricIDimensionsUserDefined,
@@ -86,36 +90,74 @@ def main():
         required_minor_axis_flexure_strength=required_minor_axis_strength,
         required_major_axis_flexure_strength=required_major_axis_strength
     )
-    beam_combined_14 = BeamCompressionFlexureDoublySymmetricEffectiveLength(
+    beam_combined_14 = partial(
+        BeamCompressionFlexureDoublySymmetricEffectiveLength,
         profile=profile_wx250x250x73,
         unbraced_length=beam_length,
+    )
+
+    loads = (
+        (60 * kN, 120 * kN * m, 0 * kN * m),
+        (150 * kN, 60 * kN * m, 20 * kN * m),
+        (40 * kN, 150 * kN * m, 30 * kN * m)
+    )
+    results = several_loads_results(
+        profile=profile_wx250x250x73,
+        unbraced_length=beam_length,
+        loads=loads
+    )
+    beam = beam_combined_14(
         required_axial_strength=required_axial_strength,
         required_minor_axis_flexure_strength=required_minor_axis_strength,
         required_major_axis_flexure_strength=required_major_axis_strength
     )
-    latex_report_str = beam_combined_14.latex.stand_alone_report
+
+    latex_report_str = beam.latex.critical_loads_report
     with open("latex/calculation_memory.tex", "w") as f:
         f.write(latex_report_str)
-    print(beam_combined_14.profile.slenderness.flange.flexural_major_axis_value)
-    # print("10 mm")
-    # print(
-    #     beam_combined_10.compression_flexure_combined_criteria_h1_1(
-    #         required_axial_strength=required_axial_strength,
-    #         required_major_axis_flexure_strength=required_major_axis_strength,
-    #         required_minor_axis_flexure_strength=required_minor_axis_strength
-    #     )
-    # )
-    # print("14 mm")
-    # print(
-    #     beam_combined_14.compression_flexure_combined_criteria_h1_1(
-    #         required_axial_strength=required_axial_strength,
-    #         required_major_axis_flexure_strength=required_major_axis_strength,
-    #         required_minor_axis_flexure_strength=required_minor_axis_strength
-    #     )
-    # )
-    return beam_combined_10, beam_combined_14
+    return beam, results
+
+
+def reaction_per_column(
+        reactions_1: tuple[Quantity, Quantity, Quantity],
+        reactions_2: tuple[Quantity, Quantity, Quantity],
+        dy=Quantity(.65, "m"),
+):
+    results = [sum((reaction_1, reaction_2)) for reaction_1, reaction_2 in zip(reactions_1, reactions_2)]
+    results.append((reactions_1[2] - reactions_2[2]) / dy)
+    return results
+
+
+def process_reactions_input(
+        df: pd.DataFrame,
+        n_comb: int = 7,
+        number_columns: int = 3,
+        dy=Quantity(.65, "m"),
+        length=Quantity(5.60, "m")
+):
+    limit = n_comb * number_columns
+    df1, df2 = df[0:limit], df[limit:]
+    df = pd.DataFrame()
+    for row_1, row_2 in zip(df1, df2):
+        row = reaction_per_column(
+            row_1[-3:],
+            row_2[-3:]
+        )
+        df = pd.concat(
+            pd.DataFrame(
+                {
+                    "Rx"
+                }
+            )
+        )
+    return
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    beam_10, beam_14 = main()
+    beam, results = main()
+    with open("C:\\Users\\U3ZO\\OneDrive - PETROBRAS\\Documentos\\structure_scripts\\dados.csv", "r") as f:
+        data = pd.read_csv(
+            f,
+        )
+        print(data)
