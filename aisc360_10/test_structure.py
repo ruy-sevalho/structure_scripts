@@ -121,11 +121,11 @@ def test_doubly_symmetric_i_limit_length_yield(
 def test_doubly_symmetric_i_flange_axial_slenderness_limit(
         profile: tuple[DoublySymmetricIUserDefined, float]
 ):
-    assert (profile[0].slenderness.flange.axial_compression.limit_ratio == approx(profile[1]))
+    assert (profile[0].slenderness.flange.axial_compression.resume == approx(profile[1]))
 
 
 def test_doubly_symmetric_i_web_axial_slenderness_limit():
-    assert (profile_127x76x13_rolled.slenderness.web.axial_compression.limit_ratio == approx(35.36609341))
+    assert (profile_127x76x13_rolled.slenderness.web.axial_compression.resume == approx(35.36609341))
 
 
 def test_doubly_symmetric_i_flange_flexural_slenderness_limit():

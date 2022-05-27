@@ -4,7 +4,7 @@ from typing import Collection
 import pandas as pd
 from quantities import Quantity
 from aisc360_10.elements import (
-    BeamCompressionFlexureDoublySymmetricEffectiveLength, IsoTropicMaterial,
+    BeamCompressionFlexureDoublySymmetricEffectiveLength,
     DoublySymmetricIUserDefined
 )
 

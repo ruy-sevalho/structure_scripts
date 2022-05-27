@@ -108,25 +108,25 @@ class ReportConfig:
     )
     major_axis_inertia: PrintOptions = PrintOptions(
         print_units="cm ** 4",
-        round_precision=2,
+        round_precision=0,
         label=NoEscape(r"$I_x$"),
         description=NoEscape(r"Momento de in\'ercia do eixo principal")
     )
     minor_axis_inertia: PrintOptions = PrintOptions(
         print_units="cm ** 4",
-        round_precision=2,
+        round_precision=0,
         label=NoEscape(r"$I_y$"),
         description=NoEscape(r"Momento de in\'ercia do eixo secund\'ario")
     )
     major_axis_elastic_section_modulus: PrintOptions = PrintOptions(
         print_units="cm ** 3",
-        round_precision=2,
+        round_precision=0,
         label=NoEscape(r"$S_x$"),
         description=NoEscape(r"Momento de in\'ercia el\'astico do eixo principal")
     )
     major_axis_plastic_section_modulus: PrintOptions = PrintOptions(
         print_units="cm ** 3",
-        round_precision=2,
+        round_precision=0,
         label=NoEscape(r"$Z_x$"),
         description=NoEscape(r"Momento de in\'ercia do eixo principal")
     )
@@ -138,13 +138,13 @@ class ReportConfig:
     )
     minor_axis_elastic_section_modulus: PrintOptions = PrintOptions(
         print_units="cm ** 3",
-        round_precision=2,
+        round_precision=0,
         label=NoEscape(r"$S_y$"),
         description=NoEscape(r"Momento de in\'ercia el\'astico do eixo secund\'ario")
     )
     minor_axis_plastic_section_modulus: PrintOptions = PrintOptions(
         print_units="cm ** 3",
-        round_precision=2,
+        round_precision=0,
         label=NoEscape(r"$Z_y$"),
         description=NoEscape(r"Momento de in\'ercia do eixo secund\'ario")
     )
@@ -162,7 +162,7 @@ class ReportConfig:
     )
     torsional_constant: PrintOptions = PrintOptions(
         print_units="cm ** 4",
-        round_precision=2,
+        round_precision=0,
         label=NoEscape(r"$J$"),
         description=NoEscape(r"Momento Polar de In\'ercia")
     )
@@ -174,7 +174,7 @@ class ReportConfig:
     )
     warping_constant: PrintOptions = PrintOptions(
         print_units="cm ** 6",
-        round_precision=2,
+        round_precision=0,
         label=NoEscape(r"$C_w$"),
         description=NoEscape(r"Constante de \emph{warping}")
     )

@@ -8,10 +8,10 @@ from quantities import Quantity, dimensionless, cm, UnitQuantity, m, mm, GPa, MP
 
 from aisc360_10.batch_cases import several_loads_results
 from aisc360_10.elements import (
-    IsoTropicMaterial, DoublySymmetricIUserDefined,
+    DoublySymmetricIUserDefined,
     BeamCompressionFlexureDoublySymmetricEffectiveLength, DoublySymmetricIDimensionsUserDefined,
     GenericAreaProperties,
-    SectionProfile, BeamCompressionEffectiveLength, BeamFlexureDoublySymmetric, Material, latex_wrapper
+    SectionProfile, BeamCompressionEffectiveLength, BeamFlexureDoublySymmetric, Material, IsoTropicMaterial
 )
 from aisc360_10.latex_helpers import (
     _dataframe_table_columns, Alpha, Frac,
@@ -22,9 +22,11 @@ from aisc360_10.helpers import Slenderness, ConstructionType
 
 from pylatex import Command, Document
 
+import calculation_memory as lt
+
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilonewton", 1000 * N, symbol="kN")
-LATEX_ABBREVIATION = 'latex'
+LATEX_ABBREVIATION = 'calculation_memory'
 
 
 def main():
@@ -43,6 +45,7 @@ def main():
         major_axis_elastic_section_modulus=910 * cm ** 3,
         major_axis_plastic_section_modulus=1007 * cm ** 3,
         torsional_constant=66 * cm ** 4,
+        warping_constant=544000 * cm ** 6
     )
     dimensions_wx250x250x73 = DoublySymmetricIDimensionsUserDefined(
         flange_width=250 * mm,
@@ -79,7 +82,7 @@ def main():
         dimensions=dimensions_w_arbitrary,
         material=steel
     )
-    beam_length = 3.60 * m
+    beam_length = 3.00 * m
     required_axial_strength = 60 * kN
     required_major_axis_strength = 120 * kN * m
     required_minor_axis_strength = 0 * kN * m
@@ -106,15 +109,14 @@ def main():
         unbraced_length=beam_length,
         loads=loads
     )
-    beam = beam_combined_14(
+    beam: BeamCompressionFlexureDoublySymmetricEffectiveLength = beam_combined_14(
         required_axial_strength=required_axial_strength,
         required_minor_axis_flexure_strength=required_minor_axis_strength,
         required_major_axis_flexure_strength=required_major_axis_strength
     )
-
-    latex_report_str = beam.latex.critical_loads_report
-    with open("latex/calculation_memory.tex", "w") as f:
-        f.write(latex_report_str)
+    latex_report_str = beam.latex.resume()
+    # with open("calculation_memory/calculation_memory.tex", "w") as f:
+    #     f.write(latex_report_str)
     return beam, results
 
 
@@ -156,6 +158,7 @@ def process_reactions_input(
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     beam, results = main()
+
     with open("C:\\Users\\U3ZO\\OneDrive - PETROBRAS\\Documentos\\structure_scripts\\dados.csv", "r") as f:
         data = pd.read_csv(
             f,

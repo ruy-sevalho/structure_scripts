@@ -17,6 +17,7 @@ from pylatex import (
     Tabular,
     Package,
     NewPage,
+    Math
 )
 from pylatex import Quantity as LatexQuantity
 from pylatex.base_classes import Environment, CommandBase, Command
@@ -76,6 +77,21 @@ axis_index_table = {
 
 class Tblr(Tabular):
     """Blank copy of Tabular class from pylatex, but with tblr tables, from tabularray package."""
+
+
+def _wrapper(start: str, content: str, end: str):
+    return env.get_template("wrapper.tex").render(start=start, content=content, end=end)
+
+
+def _inline_math(content: str):
+    return _wrapper(start=r"$", content=content, end=r"$")
+
+
+def inline_math_dec(func):
+    def inner(*args, **kwargs):
+        return _inline_math(func(*args, **kwargs))
+
+    return inner
 
 
 def _get_header(
@@ -179,7 +195,7 @@ def _dataframe_table_columns(
 ) -> Tblr:
     width_correction = 2 if include_description else 1
     width = df.shape[0] + width_correction
-    # column specifications of tabularray package for latex
+    # column specifications of tabularray package for calculation_memory
     first_row = "Q[l, m]"
     remaining_rows = " Q[c, m]"
     table_spec = f"{first_row}{(width - 1) * remaining_rows}"
@@ -195,7 +211,7 @@ def _dataframe_table_columns(
         if include_description:
             description = print_config.description or name.replace("_", " ")
             table[row].append(description)
-        # in latex _ is a special character
+        # in calculation_memory _ is a special character
         label = print_config.label or name.replace("_", " ")
         # Assuming dataframe has at least one row and all objects
         # in a given column are of the same type or nan.
@@ -235,7 +251,7 @@ def _dataframe_table_rows(
         unit_display: Literal["header", "cell"] = "header",
 ) -> Tblr:
     width = df.shape[1]
-    # column specifications of tabularray package for latex
+    # column specifications of tabularray package for calculation_memory
     first_row = "Q[l, m]"
     remaining_rows = " Q[c, m]"
     table_spec = f"{first_row}{(width - 1) * remaining_rows}"
@@ -244,7 +260,7 @@ def _dataframe_table_rows(
     table = [[] for _ in range(df.shape[0])]
     for name in df.columns:
         print_config = config_dict.get(name, PrintOptions())
-        # in latex _ is a special character
+        # in calculation_memory _ is a special character
         label = print_config.label or name.replace("_", " ")
         # Assuming dataframe has at least one row and all objects
         # in a given column are of the same type or nan.
@@ -625,4 +641,11 @@ def _ratio_equation(
         denominator_value=denominator_value,
         ratio_value=ratio_value,
         ratio_symbol=ratio_symbol
+    )
+
+
+def _build_single_element(content: str):
+    template = env.get_template("single_element.tex")
+    return template.render(
+        content=content
     )
