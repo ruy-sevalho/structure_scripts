@@ -989,9 +989,9 @@ class BeamFlexureDoublySymmetric:
 class BeamCompressionFlexureDoublySymmetricEffectiveLength:
     profile: DoublySymmetricIUserDefined
     unbraced_length: Quantity
-    required_axial_strength: Quantity | None = None
-    required_major_axis_flexure_strength: Quantity | None = None
-    required_minor_axis_flexure_strength: Quantity | None = None
+    required_axial_strength: Quantity = 0*N
+    required_major_axis_flexure_strength: Quantity = 0*N*m
+    required_minor_axis_flexure_strength: Quantity =0*N*m
     lateral_torsional_buckling_modification_factor: float = 1.0
     factor_k_minor_axis: float = 1.0
     factor_k_major_axis: float = 1.0
@@ -1058,9 +1058,9 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
     def required_strengths_df(self):
         return pd.DataFrame(
             {
-                "required_axial_strength": [self.required_axial_strength],
-                "required_major_axis_flexure_strength": [self.required_major_axis_flexure_strength],
-                "required_minor_axis_flexure_strength": [self.required_minor_axis_flexure_strength],
+                "required_axial_strength": [self.required_axial_strength.magnitude],
+                "required_major_axis_flexure_strength": [self.required_major_axis_flexure_strength.magnitude],
+                "required_minor_axis_flexure_strength": [self.required_minor_axis_flexure_strength.magnitude],
             }
         )
 
@@ -1068,6 +1068,6 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
     def results_h1_df(self):
         required_df = self.required_strengths_df
         return pd.concat(
-            (required_df, pd.DataFrame({"h1_criteria": [self.compression_flexure_combined_criteria_h1_1]}),),
+            (required_df, pd.DataFrame({"h1_criteria": [abs(self.compression_flexure_combined_criteria_h1_1)]}),),
             axis=1,
         )
