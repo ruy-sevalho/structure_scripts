@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Literal, Optional, Union
+from typing import Literal, Optional, Union, Callable
 from functools import partial
 
 import pandas as pd
@@ -29,6 +29,7 @@ from quantities import Quantity, percent
 
 from aisc360_10.criteria import AllowableStrengthDesign, LoadAndResistanceFactorDesign, SafetyFactor
 from aisc360_10.report_config import ReportConfig, PrintOptions
+from aisc360_10.helpers import Slenderness
 
 env = JinjaEnvironment(loader=PackageLoader("aisc360_10"))
 
@@ -67,6 +68,18 @@ class Sqrt(CommandBase):
     pass
 
 
+class Multline(Environment):
+    pass
+
+
+class Split(Environment):
+    pass
+
+
+class Equation(Environment):
+    pass
+
+
 alpha = Alpha()
 lambda_ = Lambda()
 axis_index_table = {
@@ -87,11 +100,23 @@ def _inline_math(content: str):
     return _wrapper(start=r"$", content=content, end=r"$")
 
 
+def standard_wrapper(content: str):
+    return _wrapper(start=r"\[", content=content, end=r"\]")
+
+
 def inline_math_dec(func):
     def inner(*args, **kwargs):
-        return _inline_math(func(*args, **kwargs))
+        return standard_wrapper(func(*args, **kwargs))
 
     return inner
+
+
+def multline(content: str):
+    return _wrapper(
+        start=r"\begin{multline*}",
+        content=content,
+        end=r"\end{multline*}"
+    )
 
 
 def _get_header(
@@ -336,6 +361,7 @@ def _slenderness_default_limit_ratio_latex(
         yield_stress: str,
         limit_ratio: str,
         limit_ratio_type: Literal["slender", "compact"],
+        wrapper: Callable[[str], str] = standard_wrapper,
 ):
     table = {
         "slender": "r",
@@ -343,12 +369,14 @@ def _slenderness_default_limit_ratio_latex(
     }
     slenderness_type_subscript = table[limit_ratio_type]
     template = env.get_template("slenderness_default_limit_ratio.tex")
-    return template.render(
-        factor=factor,
-        modulus=modulus,
-        yield_stress=yield_stress,
-        limit_ratio=limit_ratio,
-        slenderness_type=slenderness_type_subscript
+    return wrapper(
+        template.render(
+            factor=factor,
+            modulus=modulus,
+            yield_stress=yield_stress,
+            limit_ratio=limit_ratio,
+            slenderness_type=slenderness_type_subscript
+        )
     )
 
 
@@ -361,17 +389,20 @@ def _member_slenderness_minor_axis_flexural_bucking_latex(
         yield_stress: str,
         slenderness_limit: str,
         inequality_sign: Literal[r"\leq", ">"],
+        wrapper: Callable[[str], str] = standard_wrapper,
 ):
     template = env.get_template("member_minor_axis_flexural_buckling_slenderness.tex")
-    return template.render(
-        factor_k=factor_k,
-        length=length,
-        radius_of_gyration=radius_of_gyration,
-        slenderness_value=slenderness_value,
-        inequality_sign=inequality_sign,
-        modulus=modulus,
-        yield_stress=yield_stress,
-        slenderness_limit=slenderness_limit
+    return wrapper(
+        template.render(
+            factor_k=factor_k,
+            length=length,
+            radius_of_gyration=radius_of_gyration,
+            slenderness_value=slenderness_value,
+            inequality_sign=inequality_sign,
+            modulus=modulus,
+            yield_stress=yield_stress,
+            slenderness_limit=slenderness_limit
+        )
     )
 
 
@@ -381,27 +412,33 @@ def _elastic_buckling_critical_stress_latex(
         factor_k: str,
         radius_of_gyration: str,
         elastic_buckling_critical_stress: str,
+        wrapper: Callable[[str], str] = standard_wrapper,
 ):
     template = env.get_template("elastic_buckling_critical_stress.tex")
-    return template.render(
-        modulus=modulus,
-        length=length,
-        factor_k=factor_k,
-        radius_of_gyration=radius_of_gyration,
-        elastic_buckling_critical_stress=elastic_buckling_critical_stress
+    return wrapper(
+        template.render(
+            modulus=modulus,
+            length=length,
+            factor_k=factor_k,
+            radius_of_gyration=radius_of_gyration,
+            elastic_buckling_critical_stress=elastic_buckling_critical_stress
+        )
     )
 
 
 def _axial_compression_non_slender_critical_stress_lower_than(
         yield_stress: str,
         elastic_buckling_critical_stress: str,
-        critical_stress: str
+        critical_stress: str,
+        wrapper: Callable[[str], str] = standard_wrapper,
 ):
     template = env.get_template("axial_compression_critical_stress_lower_than.tex")
-    return template.render(
-        yield_stress=yield_stress,
-        elastic_buckling_critical_stress=elastic_buckling_critical_stress,
-        critical_stress=critical_stress
+    return wrapper(
+        template.render(
+            yield_stress=yield_stress,
+            elastic_buckling_critical_stress=elastic_buckling_critical_stress,
+            critical_stress=critical_stress
+        )
     )
 
 
@@ -409,12 +446,15 @@ def _axial_compression_non_slender_critical_stress_greater_than(
         yield_stress: str,
         elastic_buckling_critical_stress: str,
         critical_stress: str,
+        wrapper: Callable[[str], str] = standard_wrapper,
 ):
     template = env.get_template("axial_compression_critical_stress_greater_than.tex")
-    return template.render(
-        yield_stress=yield_stress,
-        elastic_buckling_critical_stress=elastic_buckling_critical_stress,
-        critical_stress=critical_stress
+    return wrapper(
+        template.render(
+            yield_stress=yield_stress,
+            elastic_buckling_critical_stress=elastic_buckling_critical_stress,
+            critical_stress=critical_stress
+        )
     )
 
 
@@ -422,14 +462,16 @@ def _axial_compression_nominal_strength(
         critical_stress: str,
         area: str,
         nominal_strength: str,
-
+        wrapper: Callable[[str], str] = standard_wrapper,
 ):
     table = {"force": "P", "moment": "m"}
     template = env.get_template("nominal_strength_force.tex")
-    return template.render(
-        critical_stress=critical_stress,
-        area=area,
-        nominal_strength=nominal_strength,
+    return wrapper(
+        template.render(
+            critical_stress=critical_stress,
+            area=area,
+            nominal_strength=nominal_strength,
+        )
     )
 
 
@@ -440,14 +482,17 @@ def _design_strength_asd(
         nominal_strength: str,
         safety_factor: str,
         design_strength: str,
-        strength_type: Literal["force", "moment"]
+        strength_type: Literal["force", "moment"],
+        wrapper: Callable[[str], str] = standard_wrapper,
 ):
     template = env.get_template("design_strength_asd.tex")
-    return template.render(
-        nominal_strength=nominal_strength,
-        safety_factor=safety_factor,
-        design_strength=design_strength,
-        strength_type=TABLE_STRENGTH_STRINGS[strength_type]
+    return wrapper(
+        template.render(
+            nominal_strength=nominal_strength,
+            safety_factor=safety_factor,
+            design_strength=design_strength,
+            strength_type=TABLE_STRENGTH_STRINGS[strength_type]
+        )
     )
 
 
@@ -455,14 +500,17 @@ def _design_strength_lfrd(
         nominal_strength: str,
         safety_factor: str,
         design_strength: str,
-        strength_type: Literal["force", "moment"]
+        strength_type: Literal["force", "moment"],
+        wrapper: Callable[[str], str] = standard_wrapper,
 ):
     template = env.get_template("design_strength_lfrd.tex")
-    return template.render(
-        nominal_strength=nominal_strength,
-        safety_factor=safety_factor,
-        design_strength=design_strength,
-        strength_type=TABLE_STRENGTH_STRINGS[strength_type]
+    return wrapper(
+        template.render(
+            nominal_strength=nominal_strength,
+            safety_factor=safety_factor,
+            design_strength=design_strength,
+            strength_type=TABLE_STRENGTH_STRINGS[strength_type]
+        )
     )
 
 
@@ -471,7 +519,8 @@ def _design_strength(
         safety_factor: str,
         design_strength: str,
         safety_factor_type: SafetyFactor,
-        strength_type: Literal["force", "moment"]
+        strength_type: Literal["force", "moment"],
+        wrapper: Callable[[str], str] = standard_wrapper,
 ):
     table = {
         AllowableStrengthDesign: _design_strength_asd,
@@ -481,7 +530,8 @@ def _design_strength(
         nominal_strength=nominal_strength,
         safety_factor=safety_factor,
         design_strength=design_strength,
-        strength_type=strength_type
+        strength_type=strength_type,
+        wrapper=wrapper
     )
 
 
@@ -489,14 +539,17 @@ def _flexural_yield_nominal_strength(
         yield_stress: str,
         plastic_section_modulus: str,
         nominal_strength: str,
-        axis: Literal["major", "minor"]
+        axis: Literal["major", "minor"],
+        wrapper: Callable[[str], str] = standard_wrapper,
 ):
     template = env.get_template("flexural_yield_nominal_strength.tex")
-    return template.render(
-        yield_stress=yield_stress,
-        plastic_section_modulus=plastic_section_modulus,
-        nominal_strength=nominal_strength,
-        axis_index=axis_index_table[axis]
+    return wrapper(
+        template.render(
+            yield_stress=yield_stress,
+            plastic_section_modulus=plastic_section_modulus,
+            nominal_strength=nominal_strength,
+            axis_index=axis_index_table[axis]
+        )
     )
 
 
@@ -505,13 +558,16 @@ def _limit_length_yield(
         modulus_linear: str,
         yield_stress: str,
         limit_length: str,
+        wrapper: Callable[[str], str] = standard_wrapper,
 ):
     template = env.get_template("limit_length_yield.tex")
-    return template.render(
-        minor_axis_radius_of_gyration=minor_axis_radius_of_gyration,
-        modulus_linear=modulus_linear,
-        yield_stress=yield_stress,
-        limit_length=limit_length
+    return wrapper(
+        template.render(
+            minor_axis_radius_of_gyration=minor_axis_radius_of_gyration,
+            modulus_linear=modulus_linear,
+            yield_stress=yield_stress,
+            limit_length=limit_length
+        )
     )
 
 
@@ -524,17 +580,20 @@ def _limit_length_lateral_torsional_buckling(
         coefficient_c: str,
         distance_between_centroids: str,
         limit_length: str,
+        wrapper: Callable[[str], str] = multline,
 ):
     template = env.get_template("limit_length_lateral_torsional_buckling.tex")
-    return template.render(
-        effective_radius_of_gyration=effective_radius_of_gyration,
-        modulus_linear=modulus_linear,
-        yield_stress=yield_stress,
-        elastic_major_axis_section_modulus=elastic_major_axis_section_modulus,
-        torsional_constant=torsional_constant,
-        coefficient_c=coefficient_c,
-        distance_between_centroids=distance_between_centroids,
-        limit_length=limit_length
+    return wrapper(
+        template.render(
+            effective_radius_of_gyration=effective_radius_of_gyration,
+            modulus_linear=modulus_linear,
+            yield_stress=yield_stress,
+            elastic_major_axis_section_modulus=elastic_major_axis_section_modulus,
+            torsional_constant=torsional_constant,
+            coefficient_c=coefficient_c,
+            distance_between_centroids=distance_between_centroids,
+            limit_length=limit_length
+        )
     )
 
 
@@ -542,13 +601,16 @@ def _effective_radius_of_gyration_equation(
         minor_axis_inertia: str,
         warping_constant: str,
         major_axis_section_modulus: str,
-        effective_radius_of_gyration: str
+        effective_radius_of_gyration: str,
+        wrapper: Callable[[str], str] = standard_wrapper,
 ):
-    return env.get_template("effective_radius_of_gyration.tex").render(
-        minor_axis_inertia=minor_axis_inertia,
-        warping_constant=warping_constant,
-        major_axis_section_modulus=major_axis_section_modulus,
-        effective_radius_of_gyration=effective_radius_of_gyration,
+    return wrapper(
+        env.get_template("effective_radius_of_gyration.tex").render(
+            minor_axis_inertia=minor_axis_inertia,
+            warping_constant=warping_constant,
+            major_axis_section_modulus=major_axis_section_modulus,
+            effective_radius_of_gyration=effective_radius_of_gyration,
+        )
     )
 
 
@@ -560,18 +622,21 @@ def _flexural_lateral_torsional_buckling_strength_case_b(
         unbraced_length: str,
         limit_length_yield: str,
         limit_length_lateral_torsional_buckling: str,
-        nominal_strength: str
+        nominal_strength: str,
+        wrapper: Callable[[str], str] = multline,
 ):
     template = env.get_template("flexural_lateral_torsional_buckling_strength_case_b.tex")
-    return template.render(
-        mod_factor=mod_factor,
-        plastic_moment=plastic_moment,
-        yield_stress=yield_stress,
-        elastic_major_axis_section_modulus=elastic_major_axis_section_modulus,
-        unbraced_length=unbraced_length,
-        limit_length_yield=limit_length_yield,
-        limit_length_lateral_torsional_buckling=limit_length_lateral_torsional_buckling,
-        nominal_strength=nominal_strength
+    return wrapper(
+        template.render(
+            mod_factor=mod_factor,
+            plastic_moment=plastic_moment,
+            yield_stress=yield_stress,
+            elastic_major_axis_section_modulus=elastic_major_axis_section_modulus,
+            unbraced_length=unbraced_length,
+            limit_length_yield=limit_length_yield,
+            limit_length_lateral_torsional_buckling=limit_length_lateral_torsional_buckling,
+            nominal_strength=nominal_strength
+        )
     )
 
 
@@ -586,12 +651,15 @@ def _build_doc(document: str, date: str = datetime.now()):
 def _axial_strength_ratio_equation(
         required_strength: str,
         design_strength: str,
-        ratio: str
+        ratio: str,
+        wrapper: Callable[[str], str] = standard_wrapper,
 ):
-    return env.get_template("axial_strength_ratio.tex").render(
-        required_strength=required_strength,
-        design_strength=design_strength,
-        ratio=ratio
+    return wrapper(
+        env.get_template("axial_strength_ratio.tex").render(
+            required_strength=required_strength,
+            design_strength=design_strength,
+            ratio=ratio
+        )
     )
 
 
@@ -603,7 +671,8 @@ def _flexure_compression_h1_criteria_equation(
         design_strength_flexural_major_axis: str,
         required_flexural_minor_axis_strength: str,
         design_strength_flexural_minor_axis: str,
-        criteria: str
+        criteria: str,
+        wrapper: Callable[[str], str] = standard_wrapper,
 ):
     force_factor = {
         "lower_than_0_2": r"2 \cdot",
@@ -613,16 +682,18 @@ def _flexure_compression_h1_criteria_equation(
         "lower_than_0_2": "",
         "greater_than_0_2": r"\frac{8}{9}"
     }
-    return env.get_template("flexure_compression_h1_criteria.tex").render(
-        force_factor=force_factor[axial_strength_ratio],
-        moment_factor=moment_factor[axial_strength_ratio],
-        required_axial_strength=required_axial_strength,
-        required_flexural_major_axis_strength=required_flexural_major_axis_strength,
-        required_flexural_minor_axis_strength=required_flexural_minor_axis_strength,
-        design_axial_strength=design_axial_strength,
-        design_strength_flexural_major_axis=design_strength_flexural_major_axis,
-        design_strength_flexural_minor_axis=design_strength_flexural_minor_axis,
-        criteria=criteria
+    return wrapper(
+        env.get_template("flexure_compression_h1_criteria.tex").render(
+            force_factor=force_factor[axial_strength_ratio],
+            moment_factor=moment_factor[axial_strength_ratio],
+            required_axial_strength=required_axial_strength,
+            required_flexural_major_axis_strength=required_flexural_major_axis_strength,
+            required_flexural_minor_axis_strength=required_flexural_minor_axis_strength,
+            design_axial_strength=design_axial_strength,
+            design_strength_flexural_major_axis=design_strength_flexural_major_axis,
+            design_strength_flexural_minor_axis=design_strength_flexural_minor_axis,
+            criteria=criteria
+        )
     )
 
 
@@ -633,14 +704,57 @@ def _ratio_equation(
         denominator_value: str,
         ratio_value: str,
         ratio_symbol: str,
+        wrapper: Callable[[str], str] = standard_wrapper,
 ):
-    return env.get_template("ratio.tex").render(
-        numerator_value=numerator_value,
-        numerator_symbol=numerator_symbol,
-        denominator_symbol=denominator_symbol,
-        denominator_value=denominator_value,
-        ratio_value=ratio_value,
-        ratio_symbol=ratio_symbol
+    return wrapper(
+        env.get_template("ratio.tex").render(
+            numerator_value=numerator_value,
+            numerator_symbol=numerator_symbol,
+            denominator_symbol=denominator_symbol,
+            denominator_value=denominator_value,
+            ratio_value=ratio_value,
+            ratio_symbol=ratio_symbol
+        )
+    )
+
+
+TABLE_ELEMENT = {
+        "flange": ("flange", "f"),
+        "web": ("alma", "w")
+    }
+
+
+def _axial_slenderness_result(
+        slenderness: Slenderness,
+        element: str,
+) -> str:
+    table_slenderness = {
+        Slenderness.SLENDER: (">", "esbelta"),
+        Slenderness.NON_SLENDER: ("<", NoEscape(r"n\~ao esbelta")),
+    }
+    inequality_sign, slenderness_type = table_slenderness[slenderness]
+    element_name, element_abbreviation = TABLE_ELEMENT[element]
+    return env.get_template("compression_slenderness_result.tex").render(
+        inequality_sign=inequality_sign,
+        slenderness_type=slenderness_type,
+        element_name=element_name,
+        element_abbreviation=element_abbreviation
+    )
+
+
+def _flexural_slenderness_result(
+        slenderness:Slenderness,
+        element: str
+):
+    table_slenderness = {
+        Slenderness.SLENDER: "flexural_slenderness_result_slender.tex",
+        Slenderness.NON_COMPACT: "flexural_slenderness_result_non_compact.tex",
+        Slenderness.COMPACT: "flexural_slenderness_result_compact.tex"
+    }
+    element_name, element_abbreviation = TABLE_ELEMENT[element]
+    return env.get_template(table_slenderness[slenderness]).render(
+        element_name=element_name,
+        element_abbreviation=element_abbreviation,
     )
 
 

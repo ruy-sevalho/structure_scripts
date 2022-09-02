@@ -1,6 +1,9 @@
 import pathlib
 from dataclasses import dataclass
 from functools import cached_property
+from itertools import chain
+
+from pylatex import NoEscape, Section, Subsection, Subsubsection, Document
 from quantities import Quantity
 
 from aisc360_10.latex_helpers import (
@@ -12,12 +15,13 @@ from aisc360_10.latex_helpers import (
     _flexural_yield_nominal_strength, _limit_length_yield, _limit_length_lateral_torsional_buckling,
     _flexural_lateral_torsional_buckling_strength_case_b, _build_doc, CONCATENATE_STRING,
     _effective_radius_of_gyration_equation, _flexure_compression_h1_criteria_equation, _axial_strength_ratio_equation,
-    _ratio_equation, _build_single_element, _inline_math
+    _ratio_equation, _build_single_element, standard_wrapper, Multline, Split, env, _axial_slenderness_result,
+    _flexural_slenderness_result
 )
 from aisc360_10.helpers import ConstructionType, _flexural_lateral_torsional_buckling_strength
 from aisc360_10.report_config import ReportConfig
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Collection, Any
 
 if TYPE_CHECKING:
     from aisc360_10.elements import (
@@ -35,7 +39,10 @@ if TYPE_CHECKING:
     )
 
 config_dict = ReportConfig()
-
+SLENDERNESS_LIMIT_TITLE = "Limites de Esbeltez"
+SLENDER_NON_SLENDER_LIMIT_DESCRIPTION = NoEscape(r"Raz\~ao de esbletez limite n\~ao esbelto / esbelto:")
+COMPACT_NON_COMPACT_LIMIT_DESCRIPTION = NoEscape(r"Raz\~ao de esbletez limite compacto / n\~ao compacto:")
+NON_COMPACT_SLENDER_LIMIT_DESCRIPTION = NoEscape(r"Raz\~ao de esbletez limite n\~ao compacto / esbelto:")
 
 def save_single_entry(content: str, file_name: str):
     path = pathlib.Path(r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\pdf_maker\tex_files") / file_name
@@ -44,14 +51,34 @@ def save_single_entry(content: str, file_name: str):
         f.write(content)
 
 
+def insert_between(collection: Collection[Any], separator: str = "\n"):
+    col = ((item, separator) for item in collection)
+    return list(chain(*col))
+
+
 @dataclass
 class MaterialLatex:
     material: "Material"
 
     def resume(self):
-        return save_single_entry(
+        save_single_entry(
             content=self.data_table,
             file_name="materials.tex"
+        )
+
+    @cached_property
+    def resume_latex(self):
+        return Section(
+            title="Material",
+            data=self.data_table_latex
+        )
+
+    @cached_property
+    def data_table_latex(self):
+        return _dataframe_table_columns(
+            df=self.material.data_table_df,
+            unit_display="cell",
+            include_description=True
         )
 
     @cached_property
@@ -264,10 +291,24 @@ class DoublySymmetricIFlangeAxialCompressionSlendernessLatex:
         }
         return table[self.model.profile.construction]
 
+    @cached_property
+    def slenderness_result(self):
+        return _axial_slenderness_result(
+            slenderness=self.model.axial_compression_value,
+            element="flange"
+        )
+
     def resume(self):
         save_single_entry(
-            content=_inline_math(self.limit_ratio),
+            content=self.limit_ratio,
             file_name="comp_flange_slender_limit.tex"
+        )
+
+    @cached_property
+    def resume_latex(self):
+        return Subsubsection(
+            title="Flange",
+            data=[SLENDER_NON_SLENDER_LIMIT_DESCRIPTION, NoEscape(self.limit_ratio), NoEscape(self.slenderness_result)]
         )
 
 
@@ -321,14 +362,36 @@ class DoublySymmetricIFlangeFlexuralMajorAxisSlendernessLatex:
         }
         return table[self.model.profile.construction]
 
+    @cached_property
+    def slenderness_result(self):
+        return _flexural_slenderness_result(
+            slenderness=self.model.flexural_major_axis_value,
+            element="flange"
+        )
+
     def resume(self):
         save_single_entry(
-            content=_inline_math(self.slender_limit_ratio),
+            content=self.slender_limit_ratio,
             file_name="flex_major_axis_flange_slender_limit_ratio.tex"
         )
         save_single_entry(
-            content=_inline_math(self.compact_limit_ratio),
+            content=self.compact_limit_ratio,
             file_name="flex_major_axis_flange_compact_limit_ratio.tex"
+        )
+
+    @cached_property
+    def resume_latex(self):
+        return Subsubsection(
+            title="Flange",
+            data=insert_between(
+                [
+                    COMPACT_NON_COMPACT_LIMIT_DESCRIPTION,
+                    NoEscape(self.slender_limit_ratio),
+                    NON_COMPACT_SLENDER_LIMIT_DESCRIPTION,
+                    NoEscape(self.compact_limit_ratio),
+                    NoEscape(self.slenderness_result)
+                ]
+            )
         )
 
 
@@ -370,16 +433,38 @@ class DoublySymmetricIFlangeFlexuralMinorAxisSlendernessLatex:
             limit_ratio_type="compact"
         )
 
+    @cached_property
+    def slenderness_result(self):
+        return _flexural_slenderness_result(
+            slenderness=self.model.flexural_minor_axis_value,
+            element="flange"
+        )
+
     def resume(self):
         save_single_entry(
-            content=_inline_math(self.slender_limit_ratio),
+            content=(self.slender_limit_ratio),
             file_name="flex_minor_axis_flange_slender_limit_ratio.tex"
         )
         save_single_entry(
-            content=_inline_math(self.compact_limit_ratio),
+            content=self.compact_limit_ratio,
             file_name="flex_minor_axis_flange_compact_limit_ratio.tex"
         )
         return f"{self.slender_limit_ratio} \n {self.compact_limit_ratio}"
+
+    @cached_property
+    def resume_latex(self):
+        return Subsubsection(
+            title="Flange",
+            data=insert_between(
+                [
+                    COMPACT_NON_COMPACT_LIMIT_DESCRIPTION,
+                    NoEscape(self.slender_limit_ratio),
+                    NON_COMPACT_SLENDER_LIMIT_DESCRIPTION,
+                    NoEscape(self.compact_limit_ratio),
+                    NoEscape(self.slenderness_result)
+                ]
+            )
+        )
 
 
 @dataclass
@@ -405,8 +490,22 @@ class DoublySymmetricIWebAxialCompressionSlendernessLatex:
 
     def resume(self):
         save_single_entry(
-            content=_inline_math(self.limit_ratio),
+            content=self.limit_ratio,
             file_name="comp_web_slender_limit.tex"
+        )
+
+    @cached_property
+    def slenderness_result(self):
+        return _axial_slenderness_result(
+            slenderness=self.model.axial_compression_value,
+            element="web"
+        )
+
+    @cached_property
+    def resume_latex(self):
+        return Subsubsection(
+            title="Alma",
+            data=[NoEscape(self.limit_ratio), NoEscape(self.slenderness_result)]
         )
 
 
@@ -448,14 +547,34 @@ class DoublySymmetricIWebFlexuralSlendernessLatex:
             limit_ratio_type="compact"
         )
 
+    @cached_property
+    def slenderness_results(self):
+        return _flexural_slenderness_result(
+            slenderness=self.model.flexural_value,
+            element="web"
+        )
+
     def resume(self):
         save_single_entry(
-            content=_inline_math(self.slender_limit_ratio),
+            content=self.slender_limit_ratio,
             file_name="flex_web_slender_limit_ratio.tex"
         )
         save_single_entry(
-            content=_inline_math(self.compact_limit_ratio),
+            content=self.compact_limit_ratio,
             file_name="flex_web_compact_limit_ratio.tex"
+        )
+
+    @cached_property
+    def resume_latex(self):
+        return Subsubsection(
+            title="Alma",
+            data=insert_between(
+                [
+                    NoEscape(self.slender_limit_ratio),
+                    NoEscape(self.compact_limit_ratio),
+                    NoEscape(self.slenderness_result)
+                ]
+            )
         )
 
 
@@ -479,6 +598,16 @@ class DoublySymmetricIAxialCompressionSlendernessLatex:
         self.flange.resume()
         self.web.resume()
 
+    @cached_property
+    def resume_latex(self):
+        return Subsection(
+            title=SLENDERNESS_LIMIT_TITLE,
+            data=[
+                self.flange.resume_latex,
+                self.web.resume_latex
+            ]
+        )
+
 
 @dataclass
 class DoublySymmetricIFlexuralMajorAxisSlendernessLatex:
@@ -500,6 +629,16 @@ class DoublySymmetricIFlexuralMajorAxisSlendernessLatex:
         self.flange.resume()
         self.web.resume()
 
+    @cached_property
+    def resume_latex(self):
+        return Subsection(
+            title=SLENDERNESS_LIMIT_TITLE,
+            data=[
+                self.flange.resume_latex,
+                self.web.resume_latex
+            ]
+        )
+
 
 @dataclass
 class DoublySymmetricIFlexuralMinorAxisSlendernessLatex:
@@ -520,6 +659,16 @@ class DoublySymmetricIFlexuralMinorAxisSlendernessLatex:
     def resume(self):
         self.flange.resume()
         self.web.resume()
+
+    @cached_property
+    def resume_latex(self):
+        return Subsection(
+            title=SLENDERNESS_LIMIT_TITLE,
+            data=[
+                self.flange.resume_latex,
+                self.web.resume_latex
+            ]
+        )
 
 
 @dataclass
@@ -576,12 +725,30 @@ class DoublySymmetricISlendernessLatex:
 
     def resume_ratios(self):
         save_single_entry(
-            content=_inline_math(self.flange_slenderness_equation),
+            content=self.flange_slenderness_equation,
             file_name="flange_slenderness_ratio.tex"
         )
         save_single_entry(
-            content=_inline_math(self.web_slenderness),
+            content=self.web_slenderness,
             file_name="web_slenderness_ratio.tex"
+        )
+
+    @cached_property
+    def resume_latex(self):
+        flange = Subsubsection(
+            title="Flange",
+            data=NoEscape(self.flange_slenderness_equation)
+        )
+        web = Subsubsection(
+            title="Alma",
+            data=NoEscape(self.web_slenderness_equation)
+        )
+        return Subsection(
+            title=NoEscape(r"Raz\~oes de Esbeltez"),
+            data=[
+                flange,
+                web
+            ]
         )
 
 
@@ -597,18 +764,38 @@ class DoublySymmetricIUserDefinedLatex:
             include_description=True
         ).dumps()
 
+    @cached_property
+    def data_table_latex(self):
+        return _dataframe_table_columns(
+            df=self.model.default_table,
+            unit_display="cell",
+            include_description=True
+        )
+
     def resume(self):
         save_single_entry(
             content=self.data_table,
             file_name="profile.tex"
         )
         save_single_entry(
-            content=_inline_math(self.slenderness.flange_slenderness_equation),
+            content=(self.slenderness.flange_slenderness_equation),
             file_name="flange_slenderness_ratio.tex"
         )
         save_single_entry(
-            content=_inline_math(self.slenderness.web_slenderness_equation),
+            content=(self.slenderness.web_slenderness_equation),
             file_name="web_slenderness_ratio.tex"
+        )
+
+    @cached_property
+    def resume_latex(self):
+        return Section(
+            title="Perfil",
+            data=insert_between(
+                [
+                    self.data_table_latex,
+                    self.slenderness.resume_latex,
+                ]
+            )
         )
 
     @cached_property
@@ -856,24 +1043,66 @@ class BeamCompressionEffectiveLengthLatex:
     def resume(self):
         self.model.profile.latex.slenderness.axial_compression.resume()
         save_single_entry(
-            content=_inline_math(self.minor_axis_slenderness_equation),
+            content=self.minor_axis_slenderness_equation,
             file_name="member_minor_axis_slenderness.tex"
         )
         save_single_entry(
-            content=_inline_math(self.elastic_buckling_critical_stress_equation),
+            content=self.elastic_buckling_critical_stress_equation,
             file_name="elastic_buckling_critical_stress.tex",
         )
         save_single_entry(
-            content=_inline_math(self.critical_stress_equation),
+            content=self.critical_stress_equation,
             file_name="comp_critical_stress.tex"
         )
         save_single_entry(
-            content=_inline_math(self.nominal_strength_equation),
+            content=self.nominal_strength_equation,
             file_name="comp_nominal_strength.tex"
         )
         save_single_entry(
-            content=_inline_math(self.design_strength_equation),
+            content=self.design_strength_equation,
             file_name="comp_design_strength.tex"
+        )
+
+    @cached_property
+    def resume_latex(self):
+        slenderness = self.model.profile.latex.slenderness.axial_compression.resume_latex
+        nominal_critical_strength = NoEscape(standard_wrapper(r"P_n = F_{cr} A_g"))
+        nominal_critical_strength_terms = NoEscape(env.get_template("carga_critica_compressao_termos.tex").render())
+        critical_stress_formulation = NoEscape(env.get_template("comp_critical_stress_formulation.tex").render())
+        slenderness_beam = NoEscape(self.minor_axis_slenderness_equation),
+        critical_stress = Subsubsection(
+            title=NoEscape(r"Tens\~ao crit\'ica"),
+            data=[
+                NoEscape(self.elastic_buckling_critical_stress_equation),
+                NoEscape(self.critical_stress_equation),
+            ]
+        )
+        design_strength = Subsubsection(
+            title=NoEscape(r"Carga cr\'itica de projeto"),
+            data=[
+                NoEscape(self.nominal_strength_equation),
+                NoEscape(self.design_strength_equation),
+            ]
+        )
+        calculation = Subsection(
+            title=NoEscape(r"Carga cr\'itica"),
+            data=[
+                nominal_critical_strength,
+                nominal_critical_strength_terms,
+                critical_stress_formulation,
+                NoEscape(self.minor_axis_slenderness_equation),
+                NoEscape(self.elastic_buckling_critical_stress_equation),
+                NoEscape(self.critical_stress_equation),
+                NoEscape(self.nominal_strength_equation),
+                NoEscape(self.design_strength_equation),
+            ]
+        )
+        return Section(
+            title=NoEscape(r"Compress\~ao axial"),
+            data=[
+                slenderness,
+                calculation
+            ]
         )
 
 
@@ -893,6 +1122,10 @@ class BeamFlexureDoublySymmetricLatex:
         self.major_axis.resume()
         self.minor_axis.resume()
 
+    # @cached_property
+    # def resume_latex(self):
+    #     return
+
 
 @dataclass
 class BeamFlexureMajorAxisDoublySymmetricLatex:
@@ -902,24 +1135,68 @@ class BeamFlexureMajorAxisDoublySymmetricLatex:
     def resume(self):
         self.model.profile.latex.slenderness.flexural_major_axis.resume()
         save_single_entry(
-            content=_inline_math(self.yield_strength_equation),
+            content=self.yield_strength_equation,
             file_name="flex_major_axis_yield_strength.tex"
         )
         save_single_entry(
-            content=_inline_math(self.model.profile.latex.limit_length_flexural_yield_equation),
+            content=self.model.profile.latex.limit_length_flexural_yield_equation,
             file_name="limit_lenght_flex_yidel.tex"
         )
         save_single_entry(
-            content=_inline_math(self.model.profile.latex.effective_radius_of_gyration_equation),
+            content=self.model.profile.latex.effective_radius_of_gyration_equation,
             file_name="effective_radius_of_gyration.tex"
         )
         save_single_entry(
-            content=_inline_math(self.model.profile.latex.limit_length_flexural_lateral_torsional_buckling_equation),
+            content=Multline(
+                data=NoEscape(self.model.profile.latex.limit_length_flexural_lateral_torsional_buckling_equation)
+            ).dumps(),
             file_name="limit_length_flex_lateral_torsional_buck.tex"
         )
         save_single_entry(
-            content=_inline_math(self.design_strength),
+            content=self.design_strength,
             file_name="flex_design_strengths.tex"
+        )
+
+    @cached_property
+    def resume_latex(self):
+        slenderness = self.model.profile.latex.slenderness.flexural_major_axis.resume_latex
+        yield_strength = Subsubsection(
+            title="Escoamento",
+            data=NoEscape(self.yield_strength_equation),
+        )
+        lateral_torsional_formulation = NoEscape(
+            env.get_template("flex_lateral_torsional_strength_formulation.tex").render()
+        )
+        limit_length_lateral_torsional_buckling_formulation = NoEscape(
+            env.get_template("limit_length_lateral_torsional_buckling_formulation.tex").render()
+        )
+        lateral_torsional_buck = Subsubsection(
+            title="Flambagem Lateral Torsional",
+            data=[
+                lateral_torsional_formulation,
+                NoEscape(self.model.profile.latex.limit_length_flexural_yield_equation),
+                limit_length_lateral_torsional_buckling_formulation,
+                NoEscape(self.model.profile.latex.effective_radius_of_gyration_equation),
+                NoEscape(self.model.profile.latex.limit_length_flexural_lateral_torsional_buckling_equation),
+                NoEscape(self.model.latex.major_axis.lateral_torsional_buckling_strength_equation)
+            ]
+        )
+        calculation = Subsection(
+            title=NoEscape(r"Carga cr\'itica"),
+            data=insert_between(
+                [
+                    yield_strength,
+                    lateral_torsional_buck,
+                    NoEscape(self.design_strength_equation),
+                ]
+            )
+        )
+        return Section(
+            title=NoEscape(r"Flex\~ao eixo principal"),
+            data=[
+                slenderness,
+                calculation
+            ]
         )
 
     @cached_property
@@ -1024,12 +1301,34 @@ class BeamFlexureMinorAxisDoublySymmetricLatex:
     def resume(self):
         self.model.profile.latex.slenderness.flexural_minor_axis.resume()
         save_single_entry(
-            content=_inline_math(self.yield_strength_equation),
+            content=self.yield_strength_equation,
             file_name="flex_minor_axis_yield_strength.tex"
         )
         save_single_entry(
-            content=_inline_math(self.design_strength_equation),
+            content=self.design_strength_equation,
             file_name="flex_minor_axis_design_strength.tex"
+        )
+
+    @cached_property
+    def resume_latex(self):
+        slenderness = self.model.profile.latex.slenderness.flexural_minor_axis.resume_latex
+        calculation = Subsection(
+            title=NoEscape(r"Carga cr\'itica"),
+            data=insert_between(
+                [
+                    NoEscape(self.yield_strength_equation),
+                    NoEscape(self.design_strength_equation),
+                ]
+            )
+        )
+        return Section(
+            title=NoEscape(r"Flex\~ao eixo secund\'ario"),
+            data=insert_between(
+                [
+                    slenderness,
+                    calculation
+                ]
+            )
         )
 
     @cached_property
@@ -1092,6 +1391,14 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLengthLatex:
             include_description=True
         ).dumps()
 
+    @cached_property
+    def data_table_latex(self):
+        return _dataframe_table_columns(
+            df=self.model.data_table_df,
+            unit_display="cell",
+            include_description=True
+        )
+
     def resume(self):
         self.model.profile.material.latex.resume()
         self.model.profile.latex.resume()
@@ -1103,11 +1410,41 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLengthLatex:
         self.model.flexure.latex.resume()
 
     @cached_property
+    def resume_latex(self):
+        material = self.model.profile.material.latex.resume_latex
+        profile = self.model.profile.latex.resume_latex
+        beam_data = Section(
+            title="Viga",
+            data=self.data_table_latex
+        )
+        compression = self.model.compression.latex.resume_latex
+        flexure_major = self.model.flexure.latex.major_axis.resume_latex
+        flexure_minor = self.model.flexure.latex.minor_axis.resume_latex
+        sections = insert_between(
+            [
+                material.dumps(),
+                profile.dumps(),
+                beam_data.dumps(),
+                compression.dumps(),
+                flexure_major.dumps(),
+                flexure_minor.dumps()
+            ]
+        )
+        doc_str = "".join(sections)
+        doc = _build_doc(doc_str)
+        return doc
+
+    @cached_property
     def critical_loads_report(self):
         title = r"\section{Cargas cr\'iticas}"
         material = self.model.profile.material.latex.data_table
         title_material = r"\section{Material}"
         profile_properties = self.model.profile.latex.data_table
+        slenderness_tile = r"\subsection{Slenderness ratio}"
+        flange_slenderness_title = r"\subsubsection{Flange}"
+        flange_slenderness = self.model.profile.latex.slenderness.flange_slenderness_equation
+        web_slenderness_title = r"\subsubsection{Web}"
+        web_slendernses = self.model.profile.latex.slenderness.web_slenderness_equation
         title_profile = r"\section{Propriedades da Se\c{c}\~ao}"
         compression = self.model.compression.latex.resume
         flexure_major_axis = self.model.flexure.latex.major_axis.resume

@@ -198,7 +198,7 @@ class ReportConfig:
         description=NoEscape(r"Fator de comprimento efetivo (flambagem) eixo principal")
     )
     unbraced_length: PrintOptions = PrintOptions(
-        label=NoEscape(r"$L$"),
+        label=NoEscape(r"$L_b$"),
         round_precision=0,
         print_units="mm",
         description="Comprimento entre suportes da viga"

@@ -2,28 +2,15 @@
 # Author: Ruy Sevalho Goncalves
 from functools import partial
 
-import pandas as pd
-from pylatex.base_classes import CommandBase
-from quantities import Quantity, dimensionless, cm, UnitQuantity, m, mm, GPa, MPa, N
+from quantities import cm, UnitQuantity, m, mm, GPa, MPa, N
 
-from aisc360_10.batch_cases import several_loads_results
+from batch_cases import several_loads_results
 from aisc360_10.elements import (
     DoublySymmetricIUserDefined,
     BeamCompressionFlexureDoublySymmetricEffectiveLength, DoublySymmetricIDimensionsUserDefined,
     GenericAreaProperties,
-    SectionProfile, BeamCompressionEffectiveLength, BeamFlexureDoublySymmetric, Material, IsoTropicMaterial
+    IsoTropicMaterial
 )
-from aisc360_10.latex_helpers import (
-    _dataframe_table_columns, Alpha, Frac,
-    _slenderness_default_limit_ratio_latex
-)
-from pylatex import Quantity as plQ
-from aisc360_10.helpers import Slenderness, ConstructionType
-
-from pylatex import Command, Document
-
-import calculation_memory as lt
-
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilonewton", 1000 * N, symbol="kN")
 LATEX_ABBREVIATION = 'calculation_memory'
@@ -44,6 +31,7 @@ def main():
         major_axis_inertia=11508 * cm ** 4,
         major_axis_elastic_section_modulus=910 * cm ** 3,
         major_axis_plastic_section_modulus=1007 * cm ** 3,
+        major_axis_radius_of_gyration=11 * cm,
         torsional_constant=66 * cm ** 4,
         warping_constant=544000 * cm ** 6
     )
@@ -82,7 +70,7 @@ def main():
         dimensions=dimensions_w_arbitrary,
         material=steel
     )
-    beam_length = 3.00 * m
+    beam_length = 3.30 * m
     required_axial_strength = 60 * kN
     required_major_axis_strength = 120 * kN * m
     required_minor_axis_strength = 0 * kN * m
@@ -114,53 +102,52 @@ def main():
         required_minor_axis_flexure_strength=required_minor_axis_strength,
         required_major_axis_flexure_strength=required_major_axis_strength
     )
-    latex_report_str = beam.latex.resume()
+    latex_report_str = beam.latex.resume_latex
     # with open("calculation_memory/calculation_memory.tex", "w") as f:
     #     f.write(latex_report_str)
-    return beam, results
-
-
-def reaction_per_column(
-        reactions_1: tuple[Quantity, Quantity, Quantity],
-        reactions_2: tuple[Quantity, Quantity, Quantity],
-        dy=Quantity(.65, "m"),
-):
-    results = [sum((reaction_1, reaction_2)) for reaction_1, reaction_2 in zip(reactions_1, reactions_2)]
-    results.append((reactions_1[2] - reactions_2[2]) / dy)
-    return results
-
-
-def process_reactions_input(
-        df: pd.DataFrame,
-        n_comb: int = 7,
-        number_columns: int = 3,
-        dy=Quantity(.65, "m"),
-        length=Quantity(5.60, "m")
-):
-    limit = n_comb * number_columns
-    df1, df2 = df[0:limit], df[limit:]
-    df = pd.DataFrame()
-    for row_1, row_2 in zip(df1, df2):
-        row = reaction_per_column(
-            row_1[-3:],
-            row_2[-3:]
-        )
-        df = pd.concat(
-            pd.DataFrame(
-                {
-                    "Rx"
-                }
-            )
-        )
-    return
+    return beam, latex_report_str
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    beam, results = main()
-
-    with open("C:\\Users\\U3ZO\\OneDrive - PETROBRAS\\Documentos\\structure_scripts\\dados.csv", "r") as f:
-        data = pd.read_csv(
-            f,
+    # beam, results = main()
+    # pc: Quantity = beam.compression.design_strength
+    # print(pc.rescale("kN"))
+    # with open("pdfs/calc_memory.tex", "w") as f:
+    #     f.write(results)
+    #
+    # with open("C:\\Users\\U3ZO\\OneDrive - PETROBRAS\\Documentos\\structure_scripts\\dados.csv", "r") as f:
+    #     data = pd.read_csv(
+    #         f,
+    #     )
+    #     print(data)
+    steel = IsoTropicMaterial(
+        modulus_linear=200 * GPa,
+        modulus_shear=77 * GPa,
+        poisson_ratio=0.3,
+        yield_stress=355 * MPa
+    )
+    dimensions_cp = DoublySymmetricIDimensionsUserDefined(
+        flange_width=207 * mm,
+        flange_thickness=11.3 * mm,
+        web_thickness=11.3 * mm,
+        total_height=204 * mm
+    )
+    profile_arbitrary = DoublySymmetricIUserDefined(
+        dimensions=dimensions_cp,
+        material=steel
+    )
+    yield_axial_strength = (steel.yield_stress * profile_arbitrary.area_properties.area / 1.67).rescale(kN)
+    print(yield_axial_strength)
+    print("------")
+    for i in range(1,11,1):
+        length = i/5 * m
+        compression = BeamCompressionFlexureDoublySymmetricEffectiveLength(
+            profile=profile_arbitrary,
+            unbraced_length=length,
         )
-        print(data)
+        print(length)
+        print(compression.compression.design_strength.rescale(kN)/yield_axial_strength)
+        print("-------")
+
+

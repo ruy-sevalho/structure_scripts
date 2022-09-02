@@ -351,3 +351,9 @@ def _areas_centroid(areas: Collection[tuple[Quantity, Quantity]]) -> Quantity:
         summation_weighted_areas = summation_weighted_areas + area[0] * area[1]
         summation_areas = summation_areas + area[0]
     return summation_weighted_areas / summation_areas
+
+
+def _nominal_shear_strength(yield_strength: Quantity, web_area: Quantity, web_shear_coefficient: float = 1.):
+    return 0.6 * yield_strength * web_area * web_shear_coefficient
+
+
