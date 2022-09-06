@@ -3,35 +3,34 @@ from dataclasses import dataclass
 from functools import cached_property
 from itertools import chain
 
-from pylatex import NoEscape, Section, Subsection, Subsubsection, Document
+from pylatex import NoEscape, Section, Subsection, Subsubsection
 from quantities import Quantity
 
-from aisc360_10.latex_helpers import (
+from structure_scripts.aisc_360_10 import (
     _slenderness_default_limit_ratio_latex, _member_slenderness_minor_axis_flexural_bucking_latex,
     _dataframe_table_columns, _elastic_buckling_critical_stress_latex,
     _axial_compression_non_slender_critical_stress_lower_than,
     _axial_compression_non_slender_critical_stress_greater_than, _axial_compression_nominal_strength,
-    _process_quantity_entry_config, _design_strength_asd, _design_strength_lfrd, _design_strength,
+    _process_quantity_entry_config, _design_strength,
     _flexural_yield_nominal_strength, _limit_length_yield, _limit_length_lateral_torsional_buckling,
     _flexural_lateral_torsional_buckling_strength_case_b, _build_doc, CONCATENATE_STRING,
     _effective_radius_of_gyration_equation, _flexure_compression_h1_criteria_equation, _axial_strength_ratio_equation,
-    _ratio_equation, _build_single_element, standard_wrapper, Multline, Split, env, _axial_slenderness_result,
+    _ratio_equation, _build_single_element, standard_wrapper, Multline, env, _axial_slenderness_result,
     _flexural_slenderness_result
 )
-from aisc360_10.helpers import ConstructionType, _flexural_lateral_torsional_buckling_strength
-from aisc360_10.report_config import ReportConfig
+from structure_scripts.aisc_360_10 import ConstructionType, _flexural_lateral_torsional_buckling_strength
+from structure_scripts.aisc_360_10 import ReportConfig
 
 from typing import TYPE_CHECKING, Collection, Any
 
 if TYPE_CHECKING:
-    from aisc360_10.elements import (
+    from structure_scripts.aisc_360_10 import (
         Material,
         AreaProperties,
         DoublySymmetricIDimensions,
         DoublySymmetricIUserDefined,
         DoublySymmetricIWebSlenderness,
         DoublySymmetricIFlangeSlenderness,
-        DoublySymmetricIDimensionsUserDefined,
         DoublySymmetricIUserDefinedFlangeWebSectionSlenderness,
         BeamCompressionEffectiveLength,
         BeamFlexureDoublySymmetric,
@@ -40,9 +39,6 @@ if TYPE_CHECKING:
 
 config_dict = ReportConfig()
 SLENDERNESS_LIMIT_TITLE = "Limites de Esbeltez"
-SLENDER_NON_SLENDER_LIMIT_DESCRIPTION = NoEscape(r"Raz\~ao de esbletez limite n\~ao esbelto / esbelto:")
-COMPACT_NON_COMPACT_LIMIT_DESCRIPTION = NoEscape(r"Raz\~ao de esbletez limite compacto / n\~ao compacto:")
-NON_COMPACT_SLENDER_LIMIT_DESCRIPTION = NoEscape(r"Raz\~ao de esbletez limite n\~ao compacto / esbelto:")
 
 def save_single_entry(content: str, file_name: str):
     path = pathlib.Path(r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\pdf_maker\tex_files") / file_name
@@ -63,7 +59,7 @@ class MaterialLatex:
     def resume(self):
         save_single_entry(
             content=self.data_table,
-            file_name="materials.tex"
+            file_name="shared.tex"
         )
 
     @cached_property
@@ -308,7 +304,7 @@ class DoublySymmetricIFlangeAxialCompressionSlendernessLatex:
     def resume_latex(self):
         return Subsubsection(
             title="Flange",
-            data=[SLENDER_NON_SLENDER_LIMIT_DESCRIPTION, NoEscape(self.limit_ratio), NoEscape(self.slenderness_result)]
+            data=[NoEscape(self.limit_ratio), NoEscape(self.slenderness_result)]
         )
 
 
@@ -385,9 +381,7 @@ class DoublySymmetricIFlangeFlexuralMajorAxisSlendernessLatex:
             title="Flange",
             data=insert_between(
                 [
-                    COMPACT_NON_COMPACT_LIMIT_DESCRIPTION,
                     NoEscape(self.slender_limit_ratio),
-                    NON_COMPACT_SLENDER_LIMIT_DESCRIPTION,
                     NoEscape(self.compact_limit_ratio),
                     NoEscape(self.slenderness_result)
                 ]
@@ -457,9 +451,7 @@ class DoublySymmetricIFlangeFlexuralMinorAxisSlendernessLatex:
             title="Flange",
             data=insert_between(
                 [
-                    COMPACT_NON_COMPACT_LIMIT_DESCRIPTION,
                     NoEscape(self.slender_limit_ratio),
-                    NON_COMPACT_SLENDER_LIMIT_DESCRIPTION,
                     NoEscape(self.compact_limit_ratio),
                     NoEscape(self.slenderness_result)
                 ]
@@ -572,7 +564,7 @@ class DoublySymmetricIWebFlexuralSlendernessLatex:
                 [
                     NoEscape(self.slender_limit_ratio),
                     NoEscape(self.compact_limit_ratio),
-                    NoEscape(self.slenderness_result)
+                    NoEscape(self.slenderness_results)
                 ]
             )
         )

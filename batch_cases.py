@@ -7,10 +7,11 @@ import os
 import numpy as np
 import pandas as pd
 from quantities import Quantity, GPa, MPa, m, mm, cm, UnitQuantity, N
-from aisc360_10.elements import (
+from structure_scripts.aisc_360_10.elements import (
     BeamCompressionFlexureDoublySymmetricEffectiveLength,
-    DoublySymmetricIUserDefined, IsoTropicMaterial, DoublySymmetricIDimensionsUserDefined, GenericAreaProperties
+    DoublySymmetricI, DoublySymmetricIDimensionsUserDefined, GenericAreaProperties
 )
+from structure_scripts.shared.materials import IsoTropicMaterial
 
 DIRECTIONS = ("x", "y", "z")
 DIRECTIONS_SUM = ("x", "y", "z", "sum")
@@ -198,7 +199,7 @@ def reaction_at_base(reaction: ForcesAndMoments, length: Quantity):
 
 
 def several_loads_results(
-        profile: DoublySymmetricIUserDefined,
+        profile: DoublySymmetricI,
         unbraced_length: Quantity,
         loads: Collection[tuple[Quantity, Quantity, Quantity]],
         factor_k_minor_axis: float = 1.0,
@@ -316,7 +317,7 @@ if __name__ == "__main__":
         web_thickness=8.6 * mm,
         total_height=254 * mm
     )
-    profile_wx250x250x73 = DoublySymmetricIUserDefined(
+    profile_wx250x250x73 = DoublySymmetricI(
         area_properties=area_properties_wx250x250x73,
         dimensions=dimensions_wx250x250x73,
         material=steel

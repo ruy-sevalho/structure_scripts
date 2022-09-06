@@ -4,7 +4,7 @@ from functools import total_ordering, cached_property
 from typing import Protocol
 
 from quantities import Quantity
-from aisc360_10.helpers import same_units_simplify
+from structure_scripts.aisc_360_10.helpers import same_units_simplify
 
 
 class SafetyFactorType(str, Enum):

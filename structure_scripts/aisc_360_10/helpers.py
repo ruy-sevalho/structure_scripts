@@ -259,7 +259,7 @@ def _flexural_flange_local_buckling_non_compact(
     return plastic_moment - (plastic_moment - 0.7 * yield_stress * section_modulus) * ratio
 
 
-def _flexure_and_axial_compression_h1_1_validity(
+def _flexural_and_axial_compression_h1_1_validity(
         minor_axis_elastic_section_modulus: Quantity,
         minor_axis_compression_flange_elastic_section_modulus: Quantity
 ) -> bool:
@@ -271,7 +271,7 @@ def _axial_strength_ratio(required_axial_strength, available_axial_strength):
     return _ratio_simplify(required_axial_strength, available_axial_strength)
 
 
-def _flexure_and_axial_compression_h1_1_criteria(
+def _flexural_and_axial_compression_h1_1_criteria(
         required_axial_strength: Quantity,
         available_axial_strength: Quantity,
         required_major_axis_flexural_strength: Quantity,
@@ -287,7 +287,7 @@ def _flexure_and_axial_compression_h1_1_criteria(
     return axial_strength_ratio / denominator + factor * (minor_axis_ratio + major_axis_ratio)
 
 
-def _flexure_and_axial_compression_h1_3_validity(
+def _flexural_and_axial_compression_h1_3_validity(
         required_minor_axis_flexural_strength: Quantity,
         available_minor_axis_flexural_strength: Quantity
 ) -> bool:
@@ -295,7 +295,7 @@ def _flexure_and_axial_compression_h1_3_validity(
     return ratio >= 0.05
 
 
-def _flexure_and_axial_compression_h1_3_criteria(
+def _flexural_and_axial_compression_h1_3_criteria(
         required_axial_strength: Quantity,
         available_axial_strength: Quantity,
         required_major_axis_flexural_strength: Quantity,
@@ -353,7 +353,29 @@ def _areas_centroid(areas: Collection[tuple[Quantity, Quantity]]) -> Quantity:
     return summation_weighted_areas / summation_areas
 
 
-def _nominal_shear_strength(yield_strength: Quantity, web_area: Quantity, web_shear_coefficient: float = 1.):
-    return 0.6 * yield_strength * web_area * web_shear_coefficient
+def _nominal_shear_strength(yield_stress: Quantity, web_area: Quantity, web_shear_coefficient: float = 1.):
+    return 0.6 * yield_stress * web_area * web_shear_coefficient
 
 
+def _web_shear_coefficient_limit(
+        factor: float, web_shear_buckling_coefficient: float, modulus_linear: Quantity, yield_stress: Quantity
+) -> float:
+    return (factor * (web_shear_buckling_coefficient * modulus_linear / yield_stress) ** 0.5).magnitude
+
+
+def _web_shear_coefficient_ii(
+        shear_buckling_coefficient: float,
+        modulus_linear: Quantity,
+        yield_stress: Quantity,
+        web_slenderness: float
+):
+    return 1.10 * (shear_buckling_coefficient * modulus_linear / yield_stress) ** 0.5 / web_slenderness
+
+
+def _web_shear_coefficient_iii(
+        shear_buckling_coefficient: float,
+        modulus_linear: Quantity,
+        yield_stress: Quantity,
+        web_slenderness: float
+):
+    return 1.51 * shear_buckling_coefficient * modulus_linear / (yield_stress * web_slenderness ** 2)

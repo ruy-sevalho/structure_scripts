@@ -1,21 +1,19 @@
-from collections import namedtuple
-from functools import cached_property
-from typing import Protocol, Any, Collection, runtime_checkable, NamedTuple
-from dataclasses import dataclass, field, is_dataclass, make_dataclass, asdict
+from functools import cached_property, partial
+from typing import Protocol, Any, runtime_checkable
+from dataclasses import dataclass
 import pandas as pd
 
-from quantities import Quantity, UnitQuantity, cm, UnitQuantity, m, mm, GPa, MPa, N
+from quantities import Quantity, UnitQuantity, m, N
 
-from aisc360_10.criteria import (
-    DesignStrength, SafetyFactorType, SafetyFactor, AllowableStrengthDesign,
-    LoadAndResistanceFactorDesign
+from structure_scripts.aisc_360_10.criteria import (
+    SafetyFactor, AllowableStrengthDesign
 )
-from aisc360_10.elements_latex import (
-    MaterialLatex, AreaPropertiesLatex, DoublySymmetricIDimensionsLatex,
-    DoublySymmetricISlendernessLatex, BeamCompressionEffectiveLengthLatex, BeamFlexureDoublySymmetricLatex,
+from structure_scripts.aisc_360_10.elements_latex import (
+    AreaPropertiesLatex, DoublySymmetricIDimensionsLatex,
+    BeamCompressionEffectiveLengthLatex, BeamFlexureDoublySymmetricLatex,
     BeamCompressionFlexureDoublySymmetricEffectiveLengthLatex, DoublySymmetricIUserDefinedLatex
 )
-from aisc360_10.helpers import (
+from structure_scripts.aisc_360_10.helpers import (
     _areas_centroid, _critical_compression_stress_buckling_default,
     _doubly_symmetric_i_torsional_constant, _effective_radius_of_gyration, _elastic_flexural_buckling_stress,
     _elastic_torsional_buckling_stress_doubly_symmetric_member, _flexural_flange_local_buckling_non_compact,
@@ -24,26 +22,17 @@ from aisc360_10.helpers import (
     _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_b,
     _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_c,
     _flexural_major_axis_yield_strength,
-    _flexural_minor_axis_yield_strength, _flexural_slenderness_per_element, _flexural_slenderness_several_elements,
-    _flexure_and_axial_compression_h1_1_criteria, _kc_coefficient,
+    _flexural_minor_axis_yield_strength, _flexural_slenderness_per_element,
+    _flexural_and_axial_compression_h1_1_criteria, _kc_coefficient,
     _lateral_torsional_buckling_modification_factor_default, _limit_ratio_default, _limit_stress_built_up_sections,
     _limiting_length_torsional_buckling, _limiting_length_yield, _member_slenderness_ratio, _minimum_allowed_strength,
     _nominal_compressive_strength, _radius_of_gyration, _rectangle_area, _section_modulus, _self_inertia,
     _transfer_inertia, _warping_constant, ConstructionType, Slenderness, _member_slenderness_limit,
-    _axial_strength_ratio
+    _axial_strength_ratio, _web_shear_coefficient_limit, _nominal_shear_strength, _web_shear_coefficient_ii,
+    _web_shear_coefficient_iii
 )
-from aisc360_10.latex_helpers import (
-    _slenderness_default_limit_ratio_latex, _member_slenderness_minor_axis_flexural_bucking_latex,
-    _dataframe_table_columns, _elastic_buckling_critical_stress_latex,
-    _axial_compression_non_slender_critical_stress_lower_than,
-    _axial_compression_non_slender_critical_stress_greater_than, _axial_compression_nominal_strength,
-    _process_quantity_entry_config, _design_strength_asd, _design_strength_lfrd, _design_strength,
-    _flexural_yield_nominal_strength, _limit_length_yield, _limit_length_lateral_torsional_buckling,
-    _flexural_lateral_torsional_buckling_strength_case_b, _build_doc, CONCATENATE_STRING,
-    _effective_radius_of_gyration_equation, _flexure_compression_h1_criteria_equation, _axial_strength_ratio_equation,
-    _ratio_equation
-)
-from aisc360_10.report_config import ReportConfig
+from structure_scripts.aisc_360_10.report_config import ReportConfig
+from structure_scripts.shared.materials import Material
 
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilonewton", 1000 * N, symbol="kN")
@@ -57,7 +46,7 @@ class DataClass(Protocol):
         ...
 
 
-def _extract_dataframe(obj: Any, extraction_type: Any, filter_names: list[str] = None):
+def extract_dataframe(obj: Any, extraction_type: Any, filter_names: list[str] = None):
     filter_names = filter_names or []
     dict_ = {key: [getattr(obj, key)] for key in extraction_type.__annotations__.keys() if key not in filter_names}
     return pd.DataFrame(dict_)
@@ -67,33 +56,6 @@ class TableKeys(Protocol):
     @classmethod
     def table_keys(cls):
         return cls.__annotations__.keys()
-
-
-class Material(Protocol):
-    modulus_linear: Quantity
-    modulus_shear: Quantity
-    poisson_ratio: float
-    yield_stress: Quantity
-
-    def table(self, filter_names: list[str] = None):
-        return _extract_dataframe(obj=self, extraction_type=Material, filter_names=filter_names)
-
-    @cached_property
-    def data_table_df(self):
-        return self.table(filter_names=["poisson_ratio"])
-
-    @cached_property
-    def latex(self):
-        return MaterialLatex(self)
-
-
-@dataclass
-class IsoTropicMaterial(Material):
-    modulus_linear: Quantity
-    modulus_shear: Quantity
-    poisson_ratio: float
-    yield_stress: Quantity
-    density: Quantity | None = None
 
 
 class AreaProperties(Protocol):
@@ -109,10 +71,11 @@ class AreaProperties(Protocol):
     torsional_constant: Quantity
     torsional_radius_of_gyration: Quantity
     warping_constant: Quantity
+    web_area: Quantity
 
     # Don't be mad future me. At least it worked
     def table(self, filter_names: list[str] = None):
-        return _extract_dataframe(obj=self, extraction_type=AreaProperties, filter_names=filter_names)
+        return extract_dataframe(obj=self, extraction_type=AreaProperties, filter_names=filter_names)
 
     @cached_property
     def data_table_df(self):
@@ -169,8 +132,8 @@ class FlangeWebSectionSlenderness(Protocol):
 
 
 @dataclass
-class DoublySymmetricIUserDefinedFlangeWebSectionSlenderness(FlangeWebSectionSlenderness):
-    profile: "DoublySymmetricIUserDefined"
+class DoublySymmetricIFlangeWebSectionSlenderness(FlangeWebSectionSlenderness):
+    profile: "DoublySymmetricI"
 
     @cached_property
     def flange(self):
@@ -187,6 +150,8 @@ class SectionProfile(Protocol):
     coefficient_c: float
     effective_radius_of_gyration: Quantity
     warping_constant: Quantity
+    web_shear_coefficient: float
+    web_shear_buckling_coefficient: float
 
     def torsional_buckling_critical_stress_effective_length(self, beam: "BeamCompressionEffectiveLength") -> Quantity:
         raise NotImplementedError
@@ -199,9 +164,11 @@ class DoublySymmetricIDimensions(Protocol):
     web_thickness: Quantity
     total_height: Quantity
     distance_between_centroids: Quantity
+    web_height_corrected: Quantity
+    web_radii: Quantity
 
     def table(self, filter_names: list[str] = None):
-        return _extract_dataframe(obj=self, extraction_type=DoublySymmetricIDimensions, filter_names=filter_names)
+        return extract_dataframe(obj=self, extraction_type=DoublySymmetricIDimensions, filter_names=filter_names)
 
     @cached_property
     def default_table(self):
@@ -221,12 +188,12 @@ class DoublySymmetricIAreaPropertiesFromDimensions(AreaProperties):
         return _rectangle_area(width=self.dimensions.flange_width, height=self.dimensions.flange_thickness)
 
     @cached_property
-    def _web_area(self):
+    def web_area(self):
         return _rectangle_area(width=self.dimensions.web_thickness, height=self.dimensions.web_height)
 
     @cached_property
     def area(self) -> Quantity:
-        return self._web_area + 2 * self._flange_area
+        return self.web_area + 2 * self._flange_area
 
     @cached_property
     def _flange_self_inertia_major_axis(self) -> Quantity:
@@ -308,13 +275,13 @@ class DoublySymmetricIAreaPropertiesFromDimensions(AreaProperties):
         return _areas_centroid(
             (
                 (self._flange_area, self._flange_area_centroid_major_axis),
-                (self._web_area / 2, self.dimensions.web_height / 4)
+                (self.web_area / 2, self.dimensions.web_height / 4)
             )
         )
 
     @cached_property
     def _major_axis_plastic_half_area(self) -> Quantity:
-        return self._flange_area + self._web_area / 2
+        return self._flange_area + self.web_area / 2
 
     @cached_property
     def major_axis_plastic_section_modulus(self):
@@ -325,13 +292,13 @@ class DoublySymmetricIAreaPropertiesFromDimensions(AreaProperties):
         return _areas_centroid(
             (
                 (self._flange_area, self.dimensions.flange_width / 4),
-                (self._web_area / 2, self.dimensions.web_thickness / 4)
+                (self.web_area / 2, self.dimensions.web_thickness / 4)
             )
         )
 
     @cached_property
     def _minor_axis_plastic_half_area(self) -> Quantity:
-        return self._flange_area + self._web_area / 2
+        return self._flange_area + self.web_area / 2
 
     @cached_property
     def minor_axis_plastic_section_modulus(self):
@@ -345,6 +312,7 @@ class DoublySymmetricIDimensionsUserDefined(DoublySymmetricIDimensions):
     web_thickness: Quantity
     total_height: Quantity
     web_height: Quantity | None = None
+    web_radii: Quantity | None = None
 
     def __post_init__(self):
         if not self.web_height:
@@ -353,6 +321,13 @@ class DoublySymmetricIDimensionsUserDefined(DoublySymmetricIDimensions):
     @cached_property
     def distance_between_centroids(self):
         return self.total_height - self.flange_thickness
+
+    @cached_property
+    def web_height_corrected(self):
+        if self.web_radii:
+            return self.web_height - self.web_radii
+        else:
+            return self.web_height
 
 
 @dataclass
@@ -385,7 +360,7 @@ class GenericAreaProperties(AreaProperties):
 
 @dataclass
 class DoublySymmetricIWebSlenderness(ElementSlenderness):
-    profile: "DoublySymmetricIUserDefined"
+    profile: "DoublySymmetricI"
 
     @cached_property
     def axial_compression_limit_ratio(self):
@@ -397,7 +372,7 @@ class DoublySymmetricIWebSlenderness(ElementSlenderness):
 
     @cached_property
     def ratio(self) -> float:
-        return self.profile.dimensions.web_height / self.profile.dimensions.web_thickness
+        return self.profile.dimensions.web_height_corrected / self.profile.dimensions.web_thickness
 
     @cached_property
     def axial_compression_value(self):
@@ -456,12 +431,12 @@ class DoublySymmetricIWebSlenderness(ElementSlenderness):
 
 @dataclass
 class DoublySymmetricIFlangeSlenderness(ElementSlenderness):
-    profile: "DoublySymmetricIUserDefined"
+    profile: "DoublySymmetricI"
 
     @cached_property
     def kc_coefficient(self):
         return _kc_coefficient(
-            web_height=self.profile.dimensions.web_height,
+            web_height=self.profile.dimensions.web_height_corrected,
             web_thickness=self.profile.dimensions.web_thickness
         )
 
@@ -587,7 +562,7 @@ class DoublySymmetricIFlangeSlenderness(ElementSlenderness):
 
 
 @dataclass
-class DoublySymmetricIUserDefined(SectionProfile):
+class DoublySymmetricI(SectionProfile):
     dimensions: DoublySymmetricIDimensions
     material: Material
     area_properties: AreaProperties | None = None
@@ -602,13 +577,42 @@ class DoublySymmetricIUserDefined(SectionProfile):
     def default_table(self):
         dimensions_table = self.dimensions.default_table
         area_properties_table = self.area_properties.data_table_df
-        extra_table = _extract_dataframe(
+        extra_table = extract_dataframe(
             obj=self,
-            extraction_type=DoublySymmetricIUserDefined,
+            extraction_type=DoublySymmetricI,
             filter_names=["dimensions", "area_properties", "material"]
         )
         warping_constant_table = pd.DataFrame({"warping_constant": [self.warping_constant]})
         return pd.concat((dimensions_table, area_properties_table, warping_constant_table, extra_table), axis=1)
+
+    @cached_property
+    def web_shear_buckling_coefficient(self):
+        return 5
+
+    @cached_property
+    def web_shear_coefficient_limit_i(self):
+        return _web_shear_coefficient_limit(
+            factor=1.1,
+            web_shear_buckling_coefficient=self.web_shear_buckling_coefficient,
+            modulus_linear=self.material.modulus_linear,
+            yield_stress=self.material.yield_stress
+        )
+
+    @cached_property
+    def web_shear_coefficient_limit_ii(self):
+        return _web_shear_coefficient_limit(
+            factor=1.37,
+            web_shear_buckling_coefficient=self.web_shear_buckling_coefficient,
+            modulus_linear=self.material.modulus_linear,
+            yield_stress=self.material.yield_stress
+        )
+
+    @cached_property
+    def web_shear_coefficient(self):
+        if self.slenderness.web.ratio < self.web_shear_coefficient_limit_i:
+            return 1.0
+        elif self.slenderness.web.ratio < self.web_shear_coefficient_limit_ii:
+            return
 
     @cached_property
     def warping_constant(self):
@@ -649,7 +653,7 @@ class DoublySymmetricIUserDefined(SectionProfile):
 
     @cached_property
     def slenderness(self):
-        return DoublySymmetricIUserDefinedFlangeWebSectionSlenderness(profile=self)
+        return DoublySymmetricIFlangeWebSectionSlenderness(profile=self)
 
     def elastic_torsional_buckling_stress(self, beam: "BeamCompressionEffectiveLength"):
         return _elastic_torsional_buckling_stress_doubly_symmetric_member(
@@ -676,14 +680,68 @@ class DoublySymmetricIUserDefined(SectionProfile):
         return DoublySymmetricIUserDefinedLatex(self)
 
 
-class BeamCompression(Protocol):
-    strength_flexural_buckling: Quantity
-    strength_torsional_buckling: Quantity
+class BeamShearWeb:
+    profile: DoublySymmetricI
+    required_strength: Quantity | None = None
+    safety_factor: SafetyFactor = AllowableStrengthDesign()
+
+    @cached_property
+    def nominal_strength(self):
+        return _nominal_shear_strength(
+            yield_stress=self.profile.material.yield_stress,
+            web_area=self.profile.area_properties.web_area,
+            web_shear_coefficient=1,
+        )
+
+    @cached_property
+    def web_shear_buckling_coefficient(self):
+        return 5
+
+    @cached_property
+    def slenderness_limit(self):
+        limit_function = partial(
+            _web_shear_coefficient_limit,
+            web_shear_buckling_coefficient=self.web_shear_buckling_coefficient,
+            modulus_linear=self.profile.material.modulus_linear,
+            yield_stress=self.profile.material.yield_stress
+        )
+        return tuple(
+            (
+                limit_function(factor=factor)
+                for factor in (1.1, 1.37)
+            )
+        )
+
+    @cached_property
+    def web_shear_coefficient(self):
+        i, ii = self.slenderness_limit
+        if self.profile.slenderness.web.ratio<i:
+            coef = 1.
+        elif self.profile.slenderness.web.ratio<ii:
+            coef = _web_shear_coefficient_ii(
+                shear_buckling_coefficient=self.web_shear_buckling_coefficient,
+                modulus_linear=self.profile.material.modulus_linear,
+                yield_stress=self.profile.material.yield_stress,
+                web_slenderness=self.profile.slenderness.web.ratio
+            )
+        else:
+            coef = _web_shear_coefficient_iii(
+                shear_buckling_coefficient=self.web_shear_buckling_coefficient,
+                modulus_linear=self.profile.material.modulus_linear,
+                yield_stress=self.profile.material.yield_stress,
+                web_slenderness=self.profile.slenderness.web.ratio
+            )
+        return coef
+
+
+# class BeamCompression(Protocol):
+#     strength_flexural_buckling: Quantity
+#     strength_torsional_buckling: Quantity
 
 
 @dataclass
-class BeamCompressionEffectiveLength(BeamCompression):
-    profile: DoublySymmetricIUserDefined
+class BeamCompressionEffectiveLength:
+    profile: DoublySymmetricI
     unbraced_length: Quantity
     factor_k_minor_axis: float = 1.0
     factor_k_major_axis: float = 1.0
@@ -817,7 +875,7 @@ def lateral_torsional_buckling_modification_factor_default(
 
 @dataclass
 class BeamFlexureDoublySymmetric:
-    profile: DoublySymmetricIUserDefined
+    profile: DoublySymmetricI
     unbraced_length: Quantity
     lateral_torsional_buckling_modification_factor: float = 1.
     required_major_axis_flexure_strength: Quantity | None = None
@@ -987,11 +1045,11 @@ class BeamFlexureDoublySymmetric:
 
 @dataclass
 class BeamCompressionFlexureDoublySymmetricEffectiveLength:
-    profile: DoublySymmetricIUserDefined
+    profile: DoublySymmetricI
     unbraced_length: Quantity
-    required_axial_strength: Quantity = 0*N
-    required_major_axis_flexure_strength: Quantity = 0*N*m
-    required_minor_axis_flexure_strength: Quantity =0*N*m
+    required_axial_strength: Quantity = 0 * N
+    required_major_axis_flexure_strength: Quantity = 0 * N * m
+    required_minor_axis_flexure_strength: Quantity = 0 * N * m
     lateral_torsional_buckling_modification_factor: float = 1.0
     factor_k_minor_axis: float = 1.0
     factor_k_major_axis: float = 1.0
@@ -999,7 +1057,7 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
     safety_factor: SafetyFactor = AllowableStrengthDesign()
 
     def table(self, filter_names: list[str] = None):
-        return _extract_dataframe(obj=self, extraction_type=self, filter_names=filter_names)
+        return extract_dataframe(obj=self, extraction_type=self, filter_names=filter_names)
 
     @cached_property
     def data_table_df(self):
@@ -1037,7 +1095,7 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
 
     @cached_property
     def compression_flexure_combined_criteria_h1_1(self) -> float:
-        return _flexure_and_axial_compression_h1_1_criteria(
+        return _flexural_and_axial_compression_h1_1_criteria(
             available_axial_strength=self.compression.design_strength,
             required_axial_strength=self.required_axial_strength,
             available_major_axis_flexural_strength=self.flexure.design_strength_major_axis,

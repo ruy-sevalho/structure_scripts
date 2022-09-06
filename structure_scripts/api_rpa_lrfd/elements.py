@@ -3,8 +3,9 @@ from functools import cached_property
 
 from quantities import Quantity, GPa, MPa, mm
 
-from aisc360_10.elements import IsoTropicMaterial, Material
-from api_rpa_lrfd.helpers import _representative_elastic_local_buckling_strength, _local_buckling_strength
+from structure_scripts.shared.materials import IsoTropicMaterial, Material
+from structure_scripts.api_rpa_lrfd.helpers import _representative_elastic_local_buckling_strength, \
+    _local_buckling_strength
 
 
 @dataclass
@@ -48,7 +49,7 @@ if __name__ == "__main__":
     )
     p4geo = CircularSectionGeometry(
         outside_diameter=114.4 * mm,
-        wall_thickness=6.02*mm
+        wall_thickness=6.02 * mm
     )
     p4 = CircularSection(geometry=p4geo, material=steel)
     print(p4.local_buckling_strength.rescale(MPa))

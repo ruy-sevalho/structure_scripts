@@ -27,11 +27,11 @@ from pylatex.utils import dumps_list
 import quantities as pq
 from quantities import Quantity, percent
 
-from aisc360_10.criteria import AllowableStrengthDesign, LoadAndResistanceFactorDesign, SafetyFactor
-from aisc360_10.report_config import ReportConfig, PrintOptions
-from aisc360_10.helpers import Slenderness
+from structure_scripts.aisc_360_10.criteria import AllowableStrengthDesign, LoadAndResistanceFactorDesign, SafetyFactor
+from structure_scripts.aisc_360_10.report_config import ReportConfig, PrintOptions
+from structure_scripts.aisc_360_10.helpers import Slenderness
 
-env = JinjaEnvironment(loader=PackageLoader("aisc360_10"))
+env = JinjaEnvironment(loader=PackageLoader("structure_scripts.aisc_360_10"))
 
 CONCATENATE_STRING = env.get_template("concatenation.tex").render()
 

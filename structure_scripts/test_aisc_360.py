@@ -1,13 +1,13 @@
-from aisc360_10.elements import (
-    IsoTropicMaterial,
-    DoublySymmetricIUserDefined,
+from structure_scripts.aisc_360_10.elements import (
+    DoublySymmetricI,
     GenericAreaProperties,
     BeamCompressionEffectiveLength,
     BeamFlexureDoublySymmetric,
     DoublySymmetricIDimensionsUserDefined
 )
+from structure_scripts.shared.materials import IsoTropicMaterial
 
-from aisc360_10.helpers import same_units_simplify, Slenderness, ConstructionType
+from structure_scripts.aisc_360_10.helpers import same_units_simplify, Slenderness, ConstructionType
 from pytest import approx, mark
 from quantities import UnitQuantity, Quantity, GPa, MPa, cm, m, mm, N
 
@@ -38,13 +38,13 @@ dimensions_127x76x13 = DoublySymmetricIDimensionsUserDefined(
     web_thickness=4 * mm,
     total_height=127 * mm
 )
-profile_127x76x13_rolled = DoublySymmetricIUserDefined(
+profile_127x76x13_rolled = DoublySymmetricI(
     area_properties=area_properties_127x76x13,
     dimensions=dimensions_127x76x13,
     material=steel
 
 )
-profile_built_up = DoublySymmetricIUserDefined(
+profile_built_up = DoublySymmetricI(
     area_properties=area_properties_127x76x13,
     dimensions=dimensions_127x76x13,
     material=steel,
@@ -67,7 +67,7 @@ beam_1_flexure = BeamFlexureDoublySymmetric(
     ]
 )
 def test_doubly_symmetric_i_kc_coefficient(
-        profile: tuple[DoublySymmetricIUserDefined, float]
+        profile: tuple[DoublySymmetricI, float]
 ):
     assert (profile[0].slenderness.flange.kc_coefficient == approx(profile[1]))
 
@@ -79,7 +79,7 @@ def test_doubly_symmetric_i_kc_coefficient(
     ]
 )
 def test_doubly_symmetric_i_effective_radius_of_gyration(
-        profile: tuple[DoublySymmetricIUserDefined, Quantity]
+        profile: tuple[DoublySymmetricI, Quantity]
 ):
     calculated, reference = same_units_simplify(profile[0].effective_radius_of_gyration, profile[1])
     assert calculated == approx(reference)
@@ -92,7 +92,7 @@ def test_doubly_symmetric_i_effective_radius_of_gyration(
     ]
 )
 def test_doubly_symmetric_i_limit_length_torsional_buckling(
-        profile: tuple[DoublySymmetricIUserDefined, Quantity]
+        profile: tuple[DoublySymmetricI, Quantity]
 ):
     calculated, reference = same_units_simplify(profile[0].limit_length_torsional_buckling, profile[1])
     assert calculated == approx(reference)
@@ -105,7 +105,7 @@ def test_doubly_symmetric_i_limit_length_torsional_buckling(
     ]
 )
 def test_doubly_symmetric_i_limit_length_yield(
-        profile: tuple[DoublySymmetricIUserDefined, Quantity]
+        profile: tuple[DoublySymmetricI, Quantity]
 ):
     calculated, reference = same_units_simplify(profile[0].limit_length_yield, profile[1])
     assert calculated == approx(reference)
@@ -119,13 +119,13 @@ def test_doubly_symmetric_i_limit_length_yield(
     ]
 )
 def test_doubly_symmetric_i_flange_axial_slenderness_limit(
-        profile: tuple[DoublySymmetricIUserDefined, float]
+        profile: tuple[DoublySymmetricI, float]
 ):
-    assert (profile[0].slenderness.flange.axial_compression.resume == approx(profile[1]))
+    assert (profile[0].slenderness.flange.axial_compression.limit_ratio == approx(profile[1]))
 
 
 def test_doubly_symmetric_i_web_axial_slenderness_limit():
-    assert (profile_127x76x13_rolled.slenderness.web.axial_compression.resume == approx(35.36609341))
+    assert (profile_127x76x13_rolled.slenderness.web.axial_compression.limit_ratio == approx(35.36609341))
 
 
 def test_doubly_symmetric_i_flange_flexural_slenderness_limit():
