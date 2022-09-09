@@ -908,7 +908,7 @@ class BeamCompressionEffectiveLengthLatex:
     @cached_property
     def unbraced_length(self):
         return _process_quantity_entry_config(
-            entry=self.model.unbraced_length,
+            entry=self.model.unbraced_length_major_axis,
             print_config=config_dict.unbraced_length
         )
 
@@ -945,7 +945,7 @@ class BeamCompressionEffectiveLengthLatex:
     @cached_property
     def elastic_flexural_buckling_stress(self):
         return _process_quantity_entry_config(
-            entry=self.model.elastic_flexural_buckling_stress,
+            entry=self.model.elastic_flexural_buckling_stress_minor_axis,
             print_config=config_dict.elastic_buckling_critical_stress
         )
 
@@ -962,7 +962,7 @@ class BeamCompressionEffectiveLengthLatex:
     @cached_property
     def flexural_buckling_critical_stress(self):
         return _process_quantity_entry_config(
-            entry=self.model.flexural_buckling_critical_stress,
+            entry=self.model.flexural_buckling_critical_stress_minor_axis,
             print_config=config_dict.critical_stress
         )
 
@@ -996,7 +996,7 @@ class BeamCompressionEffectiveLengthLatex:
     @cached_property
     def critical_stress(self):
         return _process_quantity_entry_config(
-            entry=self.model.flexural_buckling_critical_stress,
+            entry=self.model.flexural_buckling_critical_stress_minor_axis,
             print_config=config_dict.critical_stress
         )
 
@@ -1233,7 +1233,7 @@ class BeamFlexureMajorAxisDoublySymmetricLatex:
     @cached_property
     def unbraced_length(self):
         return _process_quantity_entry_config(
-            entry=self.model.unbraced_length,
+            entry=self.model.unbraced_length_major_axis,
             print_config=config_dict.unbraced_length
         )
 
@@ -1265,7 +1265,7 @@ class BeamFlexureMajorAxisDoublySymmetricLatex:
         return _flexural_lateral_torsional_buckling_strength(
             case_b=self.lateral_torsional_buckling_strength_case_b_equation,
             case_c="Case c: Not Implemented",
-            length_between_braces=self.model.unbraced_length,
+            length_between_braces=self.model.unbraced_length_major_axis,
             limiting_length_yield=self.model.profile.limit_length_yield,
             limiting_length_torsional_buckling=self.model.profile.limit_length_torsional_buckling
         )

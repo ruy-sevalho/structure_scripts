@@ -654,11 +654,11 @@ class DoublySymmetricI(SectionProfile):
     def slenderness(self):
         return DoublySymmetricIFlangeWebSectionSlenderness(profile=self)
 
-    def elastic_torsional_buckling_stress(self, beam: "BeamCompressionEffectiveLength"):
+    def elastic_torsional_buckling_stress(self, beam: "BeamTorsionEffectiveLength"):
         return _elastic_torsional_buckling_stress_doubly_symmetric_member(
             modulus_linear=self.material.modulus_linear,
             modulus_shear=self.material.modulus_shear,
-            effective_length_factor_torsional_buckling=beam.factor_k_torsion,
+            effective_length_factor_torsional_buckling=beam.factor_k,
             member_length=beam.unbraced_length,
             torsional_constant=self.area_properties.torsional_constant,
             major_axis_inertia=self.area_properties.major_axis_inertia,
@@ -666,9 +666,9 @@ class DoublySymmetricI(SectionProfile):
             warping_constant=self.warping_constant
         )
 
-    def torsional_buckling_critical_stress_effective_length(self, beam: "BeamCompressionEffectiveLength"):
+    def torsional_buckling_critical_stress_effective_length(self, beam: "BeamTorsionEffectiveLength"):
         return _critical_compression_stress_buckling_default(
-            member_slenderness=beam.torsional_slenderness,
+            member_slenderness=beam.slenderness,
             member_slenderness_limit=beam.member_slenderness_limit,
             yield_stress=self.material.yield_stress,
             elastic_buckling_stress=self.elastic_torsional_buckling_stress(beam),
@@ -734,39 +734,20 @@ class BeamShearWeb:
         return coef
 
 
-
-
 @dataclass
-class BeamCompressionEffectiveLength:
+class BeamTorsionEffectiveLength:
     profile: DoublySymmetricI
     unbraced_length: Quantity
-    factor_k_minor_axis: float = 1.0
-    factor_k_major_axis: float = 1.0
-    factor_k_torsion: float = 1.0
+    factor_k: float = 1.0
     required_strength: Quantity | None = None
     safety_factor: SafetyFactor = AllowableStrengthDesign()
 
     @cached_property
-    def minor_axis_slenderness(self):
+    def slenderness(self):
         return _member_slenderness_ratio(
-            factor_k=self.factor_k_minor_axis,
-            radius_of_gyration=self.profile.area_properties.minor_axis_radius_of_gyration,
-            unbraced_length=self.unbraced_length
-        )
-
-    @cached_property
-    def torsional_slenderness(self):
-        return _member_slenderness_ratio(
-            factor_k=self.factor_k_torsion,
+            factor_k=self.factor_k,
             unbraced_length=self.unbraced_length,
             radius_of_gyration=self.profile.area_properties.torsional_radius_of_gyration
-        )
-
-    @cached_property
-    def elastic_flexural_buckling_stress(self):
-        return _elastic_flexural_buckling_stress(
-            modulus_linear=self.profile.material.modulus_linear,
-            member_slenderness_ratio=self.minor_axis_slenderness
         )
 
     @cached_property
@@ -777,29 +758,94 @@ class BeamCompressionEffectiveLength:
         )
 
     @cached_property
-    def flexural_buckling_critical_stress(self):
+    def critical_stress(self):
+        return self.profile.torsional_buckling_critical_stress_effective_length(self)
+
+    @cached_property
+    def nominal_strength(self) -> Quantity:
+        return _nominal_compressive_strength(
+            critical_stress=self.critical_stress,
+            sectional_area=self.profile.area_properties.area
+        )
+
+
+@dataclass
+class BeamCompressionEffectiveLength:
+    profile: DoublySymmetricI
+    unbraced_length_major_axis: Quantity
+    unbraced_length_minor_axis: Quantity | None = None
+    unbraced_length_torsional_axis: Quantity | None = None
+    factor_k_minor_axis: float = 1.0
+    factor_k_major_axis: float = 1.0
+    factor_k_torsion: float = 1.0
+    required_strength: Quantity | None = None
+    safety_factor: SafetyFactor = AllowableStrengthDesign()
+
+    def __post_init__(self):
+        if not self.unbraced_length_minor_axis:
+            self.unbraced_length_minor_axis = self.unbraced_length_major_axis
+        if not self.unbraced_length_torsional_axis:
+            self.unbraced_length_torsional_axis = self.unbraced_length_major_axis
+
+    @cached_property
+    def minor_axis_slenderness(self):
+        return _member_slenderness_ratio(
+            factor_k=self.factor_k_minor_axis,
+            radius_of_gyration=self.profile.area_properties.minor_axis_radius_of_gyration,
+            unbraced_length=self.unbraced_length_minor_axis
+        )
+
+    @cached_property
+    def major_axis_slenderness(self):
+        return _member_slenderness_ratio(
+            factor_k=self.factor_k_major_axis,
+            radius_of_gyration=self.profile.area_properties.major_axis_radius_of_gyration,
+            unbraced_length=self.unbraced_length_major_axis
+        )
+
+    @cached_property
+    def elastic_flexural_buckling_stress_minor_axis(self):
+        return _elastic_flexural_buckling_stress(
+            modulus_linear=self.profile.material.modulus_linear,
+            member_slenderness_ratio=self.minor_axis_slenderness
+        )
+
+    @cached_property
+    def elastic_flexural_buckling_stress_major_axis(self):
+        return _elastic_flexural_buckling_stress(
+            modulus_linear=self.profile.material.modulus_linear,
+            member_slenderness_ratio=self.major_axis_slenderness
+        )
+
+    @cached_property
+    def member_slenderness_limit(self):
+        return _member_slenderness_limit(
+            modulus_linear=self.profile.material.modulus_linear,
+            yield_stress=self.profile.material.yield_stress
+        )
+
+    @cached_property
+    def flexural_buckling_critical_stress_minor_axis(self):
         return _critical_compression_stress_buckling_default(
             member_slenderness=self.minor_axis_slenderness,
-            elastic_buckling_stress=self.elastic_flexural_buckling_stress,
+            elastic_buckling_stress=self.elastic_flexural_buckling_stress_minor_axis,
             member_slenderness_limit=self.member_slenderness_limit,
             yield_stress=self.profile.material.yield_stress
         )
 
     @cached_property
-    def torsional_buckling_critical_stress(self):
-        return self.profile.torsional_buckling_critical_stress_effective_length(self)
+    def flexural_buckling_critical_stress_major_axis(self):
+        return _critical_compression_stress_buckling_default(
+            member_slenderness=self.minor_axis_slenderness,
+            elastic_buckling_stress=self.elastic_flexural_buckling_stress_minor_axis,
+            member_slenderness_limit=self.member_slenderness_limit,
+            yield_stress=self.profile.material.yield_stress
+        )
 
     @cached_property
     def strength_flexural_buckling(self) -> Quantity:
         return _nominal_compressive_strength(
-            self.flexural_buckling_critical_stress,
-            sectional_area=self.profile.area_properties.area
-        )
-
-    @cached_property
-    def strength_torsional_buckling(self) -> Quantity:
-        return _nominal_compressive_strength(
-            critical_stress=self.torsional_buckling_critical_stress,
+            self.flexural_buckling_critical_stress_minor_axis,
             sectional_area=self.profile.area_properties.area
         )
 
