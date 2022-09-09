@@ -3,7 +3,7 @@ from structure_scripts.aisc_360_10.elements import (
     GenericAreaProperties,
     BeamCompressionEffectiveLength,
     BeamFlexureDoublySymmetric,
-    DoublySymmetricIDimensionsUserDefined
+    DoublySymmetricIDimensionsUserDefined, BeamShearWeb
 )
 from structure_scripts.shared.materials import IsoTropicMaterial
 
@@ -34,13 +34,24 @@ area_properties_127x76x13 = GenericAreaProperties(
 dimensions_127x76x13 = DoublySymmetricIDimensionsUserDefined(
     flange_width=76 * mm,
     flange_thickness=7.6 * mm,
-    web_height=96.6 * mm,
     web_thickness=4 * mm,
+    web_radii=7.6 * mm,
     total_height=127 * mm
+)
+dimensions_200x10_200x10 = DoublySymmetricIDimensionsUserDefined(
+    flange_width=200 * mm,
+    flange_thickness=10 * mm,
+    web_thickness=10 * mm,
+    total_height=220 * mm
 )
 profile_127x76x13_rolled = DoublySymmetricI(
     area_properties=area_properties_127x76x13,
     dimensions=dimensions_127x76x13,
+    material=steel
+
+)
+profile_200x10_200x10 = DoublySymmetricI(
+    dimensions=dimensions_200x10_200x10,
     material=steel
 
 )
@@ -58,6 +69,8 @@ beam_1_flexure = BeamFlexureDoublySymmetric(
     profile=profile_127x76x13_rolled,
     unbraced_length=1.0 * m
 )
+beam_shear_web_1 = BeamShearWeb(profile=profile_200x10_200x10)
+beam_shear_web_1_shear_nominal_strength = Quantity(426 * kN)
 
 
 @mark.parametrize(
@@ -246,4 +259,12 @@ def test_beam_flexure_strength_lateral_torsion_compact_case_c(beam: tuple[BeamFl
 )
 def test_beam_flexure_strength_non_compact_flange_local_buckling(beam: tuple[BeamFlexureDoublySymmetric, Quantity]):
     calculated, reference = same_units_simplify(beam[0].strength_major_axis_flange_local_buckling_non_compact, beam[1])
+    assert calculated == approx(reference)
+
+@mark.parametrize(
+    "beam",
+    [(beam_shear_web_1, beam_shear_web_1_shear_nominal_strength)]
+)
+def test_beam_web_shear(beam: tuple[BeamShearWeb, Quantity]):
+    calculated, reference = same_units_simplify(beam[0].nominal_strength, beam[1])
     assert calculated == approx(reference)

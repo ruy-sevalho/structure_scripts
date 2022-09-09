@@ -311,12 +311,11 @@ class DoublySymmetricIDimensionsUserDefined(DoublySymmetricIDimensions):
     flange_thickness: Quantity
     web_thickness: Quantity
     total_height: Quantity
-    web_height: Quantity | None = None
     web_radii: Quantity | None = None
 
-    def __post_init__(self):
-        if not self.web_height:
-            self.web_height = self.total_height - 2 * self.flange_thickness
+    @property
+    def web_height(self):
+        return self.total_height - 2 * self.flange_thickness
 
     @cached_property
     def distance_between_centroids(self):
@@ -680,6 +679,7 @@ class DoublySymmetricI(SectionProfile):
         return DoublySymmetricIUserDefinedLatex(self)
 
 
+@dataclass
 class BeamShearWeb:
     profile: DoublySymmetricI
     required_strength: Quantity | None = None
@@ -715,9 +715,9 @@ class BeamShearWeb:
     @cached_property
     def web_shear_coefficient(self):
         i, ii = self.slenderness_limit
-        if self.profile.slenderness.web.ratio<i:
+        if self.profile.slenderness.web.ratio < i:
             coef = 1.
-        elif self.profile.slenderness.web.ratio<ii:
+        elif self.profile.slenderness.web.ratio < ii:
             coef = _web_shear_coefficient_ii(
                 shear_buckling_coefficient=self.web_shear_buckling_coefficient,
                 modulus_linear=self.profile.material.modulus_linear,
@@ -734,9 +734,6 @@ class BeamShearWeb:
         return coef
 
 
-# class BeamCompression(Protocol):
-#     strength_flexural_buckling: Quantity
-#     strength_torsional_buckling: Quantity
 
 
 @dataclass
@@ -1048,8 +1045,8 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
     profile: DoublySymmetricI
     unbraced_length: Quantity
     required_axial_strength: Quantity = 0 * N
-    required_major_axis_flexure_strength: Quantity = 0 * N * m
-    required_minor_axis_flexure_strength: Quantity = 0 * N * m
+    required_major_axis_flexural_strength: Quantity = 0 * N * m
+    required_minor_axis_flexural_strength: Quantity = 0 * N * m
     lateral_torsional_buckling_modification_factor: float = 1.0
     factor_k_minor_axis: float = 1.0
     factor_k_major_axis: float = 1.0
@@ -1089,8 +1086,8 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
         return BeamFlexureDoublySymmetric(
             profile=self.profile,
             unbraced_length=self.unbraced_length,
-            required_major_axis_flexure_strength=self.required_major_axis_flexure_strength,
-            required_minor_axis_flexure_strength=self.required_minor_axis_flexure_strength
+            required_major_axis_flexure_strength=self.required_major_axis_flexural_strength,
+            required_minor_axis_flexure_strength=self.required_minor_axis_flexural_strength
         )
 
     @cached_property
@@ -1099,9 +1096,9 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
             available_axial_strength=self.compression.design_strength,
             required_axial_strength=self.required_axial_strength,
             available_major_axis_flexural_strength=self.flexure.design_strength_major_axis,
-            required_major_axis_flexural_strength=self.required_major_axis_flexure_strength,
+            required_major_axis_flexural_strength=self.required_major_axis_flexural_strength,
             available_minor_axis_flexural_strength=self.flexure.design_strength_minor_axis,
-            required_minor_axis_flexural_strength=self.required_minor_axis_flexure_strength,
+            required_minor_axis_flexural_strength=self.required_minor_axis_flexural_strength,
         )
 
     @cached_property
@@ -1117,8 +1114,8 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
         return pd.DataFrame(
             {
                 "required_axial_strength": [self.required_axial_strength.magnitude],
-                "required_major_axis_flexure_strength": [self.required_major_axis_flexure_strength.magnitude],
-                "required_minor_axis_flexure_strength": [self.required_minor_axis_flexure_strength.magnitude],
+                "required_major_axis_flexure_strength": [self.required_major_axis_flexural_strength.magnitude],
+                "required_minor_axis_flexure_strength": [self.required_minor_axis_flexural_strength.magnitude],
             }
         )
 

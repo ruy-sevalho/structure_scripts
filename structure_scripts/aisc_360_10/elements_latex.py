@@ -1203,7 +1203,7 @@ class BeamFlexureMajorAxisDoublySymmetricLatex:
     @cached_property
     def required_strength(self):
         return _process_quantity_entry_config(
-            entry=self.model.required_major_axis_flexure_strength,
+            entry=self.model.required_major_axis_flexural_strength,
             print_config=config_dict.strength_moment
         )
 
@@ -1335,7 +1335,7 @@ class BeamFlexureMinorAxisDoublySymmetricLatex:
     @cached_property
     def required_strength(self):
         return _process_quantity_entry_config(
-            entry=self.model.required_minor_axis_flexure_strength,
+            entry=self.model.required_minor_axis_flexural_strength,
             print_config=config_dict.strength_moment
         )
 

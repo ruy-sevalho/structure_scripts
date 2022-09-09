@@ -5,12 +5,12 @@ from functools import partial
 from quantities import cm, UnitQuantity, m, mm, GPa, MPa, N
 
 from batch_cases import several_loads_results
-from aisc360_10.elements import (
-    DoublySymmetricIUserDefined,
+from structure_scripts.aisc_360_10.elements import (
+    DoublySymmetricI,
     BeamCompressionFlexureDoublySymmetricEffectiveLength, DoublySymmetricIDimensionsUserDefined,
     GenericAreaProperties,
-    IsoTropicMaterial
 )
+from structure_scripts.shared.materials import IsoTropicMaterial
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilonewton", 1000 * N, symbol="kN")
 LATEX_ABBREVIATION = 'calculation_memory'
@@ -133,11 +133,12 @@ if __name__ == '__main__':
         web_thickness=11.3 * mm,
         total_height=204 * mm
     )
-    profile_arbitrary = DoublySymmetricIUserDefined(
+    profile_arbitrary = DoublySymmetricI(
         dimensions=dimensions_cp,
         material=steel
     )
     yield_axial_strength = (steel.yield_stress * profile_arbitrary.area_properties.area / 1.67).rescale(kN)
+    torsion = Bea
     print(yield_axial_strength)
     print("------")
     for i in range(1,11,1):
