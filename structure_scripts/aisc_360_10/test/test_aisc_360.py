@@ -3,7 +3,7 @@ from structure_scripts.aisc_360_10.elements import (
     GenericAreaProperties,
     BeamCompressionEffectiveLength,
     BeamFlexureDoublySymmetric,
-    DoublySymmetricIDimensionsUserDefined, BeamShearWeb, BeamTorsionEffectiveLength
+    DoublySymmetricIDimensionsUserDefined, BeamShearWeb
 )
 from structure_scripts.shared.materials import IsoTropicMaterial
 
@@ -65,9 +65,13 @@ beam_1_compression = BeamCompressionEffectiveLength(
     profile=profile_127x76x13_rolled,
     unbraced_length_major_axis =1.0 * m,
 )
-beam_1_torsion = BeamTorsionEffectiveLength(
+beam_2_compression = BeamCompressionEffectiveLength(
     profile=profile_127x76x13_rolled,
-    unbraced_length=1.0*m
+    unbraced_length_major_axis = 2.0 * m,
+)
+beam_3_compression = BeamCompressionEffectiveLength(
+    profile=profile_127x76x13_rolled,
+    unbraced_length_major_axis = 4.0 * m,
 )
 beam_1_flexure = BeamFlexureDoublySymmetric(
     profile=profile_127x76x13_rolled,
@@ -187,7 +191,11 @@ def test_beam_compression_effective_length_flexural_buckling_critical_stress(
 
 @mark.parametrize(
     "beam",
-    [(beam_1_compression, Quantity(469234.6376, N))]
+    [
+        (beam_1_compression, Quantity(469234.6376, N)),
+        (beam_2_compression, Quantity(241225.5807, N)),
+        (beam_3_compression, Quantity(60589.50142, N))
+    ]
 )
 def test_beam_compression_effective_length_flexural_buckling_strength(
         beam: tuple[BeamCompressionEffectiveLength, Quantity]
@@ -198,23 +206,30 @@ def test_beam_compression_effective_length_flexural_buckling_strength(
 
 @mark.parametrize(
     "beam",
-    [(beam_1_torsion, Quantity(1018.305052, MPa))]
+    [
+        (beam_1_compression, Quantity(312.3582787, MPa)),
+        (beam_2_compression, Quantity(277.2878718, MPa))
+    ]
 )
-def test_beam_compression_effective_length_torsional_buckling_elastic_stress(
-        beam: tuple[BeamTorsionEffectiveLength, Quantity]
+def test_beam_compression_effective_length_torsional_buckling_critical_stress(
+        beam: tuple[BeamCompressionEffectiveLength, Quantity]
 ):
-    calculated, reference = same_units_simplify(beam[0].critical_stress, beam[1])
+    calculated, reference = same_units_simplify(beam[0].torsional_critical_stress, beam[1])
     assert calculated == approx(reference)
 
 
 @mark.parametrize(
     "beam",
-    [(beam_1_torsion, Quantity(1680203.335, N))]
+    [
+        (beam_1_compression, Quantity(515391.1599, N)),
+        (beam_2_compression, Quantity(457524.9885, N)),
+        (beam_3_compression, Quantity(424502.8659, N))
+    ]
 )
 def test_beam_compression_effective_length_torsional_buckling_strength(
-        beam: tuple[BeamTorsionEffectiveLength, Quantity]
+        beam: tuple[BeamCompressionEffectiveLength, Quantity]
 ):
-    calculated, reference = same_units_simplify(beam[0].nominal_strength, beam[1])
+    calculated, reference = same_units_simplify(beam[0].strength_torsional_buckling, beam[1])
     assert calculated == approx(reference)
 
 
@@ -264,6 +279,7 @@ def test_beam_flexure_strength_lateral_torsion_compact_case_c(beam: tuple[BeamFl
 def test_beam_flexure_strength_non_compact_flange_local_buckling(beam: tuple[BeamFlexureDoublySymmetric, Quantity]):
     calculated, reference = same_units_simplify(beam[0].strength_major_axis_flange_local_buckling_non_compact, beam[1])
     assert calculated == approx(reference)
+
 
 @mark.parametrize(
     "beam",

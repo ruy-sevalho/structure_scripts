@@ -9,8 +9,10 @@ from structure_scripts.aisc_360_10.elements import (
     DoublySymmetricI,
     BeamCompressionFlexureDoublySymmetricEffectiveLength, DoublySymmetricIDimensionsUserDefined,
     GenericAreaProperties,
+    Beam
 )
 from structure_scripts.shared.materials import IsoTropicMaterial
+
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilonewton", 1000 * N, symbol="kN")
 LATEX_ABBREVIATION = 'calculation_memory'
@@ -57,16 +59,16 @@ def main():
         web_thickness=9.5 * mm,
         total_height=250 * mm
     )
-    profile_wx250x250x73 = DoublySymmetricIUserDefined(
+    profile_wx250x250x73 = DoublySymmetricI(
         area_properties=area_properties_wx250x250x73,
         dimensions=dimensions_wx250x250x73,
         material=steel
     )
-    profile_wx250x250x73_calculated = DoublySymmetricIUserDefined(
+    profile_wx250x250x73_calculated = DoublySymmetricI(
         dimensions=dimensions_wx250x250x73,
         material=steel
     )
-    profile_arbitrary = DoublySymmetricIUserDefined(
+    profile_arbitrary = DoublySymmetricI(
         dimensions=dimensions_w_arbitrary,
         material=steel
     )
@@ -138,17 +140,8 @@ if __name__ == '__main__':
         material=steel
     )
     yield_axial_strength = (steel.yield_stress * profile_arbitrary.area_properties.area / 1.67).rescale(kN)
-    torsion = Bea
-    print(yield_axial_strength)
-    print("------")
-    for i in range(1,11,1):
-        length = i/5 * m
-        compression = BeamCompressionFlexureDoublySymmetricEffectiveLength(
-            profile=profile_arbitrary,
-            unbraced_length=length,
-        )
-        print(length)
-        print(compression.compression.design_strength.rescale(kN)/yield_axial_strength)
-        print("-------")
-
-
+    beam = Beam(
+        profile=profile_arbitrary,
+        unbraced_length_major_axis=10*m
+    )
+    resume = beam.critical_strengths
