@@ -11,7 +11,8 @@ class DataClass(Protocol):
         ...
 
 
-def extract_input_dataframe(obj: Any, extraction_type: Any, filter_names: list[str] = None):
+def extract_input_dataframe(obj: Any, extraction_type: Any = None, filter_names: list[str] = None):
+    extraction_type = extraction_type or obj
     filter_names = filter_names or []
     dict_ = {key: [getattr(obj, key)] for key in extraction_type.__annotations__.keys() if key not in filter_names}
     return pd.DataFrame(dict_)

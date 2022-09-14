@@ -4,7 +4,7 @@ from functools import total_ordering, cached_property
 from typing import Protocol
 
 from quantities import Quantity
-from structure_scripts.aisc_360_10.helpers import same_units_simplify
+from structure_scripts.shared.helpers import same_units_simplify
 
 
 class SafetyFactorType(str, Enum):
@@ -22,6 +22,9 @@ class SafetyFactor(Protocol):
     
     def allowable_value(self, theoretical_limit_value: Quantity) -> Quantity:
         ...
+
+    def ratio(self, theoretical_limit_value: Quantity, required_value) -> Quantity:
+        return abs(required_value / self.allowable_value(theoretical_limit_value))
 
 
 @dataclass

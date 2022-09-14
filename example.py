@@ -142,6 +142,16 @@ if __name__ == '__main__':
     yield_axial_strength = (steel.yield_stress * profile_arbitrary.area_properties.area / 1.67).rescale(kN)
     beam = Beam(
         profile=profile_arbitrary,
-        unbraced_length_major_axis=10*m
+        unbraced_length_major_axis=10*m,
+        required_axial_strength=1000*N,
+        required_minor_axis_flexural_strength=100*N*m,
+        required_major_axis_flexural_strength=100*N*m,
+        required_shear_strength=500*N
     )
+    report = beam.compression_flexure_analysis.latex.resume_latex
     resume = beam.critical_strengths
+    loads = beam.required_strengths_df
+    results = beam.results
+    print("abs")
+    print(abs(-100 * m))
+

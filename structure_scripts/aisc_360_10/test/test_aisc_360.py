@@ -7,7 +7,8 @@ from structure_scripts.aisc_360_10.elements import (
 )
 from structure_scripts.shared.materials import IsoTropicMaterial
 
-from structure_scripts.aisc_360_10.helpers import same_units_simplify, Slenderness, ConstructionType
+from structure_scripts.aisc_360_10.helpers import Slenderness, ConstructionType
+from structure_scripts.shared.helpers import same_units_simplify
 from pytest import approx, mark
 from quantities import UnitQuantity, Quantity, GPa, MPa, cm, m, mm, N
 
@@ -75,7 +76,7 @@ beam_3_compression = BeamCompressionEffectiveLength(
 )
 beam_1_flexure = BeamFlexureDoublySymmetric(
     profile=profile_127x76x13_rolled,
-    unbraced_length=1.0 * m
+    unbraced_length_major_axis=1.0 * m
 )
 beam_shear_web_1 = BeamShearWeb(profile=profile_200x10_200x10)
 beam_shear_web_1_shear_nominal_strength = Quantity(426 * kN)
@@ -201,6 +202,9 @@ def test_beam_compression_effective_length_flexural_buckling_strength(
         beam: tuple[BeamCompressionEffectiveLength, Quantity]
 ):
     calculated, reference = same_units_simplify(beam[0].strength_flexural_buckling, beam[1])
+    print(f'minor: {beam[0].flexural_buckling_critical_stress_minor_axis.rescale(MPa)}')
+    print(f'major: {beam[0].flexural_buckling_critical_stress_major_axis.rescale(MPa)}')
+    print(f'min: {beam[0].critical_stress_flexural_buckling.rescale(MPa)}')
     assert calculated == approx(reference)
 
 

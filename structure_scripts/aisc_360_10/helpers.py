@@ -3,15 +3,9 @@ from typing import Collection
 
 import numpy as np
 
-from quantities import Quantity, dimensionless
+from quantities import Quantity
 
-
-def same_units_simplify(q1: Quantity, q2: Quantity):
-    q1 = q1.simplified
-    q2 = q2.simplified
-    if not q1.units == q2.units:
-        raise ValueError("q1 and q2 don't have the same units")
-    return q1, q2
+from structure_scripts.shared.helpers import ratio_simplify, same_units_simplify
 
 
 class ConstructionType(str, Enum):
@@ -24,19 +18,6 @@ class Slenderness(str, Enum):
     NON_SLENDER = "NON_SLENDER"
     COMPACT = "COMPACT"
     NON_COMPACT = "NON_COMPACT"
-
-
-def _ratio_simplify(q1: Quantity, q2: Quantity) -> float:
-    r: Quantity = (q1 / q2).simplified
-    if not r.units == dimensionless:
-        raise ValueError("q1/q2 is not dimensionless")
-    return r.magnitude
-
-
-# E2. EFFECTIVE LENGTH
-def _member_slenderness_ratio(factor_k: float, unbraced_length: Quantity, radius_of_gyration: Quantity) -> float:
-    n = _ratio_simplify(unbraced_length, radius_of_gyration)
-    return factor_k * n
 
 
 # E3. FLEXURAL BUCKLING OF MEMBERS WITHOUT SLENDER ELEMENTS (E3-1)
@@ -62,7 +43,7 @@ def _critical_compression_stress_buckling_default(
 ) -> Quantity:
     if member_slenderness <= member_slenderness_limit:
         # (E3-2)
-        ratio = _ratio_simplify(yield_stress, elastic_buckling_stress)
+        ratio = ratio_simplify(yield_stress, elastic_buckling_stress)
         return 0.658 ** ratio * yield_stress
     # (E3-3)
     return 0.877 * elastic_buckling_stress
@@ -100,13 +81,13 @@ def _warping_constant(moment_of_inertia: Quantity, distance_between_flanges_cent
 
 # ANSI/AISC 360-10 page 16.1–16 (reference rules)
 def _kc_coefficient(web_height: Quantity, web_thickness: Quantity):
-    ratio = _ratio_simplify(web_height, web_thickness)
+    ratio = ratio_simplify(web_height, web_thickness)
     return min((max((4 / ratio ** 0.5, 0.35)), 0.76))
 
 
 # ANSI/AISC 360-10 page 16.1–16 (reference rules)
 def _limit_ratio_default(modulus_linear: Quantity, stress: Quantity, factor: float, kc_coefficient: float = 1):
-    ratio = _ratio_simplify(modulus_linear, stress)
+    ratio = ratio_simplify(modulus_linear, stress)
     return factor * (kc_coefficient * ratio) ** (1 / 2)
 
 
@@ -148,7 +129,7 @@ def _lateral_torsional_buckling_modification_factor_default(
 ):
     numerator = 12.5 * moment_max
     denominator = 2.5 * moment_max + 3 * moment_a + 4 * moment_b + 3 * moment_c
-    return _ratio_simplify(numerator, denominator)
+    return ratio_simplify(numerator, denominator)
 
 
 def _flexural_major_axis_yield_strength(yield_stress: Quantity, section_modulus: Quantity) -> Quantity:
@@ -263,12 +244,12 @@ def _flexural_and_axial_compression_h1_1_validity(
         minor_axis_elastic_section_modulus: Quantity,
         minor_axis_compression_flange_elastic_section_modulus: Quantity
 ) -> bool:
-    ratio = _ratio_simplify(minor_axis_compression_flange_elastic_section_modulus, minor_axis_elastic_section_modulus)
+    ratio = ratio_simplify(minor_axis_compression_flange_elastic_section_modulus, minor_axis_elastic_section_modulus)
     return 0.1 <= ratio <= 0.9
 
 
 def _axial_strength_ratio(required_axial_strength, available_axial_strength):
-    return _ratio_simplify(required_axial_strength, available_axial_strength)
+    return ratio_simplify(required_axial_strength, available_axial_strength)
 
 
 def _flexural_and_axial_compression_h1_1_criteria(
@@ -279,9 +260,12 @@ def _flexural_and_axial_compression_h1_1_criteria(
         required_minor_axis_flexural_strength: Quantity,
         available_minor_axis_flexural_strength: Quantity,
 ) -> float:
-    axial_strength_ratio = _ratio_simplify(required_axial_strength, available_axial_strength)
-    minor_axis_ratio = _ratio_simplify(required_minor_axis_flexural_strength, available_minor_axis_flexural_strength)
-    major_axis_ratio = _ratio_simplify(required_major_axis_flexural_strength, available_major_axis_flexural_strength)
+    # required_values can have a sign but only magnitude of loads is relevant, therefore the abs() call)
+    axial_strength_ratio = abs(ratio_simplify(required_axial_strength, available_axial_strength))
+    minor_axis_ratio = abs(
+        ratio_simplify(required_minor_axis_flexural_strength, available_minor_axis_flexural_strength))
+    major_axis_ratio = abs(
+        ratio_simplify(required_major_axis_flexural_strength, available_major_axis_flexural_strength))
     factor = 8. / 9. if axial_strength_ratio >= 0.2 else 1.
     denominator = 1. if axial_strength_ratio >= 0.2 else 2.
     return axial_strength_ratio / denominator + factor * (minor_axis_ratio + major_axis_ratio)
@@ -291,7 +275,7 @@ def _flexural_and_axial_compression_h1_3_validity(
         required_minor_axis_flexural_strength: Quantity,
         available_minor_axis_flexural_strength: Quantity
 ) -> bool:
-    ratio = _ratio_simplify(required_minor_axis_flexural_strength, available_minor_axis_flexural_strength)
+    ratio = ratio_simplify(required_minor_axis_flexural_strength, available_minor_axis_flexural_strength)
     return ratio >= 0.05
 
 
@@ -302,8 +286,8 @@ def _flexural_and_axial_compression_h1_3_criteria(
         available_major_axis_flexural_strength: Quantity,
         mod_factor: float
 ) -> float:
-    axial_strength_ratio = _ratio_simplify(required_axial_strength, available_axial_strength)
-    flexural_strength_ratio = _ratio_simplify(
+    axial_strength_ratio = ratio_simplify(required_axial_strength, available_axial_strength)
+    flexural_strength_ratio = ratio_simplify(
         required_major_axis_flexural_strength,
         available_major_axis_flexural_strength
     )
@@ -329,10 +313,6 @@ def _transfer_inertia(area: Quantity, center_to_na_distance: Quantity) -> Quanti
 
 def _rectangle_area(width: Quantity, height: Quantity) -> Quantity:
     return width * height
-
-
-def _section_modulus(inertia: Quantity, max_distance_to_neutral_axis: Quantity) -> Quantity:
-    return inertia / max_distance_to_neutral_axis
 
 
 def _doubly_symmetric_i_torsional_constant(

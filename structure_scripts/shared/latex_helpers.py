@@ -1,34 +1,25 @@
+import pathlib
 from datetime import datetime
 from enum import Enum
-from typing import Literal, Optional, Union, Callable
+from itertools import chain
+from typing import Literal, Optional, Union, Callable, Collection, Any
 from functools import partial
 
 import pandas as pd
-from jinja2 import Template, PackageLoader, FileSystemLoader
+from jinja2 import PackageLoader
 from jinja2 import Environment as JinjaEnvironment
 from pylatex import (
-    Document,
-    MiniPage,
     NoEscape,
-    Section,
-    Subsection,
-    Subsubsection,
     Table,
-    Tabular,
-    Package,
-    NewPage,
-    Math
+    Tabular
 )
 from pylatex import Quantity as LatexQuantity
 from pylatex.base_classes import Environment, CommandBase, Command
-from pylatex.labelref import Label
-from pylatex.math import Math
 from pylatex.utils import dumps_list
-import quantities as pq
 from quantities import Quantity, percent
 
 from structure_scripts.aisc_360_10.criteria import AllowableStrengthDesign, LoadAndResistanceFactorDesign, SafetyFactor
-from structure_scripts.aisc_360_10.report_config import ReportConfig, PrintOptions
+from structure_scripts.shared.report_config import ReportConfig, PrintOptions
 from structure_scripts.aisc_360_10.helpers import Slenderness
 
 env = JinjaEnvironment(loader=PackageLoader("structure_scripts.aisc_360_10"))
@@ -763,3 +754,15 @@ def _build_single_element(content: str):
     return template.render(
         content=content
     )
+
+
+def save_single_entry(content: str, file_name: str):
+    path = pathlib.Path(r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\pdf_maker\tex_files") / file_name
+    content = _build_single_element(content)
+    with open(path, "w") as f:
+        f.write(content)
+
+
+def insert_between(collection: Collection[Any], separator: str = "\n"):
+    col = ((item, separator) for item in collection)
+    return list(chain(*col))

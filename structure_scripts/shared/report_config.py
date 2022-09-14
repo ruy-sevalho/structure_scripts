@@ -231,13 +231,13 @@ class ReportConfig:
         print_units="kN",
         description=NoEscape(r"Carga axial aplicada")
     )
-    required_major_axis_flexure_strength: PrintOptions = PrintOptions(
+    required_major_axis_flexural_strength: PrintOptions = PrintOptions(
         label=NoEscape(r"M_{rx}"),
         round_precision=2,
         print_units="kN*m",
         description=NoEscape(r"Momento fletor aplicado - eixo principal"),
     )
-    required_minor_axis_flexure_strength: PrintOptions = PrintOptions(
+    required_minor_axis_flexural_strength: PrintOptions = PrintOptions(
         label=NoEscape(r"M_{ry}"),
         round_precision=2,
         print_units="kN*m",
@@ -265,3 +265,5 @@ class ReportConfig:
 
     def to_dict(self):
         return {field_.name: getattr(self, field_.name) for field_ in fields(self)}
+
+config_dict = ReportConfig()

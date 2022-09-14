@@ -1,115 +1,43 @@
-import pathlib
 from dataclasses import dataclass
 from functools import cached_property
-from itertools import chain
 
-from pylatex import NoEscape, Section, Subsection, Subsubsection, Document
+from pylatex import NoEscape, Section, Subsection, Subsubsection
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.latex_helpers import (
+from structure_scripts.shared.latex_helpers import (
     _slenderness_default_limit_ratio_latex, _member_slenderness_minor_axis_flexural_bucking_latex,
     _dataframe_table_columns, _elastic_buckling_critical_stress_latex,
     _axial_compression_non_slender_critical_stress_lower_than,
     _axial_compression_non_slender_critical_stress_greater_than, _axial_compression_nominal_strength,
-    _process_quantity_entry_config, _design_strength_asd, _design_strength_lfrd, _design_strength,
+    _process_quantity_entry_config, _design_strength,
     _flexural_yield_nominal_strength, _limit_length_yield, _limit_length_lateral_torsional_buckling,
     _flexural_lateral_torsional_buckling_strength_case_b, _build_doc, CONCATENATE_STRING,
     _effective_radius_of_gyration_equation, _flexure_compression_h1_criteria_equation, _axial_strength_ratio_equation,
-    _ratio_equation, _build_single_element, standard_wrapper, Multline, Split, env, _axial_slenderness_result,
-    _flexural_slenderness_result
+    _ratio_equation, standard_wrapper, Multline, env, _axial_slenderness_result,
+    _flexural_slenderness_result, save_single_entry, insert_between
 )
 from structure_scripts.aisc_360_10.helpers import ConstructionType, _flexural_lateral_torsional_buckling_strength
-from structure_scripts.aisc_360_10.report_config import ReportConfig
+from structure_scripts.shared.report_config import config_dict
 
-from typing import TYPE_CHECKING, Collection, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from structure_scripts.aisc_360_10 import (
-        Material,
         AreaProperties,
         DoublySymmetricIDimensions,
         DoublySymmetricIUserDefined,
         DoublySymmetricIWebSlenderness,
         DoublySymmetricIFlangeSlenderness,
-        DoublySymmetricIDimensionsUserDefined,
         DoublySymmetricIUserDefinedFlangeWebSectionSlenderness,
         BeamCompressionEffectiveLength,
         BeamFlexureDoublySymmetric,
         BeamCompressionFlexureDoublySymmetricEffectiveLength
     )
 
-config_dict = ReportConfig()
 SLENDERNESS_LIMIT_TITLE = "Limites de Esbeltez"
 SLENDER_NON_SLENDER_LIMIT_DESCRIPTION = NoEscape(r"Raz\~ao de esbletez limite n\~ao esbelto / esbelto:")
 COMPACT_NON_COMPACT_LIMIT_DESCRIPTION = NoEscape(r"Raz\~ao de esbletez limite compacto / n\~ao compacto:")
 NON_COMPACT_SLENDER_LIMIT_DESCRIPTION = NoEscape(r"Raz\~ao de esbletez limite n\~ao compacto / esbelto:")
-
-
-def save_single_entry(content: str, file_name: str):
-    path = pathlib.Path(r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\pdf_maker\tex_files") / file_name
-    content = _build_single_element(content)
-    with open(path, "w") as f:
-        f.write(content)
-
-
-def insert_between(collection: Collection[Any], separator: str = "\n"):
-    col = ((item, separator) for item in collection)
-    return list(chain(*col))
-
-
-@dataclass
-class MaterialLatex:
-    material: "Material"
-
-    def resume(self):
-        save_single_entry(
-            content=self.data_table,
-            file_name="shared.tex"
-        )
-
-    @cached_property
-    def resume_latex(self):
-        return Section(
-            title="Material",
-            data=self.data_table_latex
-        )
-
-    @cached_property
-    def data_table_latex(self):
-        return _dataframe_table_columns(
-            df=self.material.data_table_df,
-            unit_display="cell",
-            include_description=True
-        )
-
-    @cached_property
-    def data_table(self):
-        return _dataframe_table_columns(
-            df=self.material.data_table_df,
-            unit_display="cell",
-            include_description=True
-        ).dumps()
-
-    @cached_property
-    def modulus_linear(self):
-        return _process_quantity_entry_config(
-            entry=self.material.modulus_linear,
-            print_config=config_dict.modulus_linear
-        )
-
-    @cached_property
-    def modulus_shear(self):
-        return _process_quantity_entry_config(
-            entry=self.material.modulus_shear,
-            print_config=config_dict.modulus_shear
-        )
-
-    @cached_property
-    def yield_stress(self):
-        return _process_quantity_entry_config(
-            entry=self.material.yield_stress,
-            print_config=config_dict.yield_stress
-        )
 
 
 @dataclass
@@ -1041,6 +969,7 @@ class BeamCompressionEffectiveLengthLatex:
             strength_type="force"
         )
 
+    @cached_property
     def resume(self):
         self.model.profile.latex.slenderness.axial_compression.resume()
         save_single_entry(
@@ -1131,7 +1060,6 @@ class BeamFlexureDoublySymmetricLatex:
 @dataclass
 class BeamFlexureMajorAxisDoublySymmetricLatex:
     model: "BeamFlexureDoublySymmetric"
-    config_dict: ReportConfig = ReportConfig()
 
     def resume(self):
         self.model.profile.latex.slenderness.flexural_major_axis.resume()

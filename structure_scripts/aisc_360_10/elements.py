@@ -25,20 +25,21 @@ from structure_scripts.aisc_360_10.helpers import (
     _flexural_minor_axis_yield_strength, _flexural_slenderness_per_element,
     _flexural_and_axial_compression_h1_1_criteria, _kc_coefficient,
     _lateral_torsional_buckling_modification_factor_default, _limit_ratio_default, _limit_stress_built_up_sections,
-    _limiting_length_torsional_buckling, _limiting_length_yield, _member_slenderness_ratio, _minimum_allowed_strength,
-    _nominal_compressive_strength, _radius_of_gyration, _rectangle_area, _section_modulus, _self_inertia,
+    _limiting_length_torsional_buckling, _limiting_length_yield, _minimum_allowed_strength,
+    _nominal_compressive_strength, _radius_of_gyration, _rectangle_area, _self_inertia,
     _transfer_inertia, _warping_constant, ConstructionType, Slenderness, _member_slenderness_limit,
     _axial_strength_ratio, _web_shear_coefficient_limit, _nominal_shear_strength, _web_shear_coefficient_ii,
     _web_shear_coefficient_iii
 )
-from structure_scripts.aisc_360_10.report_config import ReportConfig
-from structure_scripts.shared.data import extract_input_dataframe, extract_dataframe
+from structure_scripts.shared.helpers import ratio_simplify, member_slenderness_ratio, section_modulus
+from structure_scripts.shared.report_config import config_dict
+from structure_scripts.shared.data import extract_input_dataframe
 from structure_scripts.shared.materials import Material
 
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilonewton", 1000 * N, symbol="kN")
 
-config_dict = ReportConfig()
+
 
 
 class AreaProperties(Protocol):
@@ -216,11 +217,11 @@ class DoublySymmetricIAreaPropertiesFromDimensions(AreaProperties):
 
     @cached_property
     def major_axis_elastic_section_modulus(self) -> Quantity:
-        return _section_modulus(self.major_axis_inertia, self.dimensions.total_height / 2)
+        return section_modulus(self.major_axis_inertia, self.dimensions.total_height / 2)
 
     @cached_property
     def minor_axis_elastic_section_modulus(self) -> Quantity:
-        return _section_modulus(self.minor_axis_inertia, self.dimensions.flange_width / 2)
+        return section_modulus(self.minor_axis_inertia, self.dimensions.flange_width / 2)
 
     @cached_property
     def major_axis_radius_of_gyration(self) -> Quantity:
@@ -294,7 +295,7 @@ class DoublySymmetricIDimensionsUserDefined(DoublySymmetricIDimensions):
     flange_thickness: Quantity
     web_thickness: Quantity
     total_height: Quantity
-    web_radii: Quantity | None = None
+    web_radii: Quantity= Quantity(0, "mm")
 
     @property
     def web_height(self):
@@ -728,6 +729,14 @@ class BeamShearWeb:
             }
         )
 
+    @cached_property
+    def criteria_df(self):
+        return pd.DataFrame(
+            {
+                "shear_stress_criteria": [ratio_simplify(self.required_strength, self.design_strength)]
+            }
+        )
+
 
 @dataclass
 class BeamTorsionEffectiveLength:
@@ -739,7 +748,7 @@ class BeamTorsionEffectiveLength:
 
     @cached_property
     def slenderness(self):
-        return _member_slenderness_ratio(
+        return member_slenderness_ratio(
             factor_k=self.factor_k,
             unbraced_length=self.unbraced_length,
             radius_of_gyration=self.profile.area_properties.torsional_radius_of_gyration
@@ -796,7 +805,7 @@ class BeamCompressionEffectiveLength:
 
     @cached_property
     def minor_axis_slenderness(self):
-        return _member_slenderness_ratio(
+        return member_slenderness_ratio(
             factor_k=self.factor_k_minor_axis,
             radius_of_gyration=self.profile.area_properties.minor_axis_radius_of_gyration,
             unbraced_length=self.unbraced_length_minor_axis
@@ -804,15 +813,15 @@ class BeamCompressionEffectiveLength:
 
     @cached_property
     def major_axis_slenderness(self):
-        return _member_slenderness_ratio(
-            factor_k=self.factor_k_torsion,
-            radius_of_gyration=self.profile.area_properties.torsional_radius_of_gyration,
-            unbraced_length=self.unbraced_length_torsion
+        return member_slenderness_ratio(
+            factor_k=self.factor_k_major_axis,
+            radius_of_gyration=self.profile.area_properties.major_axis_radius_of_gyration,
+            unbraced_length=self.unbraced_length_major_axis
         )
 
     @cached_property
     def torsional_slenderness(self):
-        return _member_slenderness_ratio(
+        return member_slenderness_ratio(
             factor_k=self.factor_k_major_axis,
             radius_of_gyration=self.profile.area_properties.major_axis_radius_of_gyration,
             unbraced_length=self.unbraced_length_major_axis
@@ -868,11 +877,28 @@ class BeamCompressionEffectiveLength:
             yield_stress=self.profile.material.yield_stress
         )
 
+    @cached_property
+    def critical_stress_flexural_buckling(self) -> Quantity:
+        return min(self.flexural_buckling_critical_stress_minor_axis, self.flexural_buckling_critical_stress_major_axis)
 
     @cached_property
     def strength_flexural_buckling(self) -> Quantity:
         return _nominal_compressive_strength(
+            self.critical_stress_flexural_buckling,
+            sectional_area=self.profile.area_properties.area
+        )
+
+    @cached_property
+    def strength_minor_axis_flexural_buckling(self) -> Quantity:
+        return _nominal_compressive_strength(
             self.flexural_buckling_critical_stress_minor_axis,
+            sectional_area=self.profile.area_properties.area
+        )
+
+    @cached_property
+    def strength_major_axis_flexural_buckling(self) -> Quantity:
+        return _nominal_compressive_strength(
+            self.flexural_buckling_critical_stress_major_axis,
             sectional_area=self.profile.area_properties.area
         )
 
@@ -889,17 +915,21 @@ class BeamCompressionEffectiveLength:
 
     @cached_property
     def nominal_strength(self):
-        return self.strength_flexural_buckling
+        return min(self.strength_flexural_buckling, self.strength_torsional_buckling)
 
     @cached_property
     def design_strength(self):
         return self.safety_factor.allowable_value(self.nominal_strength)
 
     @cached_property
+    def design_strength_minor_axis(self):
+        return self.safety_factor.allowable_value(self.nominal_strength)
+
+    @cached_property
     def strength_resume(self):
         return pd.DataFrame(
             {
-                "strength flexural buckling": [self.design_strength.rescale(kN)],
+                "strength flexural buckling minor axis": [self.design_strength.rescale(kN)],
                 "strength torsional buckling": [self.design_strength_torsional_buckling.rescale(kN)]
             }
         )
@@ -958,10 +988,10 @@ def lateral_torsional_buckling_modification_factor_default(
 @dataclass
 class BeamFlexureDoublySymmetric:
     profile: DoublySymmetricI
-    unbraced_length: Quantity
+    unbraced_length_major_axis: Quantity
     lateral_torsional_buckling_modification_factor: float = 1.
-    required_major_axis_flexure_strength: Quantity | None = None
-    required_minor_axis_flexure_strength: Quantity | None = None
+    required_major_axis_flexural_strength: Quantity | None = None
+    required_minor_axis_flexural_strength: Quantity | None = None
     safety_factor: SafetyFactor = AllowableStrengthDesign()
 
     @cached_property
@@ -978,7 +1008,7 @@ class BeamFlexureDoublySymmetric:
     @cached_property
     def strength_lateral_torsion_compact_case_b(self) -> Quantity:
         return _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_b(
-            length_between_braces=self.unbraced_length,
+            length_between_braces=self.unbraced_length_major_axis,
             limiting_length_torsional_buckling=self.profile.limit_length_torsional_buckling,
             limiting_length_yield=self.profile.limit_length_yield,
             mod_factor=self.lateral_torsional_buckling_modification_factor,
@@ -991,7 +1021,7 @@ class BeamFlexureDoublySymmetric:
     def critical_stress_lateral_torsional_buckling(self) -> Quantity:
         return _flexural_lateral_torsional_buckling_critical_stress_compact_doubly_symmetric(
             mod_factor=self.lateral_torsional_buckling_modification_factor,
-            length_between_braces=self.unbraced_length,
+            length_between_braces=self.unbraced_length_major_axis,
             modulus=self.profile.material.modulus_linear,
             coefficient_c=self.profile.coefficient_c,
             distance_between_flange_centroids=self.profile.dimensions.distance_between_centroids,
@@ -1013,7 +1043,7 @@ class BeamFlexureDoublySymmetric:
         return _flexural_lateral_torsional_buckling_strength(
             case_b=self.strength_lateral_torsion_compact_case_b,
             case_c=self.strength_lateral_torsion_compact_case_c,
-            length_between_braces=self.unbraced_length,
+            length_between_braces=self.unbraced_length_major_axis,
             limiting_length_yield=self.profile.limit_length_yield,
             limiting_length_torsional_buckling=self.profile.limit_length_torsional_buckling,
         )
@@ -1105,7 +1135,7 @@ class BeamFlexureDoublySymmetric:
     def strength_resume(self) -> pd.DataFrame:
         strength_local_buckling = self.strength_major_axis_flange_local_buckling
         df = {
-            "strength yield": [self.safety_factor.allowable_value(self.strength_major_axis_yield)],
+            "strength yield": [self.safety_factor.allowable_value(self.strength_major_axis_yield).rescale(kN * m)],
         }
         if self.strength_lateral_torsion:
             df.update(
@@ -1113,14 +1143,16 @@ class BeamFlexureDoublySymmetric:
                     "strength lateral torsion": [
                         self.safety_factor.allowable_value(
                             self.strength_lateral_torsion
-                        )
+                        ).rescale(kN * m)
                     ]
                 }
             )
         if self.strength_major_axis_flange_local_buckling:
             df.update(
                 {
-                    "strength local buckling": [self.safety_factor.allowable_value(strength_local_buckling)]
+                    "strength local buckling": [
+                        self.safety_factor.allowable_value(strength_local_buckling).rescale(kN * m)
+                    ]
                 }
             )
         return pd.DataFrame(df)
@@ -1157,8 +1189,8 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
                 "profile",
                 "safety_factor",
                 "required_axial_strength",
-                "required_major_axis_flexure_strength",
-                "required_minor_axis_flexure_strength"
+                "required_major_axis_flexural_strength",
+                "required_minor_axis_flexural_strength"
 
             ]
         )
@@ -1178,9 +1210,9 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
     def flexure(self):
         return BeamFlexureDoublySymmetric(
             profile=self.profile,
-            unbraced_length=self.unbraced_length_major_axis,
-            required_major_axis_flexure_strength=self.required_major_axis_flexural_strength,
-            required_minor_axis_flexure_strength=self.required_minor_axis_flexural_strength
+            unbraced_length_major_axis=self.unbraced_length_major_axis,
+            required_major_axis_flexural_strength=self.required_major_axis_flexural_strength,
+            required_minor_axis_flexural_strength=self.required_minor_axis_flexural_strength
         )
 
     @cached_property
@@ -1213,10 +1245,14 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
         )
 
     @cached_property
+    def criteria_df(self):
+        return pd.DataFrame({"h1_criteria": [abs(self.compression_flexure_combined_criteria_h1_1)]})
+
+    @cached_property
     def results_h1_df(self):
         required_df = self.required_strengths_df
         return pd.concat(
-            (required_df, pd.DataFrame({"h1_criteria": [abs(self.compression_flexure_combined_criteria_h1_1)]}),),
+            (required_df, self.criteria_df,),
             axis=1,
         )
 
@@ -1235,7 +1271,7 @@ class Beam:
     required_axial_strength: Quantity = 0 * N
     required_major_axis_flexural_strength: Quantity = 0 * N * m
     required_minor_axis_flexural_strength: Quantity = 0 * N * m
-    required_shear_strength: Quantity = 0 * N * m
+    required_shear_strength: Quantity = 0 * N
     required_torsional_strength: Quantity = 0 * N * m
 
     def __post_init__(self):
@@ -1258,6 +1294,14 @@ class Beam:
             required_major_axis_flexural_strength=self.required_major_axis_flexural_strength,
             required_minor_axis_flexural_strength=self.required_minor_axis_flexural_strength
         )
+
+    @cached_property
+    def compression_analysis(self):
+        return self.compression_flexure_analysis.compression
+
+    @cached_property
+    def flexure_analysis(self):
+        return self.compression_flexure_analysis.flexure
 
     @cached_property
     def shear_analysis(self):
@@ -1288,3 +1332,29 @@ class Beam:
             axis=1
         )
         return df
+
+    @cached_property
+    def required_strengths_df(self):
+        return pd.DataFrame(
+            {
+                "axial load": [self.required_axial_strength.rescale(config_dict.required_axial_strength.print_units)],
+                "major axis load": [self.required_major_axis_flexural_strength.rescale(
+                    config_dict.required_major_axis_flexural_strength.print_units)],
+                "minor axis load": [self.required_minor_axis_flexural_strength.rescale(
+                    config_dict.required_major_axis_flexural_strength.print_units)],
+                "shear load": [self.required_shear_strength.rescale(config_dict.required_axial_strength.print_units)],
+                "torsion load": [self.required_torsional_strength.rescale(
+                    config_dict.required_major_axis_flexural_strength.print_units)]
+            }
+        )
+
+    @cached_property
+    def results(self):
+        return pd.concat(
+            (
+                self.required_strengths_df,
+                self.compression_flexure_analysis.criteria_df,
+                self.shear_analysis.criteria_df
+            ),
+            axis=1
+        )
