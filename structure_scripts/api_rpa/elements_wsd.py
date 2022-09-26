@@ -277,3 +277,4 @@ class BeamResult:
             (self.loads_df, self.simple_results, self.combined_result_df),
             axis=1
         )
+

@@ -1,29 +1,26 @@
+from pytest import approx, mark, raises
+from quantities import UnitQuantity, Quantity, GPa, MPa, cm, m, mm, N
+
 from structure_scripts.aisc_360_10.elements import (
     DoublySymmetricI,
     GenericAreaProperties,
     BeamCompressionEffectiveLength,
     BeamFlexureDoublySymmetric,
-    DoublySymmetricIDimensionsUserDefined, BeamShearWeb
+    DoublySymmetricIDimensionsUserDefined,
+    BeamShearWeb,
+    ChannelDimensions
 )
-from structure_scripts.shared.materials import IsoTropicMaterial
-
-from structure_scripts.aisc_360_10.helpers import Slenderness, ConstructionType
+from structure_scripts.aisc_360_10.helpers import ConstructionType
 from structure_scripts.shared.helpers import same_units_simplify
-from pytest import approx, mark
-from quantities import UnitQuantity, Quantity, GPa, MPa, cm, m, mm, N
+from structure_scripts.shared.materials import IsoTropicMaterial, steel
 
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilo newton", 1000 * N, symbol="kN")
 MN = UnitQuantity("mega newton", 1000000 * N, symbol="MN")
 
-steel = IsoTropicMaterial(
-    modulus_linear=200 * GPa,
-    modulus_shear=77 * GPa,
-    poisson_ratio=0.3,
-    yield_stress=355 * MPa
-)
 area_properties_127x76x13 = GenericAreaProperties(
     area=16.5 * cm ** 2,
+    web_area=447.2 * mm ** 2,
     minor_axis_inertia=56 * cm ** 4,
     minor_axis_elastic_section_modulus=15 * cm ** 3,
     major_axis_inertia=473 * cm ** 4,
@@ -64,15 +61,15 @@ profile_built_up = DoublySymmetricI(
 )
 beam_1_compression = BeamCompressionEffectiveLength(
     profile=profile_127x76x13_rolled,
-    unbraced_length_major_axis =1.0 * m,
+    unbraced_length_major_axis=1.0 * m,
 )
 beam_2_compression = BeamCompressionEffectiveLength(
     profile=profile_127x76x13_rolled,
-    unbraced_length_major_axis = 2.0 * m,
+    unbraced_length_major_axis=2.0 * m,
 )
 beam_3_compression = BeamCompressionEffectiveLength(
     profile=profile_127x76x13_rolled,
-    unbraced_length_major_axis = 4.0 * m,
+    unbraced_length_major_axis=4.0 * m,
 )
 beam_1_flexure = BeamFlexureDoublySymmetric(
     profile=profile_127x76x13_rolled,
@@ -292,3 +289,59 @@ def test_beam_flexure_strength_non_compact_flange_local_buckling(beam: tuple[Bea
 def test_beam_web_shear(beam: tuple[BeamShearWeb, Quantity]):
     calculated, reference = same_units_simplify(beam[0].nominal_strength, beam[1])
     assert calculated == approx(reference)
+
+
+def test_channel_dimensions_does_not_accept_total_and_web_height():
+    with raises(ValueError):
+        ChannelDimensions(
+            flange_width=100 * mm,
+            flange_thickness=10 * mm,
+            web_height=100 * mm,
+            web_thickness=10 * mm,
+            total_height=100 * mm
+        )
+
+
+def test_channel_dimensions_does_not_accept_no_height():
+    with raises(ValueError):
+        ChannelDimensions(
+            flange_width=100 * mm,
+            flange_thickness=10 * mm,
+            web_thickness=10 * mm,
+        )
+
+
+@mark.parametrize(
+    "web_height, flange_thickness, expected_total_height",
+    [(100 * mm, 10 * mm, 120 * mm),]
+)
+def test_channel_dimensions_calculates_correct_total_height(
+        web_height: Quantity,
+        flange_thickness: Quantity,
+        expected_total_height: Quantity
+):
+    channel = ChannelDimensions(
+        web_height=web_height,
+        flange_thickness=flange_thickness,
+        web_thickness=1 * mm,
+        flange_width=10 * mm
+    )
+    assert channel.total_height == expected_total_height
+
+
+@mark.parametrize(
+    "total_height, flange_thickness, expected_web_height",
+    [(100 * mm, 10 * mm, 80 * mm),]
+)
+def test_channel_dimensions_calculates_correct_web_height(
+        total_height: Quantity,
+        flange_thickness: Quantity,
+        expected_web_height: Quantity
+):
+    channel = ChannelDimensions(
+        total_height=total_height,
+        flange_thickness=flange_thickness,
+        web_thickness=1 * mm,
+        flange_width=10 * mm
+    )
+    assert channel.web_height == expected_web_height

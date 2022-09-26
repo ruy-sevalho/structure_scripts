@@ -155,3 +155,5 @@ if __name__ == '__main__':
     print("abs")
     print(abs(-100 * m))
 
+    v = 2.24*((1 * steel.modulus_linear / steel.yield_stress) ** 0.5).magnitude
+    print(((steel.modulus_linear / steel.yield_stress) ** 0.5))

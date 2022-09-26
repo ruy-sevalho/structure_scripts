@@ -21,13 +21,11 @@ results = beam.results(
     torsion_moment=100 * N * m,
     shear_force=5_000 * N
 )
-results2 = beam.results(
-    axial_force=-10 ** 3 * N,
-    bending_moment_x=1_000 * N * m,
-    bending_moment_y=1_000 * N * m,
-    torsion_moment=100 * N * m,
-    shear_force=5_000 * N
-)
 df = results.results
-df2 = results2.results
-print(df2.compression_bending_a)
+d = {key: value for key, value in df.items()}
+for key, values in df.items():
+    print(f'{key}')
+    for value in values:
+        print(f'{value}')
+
+v = input("hi")

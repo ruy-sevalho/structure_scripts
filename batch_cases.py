@@ -329,9 +329,9 @@ if __name__ == "__main__":
     results = dict()
     analysis = BeamCompressionFlexureDoublySymmetricEffectiveLength(
         profile=profile_wx250x250x73,
-        unbraced_length=length,
+        unbraced_length_major_axis=length,
         required_axial_strength=2.3557e+005*N + 29*kN,
-        required_major_axis_flexure_strength=3.7063e+007*N*mm,
+        required_major_axis_flexural_strength=3.7063e+007*N*mm,
     )
     report = analysis.latex.resume_latex
     loads_1 = (

@@ -340,7 +340,7 @@ def _nominal_shear_strength(yield_stress: Quantity, web_area: Quantity, web_shea
 def _web_shear_coefficient_limit(
         factor: float, web_shear_buckling_coefficient: float, modulus_linear: Quantity, yield_stress: Quantity
 ) -> float:
-    return (factor * (web_shear_buckling_coefficient * modulus_linear / yield_stress) ** 0.5).magnitude
+    return factor * ratio_simplify(web_shear_buckling_coefficient * modulus_linear, yield_stress) ** 0.5
 
 
 def _web_shear_coefficient_ii(
@@ -359,3 +359,15 @@ def _web_shear_coefficient_iii(
         web_slenderness: float
 ):
     return 1.51 * shear_buckling_coefficient * modulus_linear / (yield_stress * web_slenderness ** 2)
+
+
+def _web_height(total_height: Quantity, flange_thickness: Quantity):
+    return total_height - 2 * flange_thickness
+
+
+def _total_height(web_height: Quantity, flange_thickness: Quantity):
+    return web_height + 2 * flange_thickness
+
+
+def _channel_area(web_height: Quantity, web_thickness: Quantity, flange_width: Quantity, flange_thickness: Quantity):
+    return web_height*web_thickness+2*flange_thickness*flange_width
