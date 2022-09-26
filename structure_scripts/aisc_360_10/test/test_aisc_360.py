@@ -2,14 +2,14 @@ from pytest import approx, mark, raises
 from quantities import UnitQuantity, Quantity, GPa, MPa, cm, m, mm, N
 
 from structure_scripts.aisc_360_10.elements import (
-    DoublySymmetricI,
     GenericAreaProperties,
     BeamCompressionEffectiveLength,
     BeamFlexureDoublySymmetric,
-    DoublySymmetricIDimensionsUserDefined,
     BeamShearWeb,
-    ChannelDimensions
+    AreaProperties
 )
+from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIDimensionsUserDefined, DoublySymmetricI
+from structure_scripts.aisc_360_10.channel import ChannelDimensions, ChannelAreaProperties
 from structure_scripts.aisc_360_10.helpers import ConstructionType
 from structure_scripts.shared.helpers import same_units_simplify
 from structure_scripts.shared.materials import IsoTropicMaterial, steel
@@ -18,6 +18,7 @@ dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilo newton", 1000 * N, symbol="kN")
 MN = UnitQuantity("mega newton", 1000000 * N, symbol="MN")
 
+# Doubly symmetric I profiles
 area_properties_127x76x13 = GenericAreaProperties(
     area=16.5 * cm ** 2,
     web_area=447.2 * mm ** 2,
@@ -59,6 +60,16 @@ profile_built_up = DoublySymmetricI(
     material=steel,
     construction=ConstructionType.BUILT_UP
 )
+# channel profiles
+channel_1_dimensions = ChannelDimensions(
+    total_height=100 * mm,
+    web_thickness=10 * mm,
+    flange_thickness=10 * mm,
+    flange_width=50 * mm,
+)
+channel_1_area_properties = ChannelAreaProperties(dimensions=channel_1_dimensions)
+
+# beam analysis
 beam_1_compression = BeamCompressionEffectiveLength(
     profile=profile_127x76x13_rolled,
     unbraced_length_major_axis=1.0 * m,
@@ -313,7 +324,7 @@ def test_channel_dimensions_does_not_accept_no_height():
 
 @mark.parametrize(
     "web_height, flange_thickness, expected_total_height",
-    [(100 * mm, 10 * mm, 120 * mm),]
+    [(100 * mm, 10 * mm, 120 * mm), ]
 )
 def test_channel_dimensions_calculates_correct_total_height(
         web_height: Quantity,
@@ -331,7 +342,7 @@ def test_channel_dimensions_calculates_correct_total_height(
 
 @mark.parametrize(
     "total_height, flange_thickness, expected_web_height",
-    [(100 * mm, 10 * mm, 80 * mm),]
+    [(100 * mm, 10 * mm, 80 * mm), ]
 )
 def test_channel_dimensions_calculates_correct_web_height(
         total_height: Quantity,
@@ -345,3 +356,14 @@ def test_channel_dimensions_calculates_correct_web_height(
         flange_width=10 * mm
     )
     assert channel.web_height == expected_web_height
+
+
+@mark.parametrize(
+    "channel, expected_area",
+    [(channel_1_area_properties, 1800*mm**2), ]
+)
+def test_channel_dimensions_area(
+        channel: AreaProperties,
+        expected_area: Quantity
+):
+    assert channel.area == expected_area

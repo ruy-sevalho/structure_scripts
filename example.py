@@ -6,11 +6,10 @@ from quantities import cm, UnitQuantity, m, mm, GPa, MPa, N
 
 from batch_cases import several_loads_results
 from structure_scripts.aisc_360_10.elements import (
-    DoublySymmetricI,
-    BeamCompressionFlexureDoublySymmetricEffectiveLength, DoublySymmetricIDimensionsUserDefined,
-    GenericAreaProperties,
+    BeamCompressionFlexureDoublySymmetricEffectiveLength, GenericAreaProperties,
     Beam
 )
+from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIDimensionsUserDefined, DoublySymmetricI
 from structure_scripts.shared.materials import IsoTropicMaterial
 
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")

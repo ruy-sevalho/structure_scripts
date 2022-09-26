@@ -9,8 +9,9 @@ import pandas as pd
 from quantities import Quantity, GPa, MPa, m, mm, cm, UnitQuantity, N
 from structure_scripts.aisc_360_10.elements import (
     BeamCompressionFlexureDoublySymmetricEffectiveLength,
-    DoublySymmetricI, DoublySymmetricIDimensionsUserDefined, GenericAreaProperties
+    GenericAreaProperties
 )
+from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIDimensionsUserDefined, DoublySymmetricI
 from structure_scripts.shared.materials import IsoTropicMaterial
 
 kN = UnitQuantity("kN", 1000*N)
