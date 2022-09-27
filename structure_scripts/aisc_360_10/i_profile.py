@@ -1,12 +1,10 @@
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Protocol
+from typing import Protocol, TYPE_CHECKING, Optional
 
 import pandas as pd
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.elements import AreaProperties, SectionProfile, WebArea, AreaPropertiesWithWeb, \
-    WebShearParameters
 from structure_scripts.aisc_360_10.elements_latex import DoublySymmetricIDimensionsLatex, \
     DoublySymmetricIUserDefinedLatex
 from structure_scripts.aisc_360_10.helpers import Slenderness, _rectangle_area, _self_inertia, _transfer_inertia, \
@@ -16,15 +14,14 @@ from structure_scripts.aisc_360_10.helpers import Slenderness, _rectangle_area, 
     _effective_radius_of_gyration, _limiting_length_torsional_buckling, _limiting_length_yield, \
     _elastic_torsional_buckling_stress_doubly_symmetric_member, _critical_compression_stress_buckling_default
 from structure_scripts.aisc_360_10.slenderness import AxialSlenderness, AxialSlendernessImplementation, \
-    FlexuralSlenderness, FlexuralSlendernessImplementation, ElementSlenderness
+    FlexuralSlenderness, FlexuralSlendernessImplementation, ElementSlenderness, FlangeWebSectionSlenderness
 from structure_scripts.shared.data import extract_input_dataframe
 from structure_scripts.shared.helpers import section_modulus
 from structure_scripts.shared.materials import Material
 
 
-class FlangeWebSectionSlenderness(Protocol):
-    flange: ElementSlenderness
-    web: ElementSlenderness
+if TYPE_CHECKING:
+    from structure_scripts.aisc_360_10.sections import AreaPropertiesWithWeb
 
 
 @dataclass
@@ -63,7 +60,7 @@ class DoublySymmetricIDimensions(Protocol):
 
 
 @dataclass
-class DoublySymmetricIAreaPropertiesFromDimensions(AreaProperties, WebArea):
+class DoublySymmetricIAreaPropertiesFromDimensions:
     dimensions: DoublySymmetricIDimensions
 
     @cached_property
@@ -424,10 +421,10 @@ class ElementSlendernessDefaultImplementation(ElementSlenderness):
 
 
 @dataclass
-class DoublySymmetricI(SectionProfile, WebShearParameters):
+class DoublySymmetricI:
     dimensions: DoublySymmetricIDimensions
     material: Material
-    area_properties: AreaPropertiesWithWeb | None = None
+    area_properties: Optional["AreaPropertiesWithWeb"] = None
     construction: ConstructionType = ConstructionType.ROLLED
     coefficient_c: float = 1.0
 
@@ -539,19 +536,19 @@ class DoublySymmetricI(SectionProfile, WebShearParameters):
     def slenderness(self):
         return DoublySymmetricIFlangeWebSectionSlenderness(profile=self)
 
-    def elastic_torsional_buckling_stress(self, beam: "BeamCompressionEffectiveLength"):
+    def elastic_torsional_buckling_stress(self, beam: "BeamCompressionTorsionalBuckling"):
         return _elastic_torsional_buckling_stress_doubly_symmetric_member(
             modulus_linear=self.material.modulus_linear,
             modulus_shear=self.material.modulus_shear,
-            effective_length_factor_torsional_buckling=beam.factor_k_torsion,
-            member_length=beam.unbraced_length_torsion,
+            effective_length_factor_torsional_buckling=beam.factor_k,
+            member_length=beam.unbraced_length,
             torsional_constant=self.area_properties.torsional_constant,
             major_axis_inertia=self.area_properties.major_axis_inertia,
             minor_axis_inertia=self.area_properties.minor_axis_inertia,
             warping_constant=self.warping_constant
         )
 
-    def torsional_buckling_critical_stress_effective_length(self, beam: "BeamCompressionEffectiveLength"):
+    def torsional_buckling_critical_stress_effective_length(self, beam: "BeamCompressionTorsionalBuckling"):
         return _critical_compression_stress_buckling_default(
             member_slenderness=beam.torsional_slenderness,
             member_slenderness_limit=beam.member_slenderness_limit,

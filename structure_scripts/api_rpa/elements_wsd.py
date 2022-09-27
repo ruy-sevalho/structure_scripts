@@ -234,7 +234,7 @@ class BeamResult:
             acting_bending_stress_y=self.acting_bending_stress_y,
             allowable_bending_stress=self.model.bending.allowable_stress,
             yield_stress=self.model.profile.material.yield_stress
-        ).magnitude
+        )
 
     @cached_property
     def combined_tension_bending_criteria(self):

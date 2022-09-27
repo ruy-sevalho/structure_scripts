@@ -6,9 +6,9 @@ from quantities import cm, UnitQuantity, m, mm, GPa, MPa, N
 
 from batch_cases import several_loads_results
 from structure_scripts.aisc_360_10.elements import (
-    BeamCompressionFlexureDoublySymmetricEffectiveLength, GenericAreaProperties,
-    Beam
+    BeamCompressionFlexureDoublySymmetricEffectiveLength, BeamResult
 )
+from structure_scripts.aisc_360_10.sections import GenericAreaPropertiesWithWeb
 from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIDimensionsUserDefined, DoublySymmetricI
 from structure_scripts.shared.materials import IsoTropicMaterial
 
@@ -24,7 +24,7 @@ def main():
         poisson_ratio=0.3,
         yield_stress=355 * MPa
     )
-    area_properties_wx250x250x73 = GenericAreaProperties(
+    area_properties_wx250x250x73 = GenericAreaPropertiesWithWeb(
         area=94.90 * cm ** 2,
         minor_axis_inertia=3883 * cm ** 4,
         minor_axis_elastic_section_modulus=306 * cm ** 3,
@@ -42,7 +42,7 @@ def main():
         web_thickness=8.6 * mm,
         total_height=250 * mm
     )
-    area_properties_w_arbitrary = GenericAreaProperties(
+    area_properties_w_arbitrary = GenericAreaPropertiesWithWeb(
         area=5990 * mm ** 2,
         minor_axis_inertia=1270 * cm ** 4,
         minor_axis_elastic_section_modulus=127 * cm ** 3,
@@ -139,7 +139,7 @@ if __name__ == '__main__':
         material=steel
     )
     yield_axial_strength = (steel.yield_stress * profile_arbitrary.area_properties.area / 1.67).rescale(kN)
-    beam = Beam(
+    beam = BeamResult(
         profile=profile_arbitrary,
         unbraced_length_major_axis=10*m,
         required_axial_strength=1000*N,

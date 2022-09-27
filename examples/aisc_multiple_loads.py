@@ -8,9 +8,9 @@ import numpy as np
 import pandas as pd
 from quantities import Quantity, GPa, MPa, m, mm, cm, UnitQuantity, N
 from structure_scripts.aisc_360_10.elements import (
-    BeamCompressionFlexureDoublySymmetricEffectiveLength,
-    GenericAreaProperties
+    BeamCompressionFlexureDoublySymmetricEffectiveLength
 )
+from structure_scripts.aisc_360_10.sections import GenericAreaPropertiesWithWeb
 from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIDimensionsUserDefined, DoublySymmetricI
 from structure_scripts.shared.materials import IsoTropicMaterial
 
@@ -55,7 +55,7 @@ if __name__ == "__main__":
         poisson_ratio=0.3,
         yield_stress=355 * MPa
     )
-    area_properties_wx250x250x73 = GenericAreaProperties(
+    area_properties_wx250x250x73 = GenericAreaPropertiesWithWeb(
         area=94.90 * cm ** 2,
         web_area=902.4*mm**2,
         minor_axis_inertia=3883 * cm ** 4,

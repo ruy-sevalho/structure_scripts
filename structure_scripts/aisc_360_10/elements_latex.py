@@ -807,7 +807,7 @@ class BeamCompressionEffectiveLengthLatex:
     @cached_property
     def required_strength(self):
         return _process_quantity_entry_config(
-            entry=self.model.required_strength,
+            entry=self.model.required_strength_major_axis,
             print_config=config_dict.strength_force
         )
 
@@ -1421,11 +1421,11 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLengthLatex:
             axial_strength_ratio = "greater_than_0_2"
         return _flexure_compression_h1_criteria_equation(
             axial_strength_ratio=axial_strength_ratio,
-            required_axial_strength=self.model.compression.latex.required_strength,
+            required_axial_strength=self.model.compression.latex.required_strength_major_axis,
             design_axial_strength=self.model.compression.latex.design_strength,
-            required_flexural_major_axis_strength=self.model.flexure.latex.major_axis.required_strength,
+            required_flexural_major_axis_strength=self.model.flexure.latex.major_axis.required_strength_major_axis,
             design_strength_flexural_major_axis=self.model.flexure.latex.major_axis.design_strength,
-            required_flexural_minor_axis_strength=self.model.flexure.latex.minor_axis.required_strength,
+            required_flexural_minor_axis_strength=self.model.flexure.latex.minor_axis.required_strength_major_axis,
             design_strength_flexural_minor_axis=self.model.flexure.latex.minor_axis.design_strength,
             criteria=self.flexure_compression_h1_criteria
         )

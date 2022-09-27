@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Optional
+from typing import Optional, Union
 
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.elements import AreaProperties
+from structure_scripts.aisc_360_10.sections import AreaProperties
 from structure_scripts.aisc_360_10.helpers import _total_height, _web_height, _channel_area
 
 
@@ -58,3 +58,8 @@ class ChannelAreaProperties(AreaProperties):
     # torsional_radius_of_gyration: Quantity
     # warping_constant: Quantity
     # web_area: Quantity
+
+@dataclass
+class Channel:
+    dimensions: ChannelDimensions
+    area_properties: Union[AreaProperties, None] = None

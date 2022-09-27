@@ -33,3 +33,12 @@ class ElementSlenderness(Protocol):
     flexural_minor_axis: FlexuralSlenderness
     flexural_major_axis: FlexuralSlenderness
     ratio: float
+
+
+class WebSlenderness(Protocol):
+    web: ElementSlenderness
+
+
+class FlangeWebSectionSlenderness(Protocol):
+    flange: ElementSlenderness
+    web: ElementSlenderness

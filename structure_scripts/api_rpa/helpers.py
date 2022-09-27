@@ -103,6 +103,9 @@ def combined_bending_compression_criteria_b(
         yield_stress: Quantity
 ):
     """Eq 6.21"""
-    first_term = acting_compressive_stress / (0.6 * yield_stress)
-    second_term = (acting_bending_stress_x ** 2 + acting_bending_stress_y ** 2) ** 0.5 / allowable_bending_stress
+    first_term = ratio_simplify(acting_compressive_stress, (0.6 * yield_stress))
+    second_term = ratio_simplify(
+        (acting_bending_stress_x ** 2 + acting_bending_stress_y ** 2) ** 0.5,
+        allowable_bending_stress
+    )
     return first_term + second_term
