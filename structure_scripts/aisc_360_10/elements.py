@@ -673,7 +673,7 @@ class BeamModel:
             self.unbraced_length_torsion = self.unbraced_length_major_axis
 
     table_shear = {
-        DoublySymmetricI:
+        DoublySymmetricI:None,
     }
 
     def result(
