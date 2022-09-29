@@ -5,23 +5,25 @@ from typing import Protocol, TYPE_CHECKING, Optional
 import pandas as pd
 from quantities import Quantity
 
+from structure_scripts.aisc_360_10.sections import SectionProfileWithWebAndFlange
 from structure_scripts.aisc_360_10.elements_latex import DoublySymmetricIDimensionsLatex, \
     DoublySymmetricIUserDefinedLatex
-from structure_scripts.aisc_360_10.helpers import Slenderness, _rectangle_area, _self_inertia, _transfer_inertia, \
+from structure_scripts.aisc_360_10.helpers import _rectangle_area, _self_inertia, _transfer_inertia, \
     _radius_of_gyration, _warping_constant, _doubly_symmetric_i_torsional_constant, _areas_centroid, _web_height, \
     _limit_ratio_default, _flexural_slenderness_per_element, _kc_coefficient, ConstructionType, \
     _limit_stress_built_up_sections, _web_shear_coefficient_limit, _web_shear_coefficient_iii, \
     _effective_radius_of_gyration, _limiting_length_torsional_buckling, _limiting_length_yield, \
     _elastic_torsional_buckling_stress_doubly_symmetric_member, _critical_compression_stress_buckling_default
-from structure_scripts.aisc_360_10.slenderness import AxialSlenderness, AxialSlendernessImplementation, \
-    FlexuralSlenderness, FlexuralSlendernessImplementation, ElementSlenderness, FlangeWebSectionSlenderness
+from structure_scripts.aisc_360_10.slenderness import AxialSlendernessImplementation, \
+    FlexuralSlendernessImplementation, ElementSlenderness, FlangeWebSectionSlenderness, Slenderness
 from structure_scripts.shared.data import extract_input_dataframe
 from structure_scripts.shared.helpers import section_modulus
 from structure_scripts.shared.materials import Material
 
 
 if TYPE_CHECKING:
-    from structure_scripts.aisc_360_10.sections import AreaPropertiesWithWeb
+    from structure_scripts.aisc_360_10.sections import AreaPropertiesWithWeb, SectionProfile, \
+        SectionProfileWithWebAndFlange
 
 
 @dataclass
@@ -204,7 +206,7 @@ class DoublySymmetricIDimensionsUserDefined(DoublySymmetricIDimensions):
     @cached_property
     def web_height_corrected(self):
         if self.web_radii:
-            return self.web_height - self.web_radii
+            return self.web_height - 2 * self.web_radii
         else:
             return self.web_height
 
@@ -278,6 +280,10 @@ class DoublySymmetricIWebSlenderness(ElementSlenderness):
             slender_limit_ratio=self.flexural_slender_limit_ratio,
             compact_limit_ratio=self.flexural_compact_limit_ratio
         )
+
+    @cached_property
+    def area_for_shear(self):
+        return self.profile.dimensions.web_height * self.profile.dimensions.web_thickness
 
 
 @dataclass
@@ -411,17 +417,13 @@ class DoublySymmetricIFlangeSlenderness(ElementSlenderness):
             compact_limit_ratio=self.flexural_compact_limit_ratio
         )
 
-
-@dataclass
-class ElementSlendernessDefaultImplementation(ElementSlenderness):
-    axial_compression: AxialSlenderness
-    flexural_minor_axis: FlexuralSlenderness
-    flexural_major_axis: FlexuralSlenderness
-    ratio: float
+    @cached_property
+    def area_for_shear(self):
+        return 2 * self.profile.dimensions.flange_width * self.profile.dimensions.flange_thickness
 
 
 @dataclass
-class DoublySymmetricI:
+class DoublySymmetricI(SectionProfileWithWebAndFlange):
     dimensions: DoublySymmetricIDimensions
     material: Material
     area_properties: Optional["AreaPropertiesWithWeb"] = None

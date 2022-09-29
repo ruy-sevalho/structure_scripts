@@ -5,7 +5,7 @@ from structure_scripts.aisc_360_10.elements import (
     BeamCompressionFlexuralBuckling,
     BeamFlexureDoublySymmetric,
     BeamShearWeb,
-    BeamCompressionTorsionalBuckling
+    BeamCompressionTorsionalBuckling, BeamModel
 )
 from structure_scripts.aisc_360_10.sections import AreaProperties, GenericAreaPropertiesWithWeb
 from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIDimensionsUserDefined, DoublySymmetricI
@@ -100,6 +100,12 @@ beam_1_flexure = BeamFlexureDoublySymmetric(
 )
 beam_shear_web_1 = BeamShearWeb(profile=profile_200x10_200x10)
 beam_shear_web_1_shear_nominal_strength = Quantity(426 * kN)
+
+beam_model = BeamModel(
+    profile=profile_200x10_200x10,
+    unbraced_length_major_axis=1.0*m
+)
+
 
 
 @mark.parametrize(

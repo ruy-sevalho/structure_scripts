@@ -5,19 +5,13 @@ import numpy as np
 
 from quantities import Quantity
 
+from structure_scripts.aisc_360_10.slenderness import Slenderness
 from structure_scripts.shared.helpers import ratio_simplify, same_units_simplify
 
 
 class ConstructionType(str, Enum):
     ROLLED = "ROLLED"
     BUILT_UP = "BUILT_UP"
-
-
-class Slenderness(str, Enum):
-    SLENDER = "SLENDER"
-    NON_SLENDER = "NON_SLENDER"
-    COMPACT = "COMPACT"
-    NON_COMPACT = "NON_COMPACT"
 
 
 # E3. FLEXURAL BUCKLING OF MEMBERS WITHOUT SLENDER ELEMENTS (E3-1)

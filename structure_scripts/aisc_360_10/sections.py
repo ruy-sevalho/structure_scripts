@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, Any, Optional
 
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.helpers import _radius_of_gyration
+from structure_scripts.aisc_360_10.helpers import _radius_of_gyration, ConstructionType
 from structure_scripts.aisc_360_10.slenderness import FlangeWebSectionSlenderness
 from structure_scripts.shared.materials import Material
 
@@ -58,6 +58,7 @@ class SectionProfile(Protocol):
     # coefficient_c: float
     effective_radius_of_gyration: Quantity
     warping_constant: Quantity
+    construction: ConstructionType
 
     # web_shear_coefficient: float
     # web_shear_buckling_coefficient: float
@@ -67,6 +68,8 @@ class SectionProfile(Protocol):
 
 
 class WithTorsionalBuckling(Protocol):
+    coefficient_c: float
+
     def torsional_buckling_critical_stress_effective_length(self, beam: "BeamCompressionTorsionalBuckling") -> Quantity:
         ...
 
@@ -75,7 +78,7 @@ class WithLateralTorsionBuckling(Protocol):
     coefficient_c: float
 
 
-class SectionProfileWithWeb(Protocol):
+class SectionProfileWithWebAndFlange(SectionProfile, Protocol):
     area_properties: AreaPropertiesWithWeb
     material: Material
     effective_radius_of_gyration: Quantity

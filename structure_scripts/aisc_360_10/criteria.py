@@ -41,6 +41,7 @@ class LoadAndResistanceFactorDesign(SafetyFactor):
 class Criteria:
     nominal_strength: Quantity
     safety_factor: SafetyFactor
+    name: str
 
     @cached_property
     def design_strength(self):

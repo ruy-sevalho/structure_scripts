@@ -1,7 +1,12 @@
 from dataclasses import dataclass, fields
 from typing import Optional
+from enum import Enum
 from pylatex import NoEscape, Math
 
+
+class Language(Enum):
+    ENGLISH = "ENGLISH"
+    PORTUGUESE = "PORTUGUESE"
 
 @dataclass
 class PrintOptions:
@@ -225,6 +230,7 @@ class ReportConfig:
         print_units="kN",
         description=NoEscape(r"Carga cr\'itica nomimal")
     )
+
     required_axial_strength: PrintOptions = PrintOptions(
         label=NoEscape(r"P_{r}"),
         round_precision=2,
@@ -262,6 +268,19 @@ class ReportConfig:
         print_units="mm"
     )
     criteria: PrintOptions = PrintOptions(round_precision=2)
+    nominal_shear_strength: PrintOptions = PrintOptions(
+        label=NoEscape(r"V{n}"),
+        round_precision=2,
+        print_units="kN",
+        description=NoEscape(r"Força Cortante Limite Nominal")
+    )
+    design_shear_strength: PrintOptions = PrintOptions(
+        label=NoEscape(r"V{c}"),
+        round_precision=2,
+        print_units="kN",
+        description=NoEscape(r"Força Cortante Limite de Projeto")
+    )
+
 
     def to_dict(self):
         return {field_.name: getattr(self, field_.name) for field_ in fields(self)}

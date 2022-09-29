@@ -1,7 +1,15 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import Protocol
 
-from structure_scripts.aisc_360_10.helpers import Slenderness
+from pylatex import Quantity
+
+
+class Slenderness(str, Enum):
+    SLENDER = "SLENDER"
+    NON_SLENDER = "NON_SLENDER"
+    COMPACT = "COMPACT"
+    NON_COMPACT = "NON_COMPACT"
 
 
 class AxialSlenderness(Protocol):
@@ -33,6 +41,7 @@ class ElementSlenderness(Protocol):
     flexural_minor_axis: FlexuralSlenderness
     flexural_major_axis: FlexuralSlenderness
     ratio: float
+    area_for_shear: Quantity
 
 
 class WebSlenderness(Protocol):
@@ -42,3 +51,12 @@ class WebSlenderness(Protocol):
 class FlangeWebSectionSlenderness(Protocol):
     flange: ElementSlenderness
     web: ElementSlenderness
+
+
+@dataclass
+class ElementSlendernessDefaultImplementation(ElementSlenderness):
+    axial_compression: AxialSlenderness
+    flexural_minor_axis: FlexuralSlenderness
+    flexural_major_axis: FlexuralSlenderness
+    ratio: float
+    area_for_shear: Quantity
