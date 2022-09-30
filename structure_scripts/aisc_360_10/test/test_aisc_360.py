@@ -13,6 +13,7 @@ from structure_scripts.aisc_360_10.channel import ChannelDimensions, ChannelArea
 from structure_scripts.aisc_360_10.helpers import ConstructionType
 from structure_scripts.shared.helpers import same_units_simplify
 from structure_scripts.shared.materials import IsoTropicMaterial, steel
+from structure_scripts.aisc_360_10.beams import BeamParameters, BeamAnalysis
 
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilo newton", 1000 * N, symbol="kN")
@@ -104,6 +105,10 @@ beam_shear_web_1_shear_nominal_strength = Quantity(426 * kN)
 beam_model = BeamModel(
     profile=profile_200x10_200x10,
     unbraced_length_major_axis=1.0*m
+)
+
+beam_param = BeamParameters(
+    unbraced_length_major_axis=1.0*m,
 )
 
 

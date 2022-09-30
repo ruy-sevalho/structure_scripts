@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import Protocol, TYPE_CHECKING, Union, Optional
+from typing import Protocol, TYPE_CHECKING
 from dataclasses import dataclass
 import pandas as pd
 
@@ -52,6 +52,8 @@ class BeamModelType(Protocol):
     factor_k_torsion: float
     lateral_torsional_buckling_modification_factor: float
     safety_factor: SafetyFactor
+
+
 
 
 @dataclass
@@ -257,55 +259,6 @@ class BeamShearWeb:
             {
                 "shear_stress_criteria": [ratio_simplify(self.required_strength_major_axis, self.design_strength)]
             }
-        )
-
-
-@dataclass
-class CompressionFlexuralBuckling(Criteria):
-    unbraced_length: Quantity
-    factor_k: float
-    radius_of_gyration: Quantity
-    section_area: Quantity
-    modulus_linear: Quantity
-    yield_stress: Quantity
-    safety_factor: SafetyFactor = AllowableStrengthDesign()
-
-    @cached_property
-    def slenderness(self):
-        return member_slenderness_ratio(
-            factor_k=self.factor_k,
-            radius_of_gyration=self.radius_of_gyration,
-            unbraced_length=self.unbraced_length
-        )
-
-    @cached_property
-    def elastic_flexural_buckling_stress(self):
-        return _elastic_flexural_buckling_stress(
-            modulus_linear=self.modulus_linear,
-            member_slenderness_ratio=self.slenderness
-        )
-
-    @cached_property
-    def member_slenderness_limit(self):
-        return _member_slenderness_limit(
-            modulus_linear=self.modulus_linear,
-            yield_stress=self.yield_stress
-        )
-
-    @cached_property
-    def flexural_buckling_critical_stress(self):
-        return _critical_compression_stress_buckling_default(
-            member_slenderness=self.slenderness,
-            elastic_buckling_stress=self.elastic_flexural_buckling_stress,
-            member_slenderness_limit=self.member_slenderness_limit,
-            yield_stress=self.yield_stress
-        )
-
-    @cached_property
-    def nominal_strength(self) -> Quantity:
-        return _nominal_compressive_strength(
-            self.flexural_buckling_critical_stress,
-            sectional_area=self.section_area
         )
 
 
@@ -784,16 +737,7 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
         )
 
 
-@dataclass
-class BeamParameters:
-    unbraced_length_major_axis: Quantity
-    unbraced_length_minor_axis: Quantity | None = None
-    unbraced_length_torsion: Quantity | None = None
-    factor_k_minor_axis: float = 1.0
-    factor_k_major_axis: float = 1.0
-    factor_k_torsion: float = 1.0
-    lateral_torsional_buckling_modification_factor: float = 1.0
-    safety_factor: SafetyFactor = AllowableStrengthDesign()
+
 
 
 @dataclass
@@ -934,3 +878,5 @@ class BeamResult:
             ),
             axis=1
         )
+
+

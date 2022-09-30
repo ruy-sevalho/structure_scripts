@@ -1,5 +1,6 @@
 from quantities import UnitQuantity, Quantity, GPa, MPa, cm, m, mm, N
 
+from structure_scripts.aisc_360_10.beams import BeamParameters, BeamAnalysis
 from structure_scripts.aisc_360_10.elements import (
     BeamCompressionFlexuralBuckling,
     BeamFlexureDoublySymmetric,
@@ -104,4 +105,12 @@ beam_model = BeamModel(
     profile=profile_200x10_200x10,
     unbraced_length_major_axis=1.0*m
 )
-print(beam_model.shear_major_axis_strengths)
+beam_param = BeamParameters(
+    unbraced_length_major_axis=1.0*m,
+)
+beam_analysis = BeamAnalysis(
+    beam_parameters=beam_param,
+    section=profile_built_up
+)
+for criteria in beam_analysis.compression.items():
+    print(f"{criteria[0]} {criteria[1].design_strength}")

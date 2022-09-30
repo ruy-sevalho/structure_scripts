@@ -1,11 +1,16 @@
 from dataclasses import dataclass
-from typing import Protocol, Any, Optional
+from functools import cached_property
+from typing import Protocol, Any, Optional, TYPE_CHECKING
 
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.helpers import _radius_of_gyration, ConstructionType
+from structure_scripts.aisc_360_10.criteria import Criteria
+from structure_scripts.aisc_360_10.helpers import _radius_of_gyration, ConstructionType, _member_slenderness_limit
 from structure_scripts.aisc_360_10.slenderness import FlangeWebSectionSlenderness
 from structure_scripts.shared.materials import Material
+
+if TYPE_CHECKING:
+    from beams import BeamParameters
 
 
 class WebArea(Protocol):
@@ -63,8 +68,18 @@ class SectionProfile(Protocol):
     # web_shear_coefficient: float
     # web_shear_buckling_coefficient: float
 
+    @cached_property
+    def member_slenderness_limit(self):
+        return _member_slenderness_limit(
+            modulus_linear=self.material.modulus_linear,
+            yield_stress=self.material.yield_stress
+        )
+
     def torsional_buckling_critical_stress_effective_length(self, beam: "BeamCompressionTorsionalBuckling") -> Quantity:
-        raise NotImplementedError
+        ...
+
+    def compression(self, beam_param: "BeamParameters") -> dict[str, Criteria]:
+        ...
 
 
 class WithTorsionalBuckling(Protocol):

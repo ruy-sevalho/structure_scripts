@@ -5,6 +5,9 @@ from typing import Protocol, TYPE_CHECKING, Optional
 import pandas as pd
 from quantities import Quantity
 
+from structure_scripts.aisc_360_10.compression_criteria import FLEXURAL_BUCKLING, \
+    create_compression_flexural_buckling_criteria
+from structure_scripts.aisc_360_10.criteria import Criteria
 from structure_scripts.aisc_360_10.sections import SectionProfileWithWebAndFlange
 from structure_scripts.aisc_360_10.elements_latex import DoublySymmetricIDimensionsLatex, \
     DoublySymmetricIUserDefinedLatex
@@ -24,6 +27,7 @@ from structure_scripts.shared.materials import Material
 if TYPE_CHECKING:
     from structure_scripts.aisc_360_10.sections import AreaPropertiesWithWeb, SectionProfile, \
         SectionProfileWithWebAndFlange
+    from structure_scripts.aisc_360_10.beams import BeamParameters
 
 
 @dataclass
@@ -561,3 +565,13 @@ class DoublySymmetricI(SectionProfileWithWebAndFlange):
     @cached_property
     def latex(self):
         return DoublySymmetricIUserDefinedLatex(self)
+
+    def compression(self, beam_param: "BeamParameters") -> dict[str, Criteria]:
+        return {
+            f"{FLEXURAL_BUCKLING}_major": create_compression_flexural_buckling_criteria(
+                beam_param=beam_param, section=self, axis="major"
+            ),
+            f"{FLEXURAL_BUCKLING}_minor": create_compression_flexural_buckling_criteria(
+                beam_param=beam_param, section=self, axis="minor"
+            ),
+        }
