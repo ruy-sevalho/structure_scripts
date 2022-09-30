@@ -1,0 +1,6 @@
+/.idea/
+/structure_scripts/aisc_360_10/.pytest_cache/
+/structure_scripts/api_rpa/.pytest_cache/
+/structure_scripts/.pytest_cache/
+.pytest_cache/
+__pychace__/
