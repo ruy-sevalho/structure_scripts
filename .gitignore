@@ -1,6 +1,13 @@
 /.idea/
+.vscode/
 /structure_scripts/aisc_360_10/.pytest_cache/
 /structure_scripts/api_rpa/.pytest_cache/
 /structure_scripts/.pytest_cache/
 .pytest_cache/
 __pychace__/
+/structure_scripts/aisc_360_10/__pycache__/
+/structure_scripts/api_rpa/__pycache__/
+/structure_scripts/__pycache__/
+/structure_scripts/shared/__pycache__/
+/structure_scripts/aisc_360_10/test/__pycache__/
+/structure_scripts/api_rpa/test_api_rpa/__pycache__/
