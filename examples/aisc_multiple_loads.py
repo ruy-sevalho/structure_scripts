@@ -10,9 +10,9 @@ from quantities import Quantity, GPa, MPa, m, mm, cm, UnitQuantity, N
 from structure_scripts.aisc_360_10.elements import (
     BeamCompressionFlexureDoublySymmetricEffectiveLength
 )
-from structure_scripts.aisc_360_10.sections import GenericAreaPropertiesWithWeb
+from structure_scripts.aisc_360_10.sections import GenericAreaProperties
 from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIDimensionsUserDefined, DoublySymmetricI
-from structure_scripts.shared.materials import IsoTropicMaterial
+from structure_scripts.shared.materials import IsotropicIsotropicMaterialUserDefined
 
 kN = UnitQuantity("kN", 1000*N)
 
@@ -49,13 +49,13 @@ def several_loads_results(
 
 
 if __name__ == "__main__":
-    steel = IsoTropicMaterial(
+    steel = IsotropicIsotropicMaterialUserDefined(
         modulus_linear=200 * GPa,
         modulus_shear=77 * GPa,
         poisson_ratio=0.3,
         yield_stress=355 * MPa
     )
-    area_properties_wx250x250x73 = GenericAreaPropertiesWithWeb(
+    area_properties_wx250x250x73 = GenericAreaProperties(
         area=94.90 * cm ** 2,
         web_area=902.4*mm**2,
         minor_axis_inertia=3883 * cm ** 4,
@@ -80,14 +80,13 @@ if __name__ == "__main__":
         material=steel
     )
     length = Quantity(3.3, m)
-    results = dict()
     analysis = BeamCompressionFlexureDoublySymmetricEffectiveLength(
         profile=profile_wx250x250x73,
         unbraced_length_major_axis=length,
         required_axial_strength=2.3557e+005*N + 29*kN,
         required_major_axis_flexural_strength=3.7063e+007*N*mm,
     )
-    report = analysis.latex.resume_latex
+    # report = analysis.latex.resume_latex
     loads_1 = (
         (129230 * N, 38937000 * N * mm, -132770 * N * mm),
         (189210 * N, 30492000 * N * mm, 482170 * N * mm),
@@ -139,7 +138,7 @@ if __name__ == "__main__":
     mult_cases_1.to_excel("mult_cases_c1.xlsx")
     mult_cases_2.to_excel("mult_cases_c2.xlsx")
     mult_cases_3.to_excel("mult_cases_c3.xlsx")
-    with open('carga_critica.tex', 'w') as f:
-        f.write(report)
+    # with open('carga_critica.tex', 'w') as f:
+    #     f.write(report)
 
 

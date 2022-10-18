@@ -97,15 +97,6 @@ def _limit_stress_built_up_sections(
     return min((yield_stress * ratio, yield_stress * 0.5))
 
 
-def _flexural_slenderness_per_element(limit_slender: float, limit_compact: float, ratio: float) -> "Slenderness":
-    if ratio < limit_compact:
-        return Slenderness.COMPACT
-    elif ratio < limit_slender:
-        return Slenderness.NON_COMPACT
-    else:
-        return Slenderness.SLENDER
-
-
 def _flexural_slenderness_several_elements(slenderness_list: list["Slenderness"]) -> "Slenderness":
     if Slenderness.SLENDER in slenderness_list:
         return Slenderness.SLENDER
@@ -293,22 +284,6 @@ def _minimum_allowed_strength(strengths: Collection[Quantity]):
     return min(strengths)
 
 
-def _radius_of_gyration(moment_of_inertia: Quantity, gross_section_area: Quantity):
-    return (moment_of_inertia / gross_section_area) ** 0.5
-
-
-def _self_inertia(width: Quantity, height: Quantity) -> Quantity:
-    return width * height ** 3 / 12
-
-
-def _transfer_inertia(area: Quantity, center_to_na_distance: Quantity) -> Quantity:
-    return area * center_to_na_distance ** 2
-
-
-def _rectangle_area(width: Quantity, height: Quantity) -> Quantity:
-    return width * height
-
-
 def _doubly_symmetric_i_torsional_constant(
         flange_width: Quantity,
         total_height: Quantity,
@@ -316,15 +291,6 @@ def _doubly_symmetric_i_torsional_constant(
         web_thickness: Quantity
 ) -> Quantity:
     return (2 * flange_width * flange_thickness ** 3 + (total_height - flange_thickness) * web_thickness ** 3) / 3
-
-
-def _areas_centroid(areas: Collection[tuple[Quantity, Quantity]]) -> Quantity:
-    summation_weighted_areas = Quantity(0, "mm**3")
-    summation_areas = Quantity(0, "mm**2")
-    for area in areas:
-        summation_weighted_areas = summation_weighted_areas + area[0] * area[1]
-        summation_areas = summation_areas + area[0]
-    return summation_weighted_areas / summation_areas
 
 
 def _nominal_shear_strength(yield_stress: Quantity, web_area: Quantity, web_shear_coefficient: float = 1.):

@@ -1,4 +1,4 @@
-from structure_scripts.shared.materials import IsoTropicMaterial, steel
+from structure_scripts.shared.materials import IsotropicIsotropicMaterialUserDefined, steel
 from structure_scripts.api_rpa.elements import CircularSection, CircularSectionGeometry
 from structure_scripts.api_rpa.elements_wsd import BeamModel
 from quantities import Quantity, m, N, MPa, GPa, mm, inch

@@ -5,24 +5,21 @@ from typing import Protocol, TYPE_CHECKING
 from pylatex import Section
 from quantities import Quantity, GPa, MPa
 
+from structure_scripts.aisc_360_10.helpers import _member_slenderness_limit
 from structure_scripts.shared.latex_helpers import save_single_entry, _dataframe_table_columns, \
     _process_quantity_entry_config
 from structure_scripts.shared.data import extract_input_dataframe
 from structure_scripts.shared.report_config import config_dict
 
-if TYPE_CHECKING:
 
-    from structure_scripts.aisc_360_10.elements_latex import MaterialLatex
-
-
-class Material(Protocol):
+class IsotropicMaterial(Protocol):
     modulus_linear: Quantity
     modulus_shear: Quantity
     poisson_ratio: float
     yield_stress: Quantity
 
     def table(self, filter_names: list[str] = None):
-        return extract_input_dataframe(obj=self, extraction_type=Material, filter_names=filter_names)
+        return extract_input_dataframe(obj=self, extraction_type=IsotropicMaterial, filter_names=filter_names)
 
     @cached_property
     def data_table_df(self):
@@ -34,7 +31,7 @@ class Material(Protocol):
 
 
 @dataclass
-class IsoTropicMaterial(Material):
+class IsotropicIsotropicMaterialUserDefined(IsotropicMaterial):
     modulus_linear: Quantity
     modulus_shear: Quantity
     poisson_ratio: float
@@ -42,9 +39,10 @@ class IsoTropicMaterial(Material):
     density: Quantity | None = None
 
 
+
 @dataclass
 class MaterialLatex:
-    material: "Material"
+    material: "IsotropicMaterial"
 
     def resume(self):
         save_single_entry(
@@ -98,7 +96,7 @@ class MaterialLatex:
 
 
 # Commonly used materials
-steel = IsoTropicMaterial(
+steel = IsotropicIsotropicMaterialUserDefined(
     modulus_linear=200 * GPa,
     modulus_shear=77 * GPa,
     poisson_ratio=0.3,

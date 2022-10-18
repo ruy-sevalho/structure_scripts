@@ -7,19 +7,19 @@ from structure_scripts.aisc_360_10.elements import (
     BeamShearWeb,
     BeamCompressionTorsionalBuckling, BeamModel
 )
-from structure_scripts.aisc_360_10.sections import AreaProperties, GenericAreaPropertiesWithWeb
+from structure_scripts.aisc_360_10.sections import AreaProperties, GenericAreaProperties
 from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIDimensionsUserDefined, DoublySymmetricI
 from structure_scripts.aisc_360_10.channel import ChannelDimensions, ChannelAreaProperties
 from structure_scripts.aisc_360_10.helpers import ConstructionType
 from structure_scripts.shared.helpers import same_units_simplify
-from structure_scripts.shared.materials import IsoTropicMaterial, steel
+from structure_scripts.shared.materials import IsotropicIsotropicMaterialUserDefined, steel
 
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilo newton", 1000 * N, symbol="kN")
 MN = UnitQuantity("mega newton", 1000000 * N, symbol="MN")
 
 # Doubly symmetric I profiles
-area_properties_127x76x13 = GenericAreaPropertiesWithWeb(
+area_properties_127x76x13 = GenericAreaProperties(
     area=16.5 * cm ** 2,
     web_area=447.2 * mm ** 2,
     minor_axis_inertia=56 * cm ** 4,

@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 from enum import Enum
-from functools import total_ordering, cached_property
+from functools import cached_property
 from typing import Protocol
 
 from quantities import Quantity
-from structure_scripts.shared.helpers import same_units_simplify
 
 
 class SafetyFactorType(str, Enum):
@@ -38,14 +37,42 @@ class LoadAndResistanceFactorDesign(SafetyFactor):
         return theoretical_limit_value * self.value
 
 
-class Criteria:
-    nominal_strength: Quantity
+class Criteria(Protocol):
     safety_factor: SafetyFactor
-    name: str
+
+    @property
+    def nominal_strength(self) -> Quantity:
+        ...
 
     @cached_property
     def design_strength(self):
         return self.safety_factor.allowable_value(self.nominal_strength)
+
+    @cached_property
+    def aux_parameters(self) -> dict[str, Quantity | float] | None:
+        return None
+
+
+class CriteriaAdaptor(Criteria, Protocol):
+    @property
+    def criteria(self) -> Criteria:
+        ...
+
+    @property
+    def nominal_strength(self):
+        return self.criteria.nominal_strength
+
+    @property
+    def design_strength(self):
+        return self.criteria.design_strength
+
+    @cached_property
+    def aux_parameters(self) -> dict[str, Quantity | float] | None:
+        return self.criteria.aux_parameters
+
+    @property
+    def safety_factor(self):
+        return self.criteria.safety_factor
 
 # @dataclass
 # class DesignStrength:
@@ -105,3 +132,5 @@ class Criteria:
     #             "textcolor", arguments="red", extra_arguments=print_ratio
     #         )
     #     return print_ratio
+
+

@@ -9,6 +9,7 @@ from structure_scripts.aisc_360_10.channel import Channel
 from structure_scripts.aisc_360_10.criteria import (
     SafetyFactor, AllowableStrengthDesign, LoadAndResistanceFactorDesign, Criteria
 )
+
 from structure_scripts.aisc_360_10.i_profile import DoublySymmetricI
 from structure_scripts.aisc_360_10.elements_latex import (
     BeamCompressionEffectiveLengthLatex, BeamFlexureDoublySymmetricLatex,
@@ -26,11 +27,10 @@ from structure_scripts.aisc_360_10.helpers import (
     _flexural_minor_axis_yield_strength, _flexural_and_axial_compression_h1_1_criteria,
     _lateral_torsional_buckling_modification_factor_default, _minimum_allowed_strength,
     _nominal_compressive_strength, _member_slenderness_limit,
-    _web_shear_coefficient_limit, _nominal_shear_strength, _web_shear_coefficient_iii,
-    ConstructionType
+    _nominal_shear_strength, ConstructionType
 )
 from structure_scripts.aisc_360_10.slenderness import Slenderness
-from structure_scripts.aisc_360_10.sections import SectionProfile, SectionProfileWithWebAndFlange
+from structure_scripts.aisc_360_10.sections import Section, SectionWithWebAndFlange
 from structure_scripts.shared.helpers import ratio_simplify, member_slenderness_ratio
 from structure_scripts.shared.report_config import config_dict
 from structure_scripts.shared.data import extract_input_dataframe
@@ -42,183 +42,51 @@ dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilonewton", 1000 * N, symbol="kN")
 
 
-class BeamModelType(Protocol):
-    profile: SectionProfile
-    unbraced_length_major_axis: Quantity
-    unbraced_length_minor_axis: Quantity
-    unbraced_length_torsion: Quantity
-    factor_k_minor_axis: float
-    factor_k_major_axis: float
-    factor_k_torsion: float
-    lateral_torsional_buckling_modification_factor: float
-    safety_factor: SafetyFactor
+# class BeamModelType(Protocol):
+#     profile: Section
+#     unbraced_length_major_axis: Quantity
+#     unbraced_length_minor_axis: Quantity
+#     unbraced_length_torsion: Quantity
+#     factor_k_minor_axis: float
+#     factor_k_major_axis: float
+#     factor_k_torsion: float
+#     lateral_torsional_buckling_modification_factor: float
+#     safety_factor: SafetyFactor
 
 
+# def shear_major_axis(beam: BeamModelType) -> Criteria:
+#     return ShearMajorAxisAdaptor(section=beam.profile, safety_factor=beam.safety_factor).criteria
+#
+#
+# def shear_minor_axis(beam: BeamModelType) -> Criteria:
+#     return ShearMinorAxisAdaptor(profile=beam.profile, safety_factor=beam.safety_factor).criteria
 
 
-@dataclass
-class ShearStrength(Criteria):
-    """ Computes shear strength criteria in accordance to
-    G2. MEMBERS WITH UNSTIFFENED OR STIFFENED WEBS
-    1. Shear Strength
-    """
-    yield_stress: Quantity
-    modulus_linear: Quantity
-    web_slenderness_ratio: float
-    web_area: Quantity
-    web_plate_shear_buckling_coefficient: float
-    rolled_i_shaped: bool = False
-    safety_factor: SafetyFactor = AllowableStrengthDesign()
+# @dataclass
+# class ShearMajorAxis:
+#     beam: BeamModelType
+#
+#     @cached_property
+#     def profile(self) -> SectionWithWebAndFlange:
+#         return self.beam.profile
+#
+#     @cached_property
+#     def criteria(self):
+#         return ShearMajorAxisAdaptor(section=self.profile, safety_factor=self.beam.safety_factor)
 
-    name = ""
-
-    def __post_init__(self):
-        # This code sure smells
-        if self.rolled_i_shaped:
-            if self.web_slenderness_ratio <= self.web_shear_coefficient_limit_0:
-                if type(SafetyFactor) == AllowableStrengthDesign:
-                    self.safety_factor.value = 1.5
-                elif type(SafetyFactor) == LoadAndResistanceFactorDesign:
-                    self.safety_factor.value = 1.0
-
-    # @cached_property
-    # def web_slenderness_ratio(self):
-    #     return ratio_simplify(self.height, self.thickness)
-
-    @cached_property
-    def web_shear_coefficient_limit_0(self):
-        return _web_shear_coefficient_limit(
-            factor=2.24,
-            web_shear_buckling_coefficient=1.,
-            modulus_linear=self.modulus_linear,
-            yield_stress=self.yield_stress
-        )
-
-    @cached_property
-    def web_shear_coefficient_limit_i(self):
-        return _web_shear_coefficient_limit(
-            factor=1.1,
-            web_shear_buckling_coefficient=self.web_plate_shear_buckling_coefficient,
-            modulus_linear=self.modulus_linear,
-            yield_stress=self.yield_stress
-        )
-
-    @cached_property
-    def web_shear_coefficient_limit_ii(self):
-        return _web_shear_coefficient_limit(
-            factor=1.37,
-            web_shear_buckling_coefficient=self.web_plate_shear_buckling_coefficient,
-            modulus_linear=self.modulus_linear,
-            yield_stress=self.yield_stress
-        )
-
-    @cached_property
-    def web_shear_coefficient_iii(self):
-        return _web_shear_coefficient_iii(
-            shear_buckling_coefficient=self.web_plate_shear_buckling_coefficient,
-            modulus_linear=self.modulus_linear,
-            yield_stress=self.yield_stress,
-            web_slenderness=self.web_slenderness_ratio
-        )
-
-    @cached_property
-    def web_shear_coefficient(self):
-        if self.web_slenderness_ratio <= self.web_shear_coefficient_limit_0:
-            return 1.0
-        if self.web_slenderness_ratio < self.web_shear_coefficient_limit_i:
-            return 1.0
-        elif self.web_slenderness_ratio < self.web_shear_coefficient_limit_ii:
-            return self.web_shear_coefficient_limit_i / self.web_slenderness_ratio
-        else:
-            return self.web_shear_coefficient_iii
-
-    @cached_property
-    def nominal_strength(self):
-        return _nominal_shear_strength(
-            yield_stress=self.yield_stress,
-            web_area=self.web_area,
-            web_shear_coefficient=self.web_shear_coefficient,
-        )
-
-
-@dataclass
-class ShearMajorAxisAdaptor:
-    profile: SectionProfileWithWebAndFlange
-    safety_factor: SafetyFactor = AllowableStrengthDesign()
-
-    @cached_property
-    def web_plate_shear_buckling_coefficient(self):
-        # TODO implement different values for tee shape and stiffened sections once implemented
-        return 5
-
-    @cached_property
-    def rolled(self):
-        return self.profile.construction == ConstructionType.ROLLED and type(self.profile) in [DoublySymmetricI,]
-
-    @property
-    def criteria(self):
-        return ShearStrength(
-            yield_stress=self.profile.material.yield_stress,
-            modulus_linear=self.profile.material.modulus_linear,
-            web_slenderness_ratio=self.profile.slenderness.web.ratio,
-            web_area=self.profile.slenderness.web.area_for_shear,
-            web_plate_shear_buckling_coefficient=self.web_plate_shear_buckling_coefficient,
-            rolled_i_shaped=self.rolled_i_shape,
-            safety_factor=self.safety_factor
-        )
-
-
-@dataclass
-class ShearMinorAxisAdaptor:
-    profile: SectionProfileWithWebAndFlange
-    safety_factor: SafetyFactor = AllowableStrengthDesign()
-
-    @property
-    def criteria(self):
-        return ShearStrength(
-            yield_stress=self.profile.material.yield_stress,
-            modulus_linear=self.profile.material.modulus_linear,
-            web_slenderness_ratio=self.profile.slenderness.flange.ratio,
-            web_area=self.profile.slenderness.flange.area_for_shear,
-            web_plate_shear_buckling_coefficient=1.2,
-            rolled_i_shaped=False,
-            safety_factor=self.safety_factor
-        )
-
-
-def shear_major_axis(beam: BeamModelType) -> Criteria:
-    return ShearMajorAxisAdaptor(profile=beam.profile, safety_factor=beam.safety_factor).criteria
-
-
-def shear_minor_axis(beam: BeamModelType) -> Criteria:
-    return ShearMinorAxisAdaptor(profile=beam.profile, safety_factor=beam.safety_factor).criteria
-
-
-@dataclass
-class ShearMajorAxis:
-    beam: BeamModelType
-
-    @cached_property
-    def profile(self) -> SectionProfileWithWebAndFlange:
-        return self.beam.profile
-
-    @cached_property
-    def criteria(self):
-        return ShearMajorAxisAdaptor(profile=self.beam.profile, safety_factor=self.beam.safety_factor)
-
-
-@dataclass
-class ShearMinorAxis:
-    beam: BeamModelType
-
-    @cached_property
-    def criteria(self):
-        return ShearMinorAxisAdaptor(profile=self.beam.profile, safety_factor=self.beam.safety_factor)
+#
+# @dataclass
+# class ShearMinorAxis:
+#     beam: BeamModelType
+#
+#     @cached_property
+#     def criteria(self):
+#         return ShearMinorAxisAdaptor(profile=self.beam.profile, safety_factor=self.beam.safety_factor)
 
 
 @dataclass
 class BeamShearWeb:
-    profile: SectionProfileWithWebAndFlange
+    profile: SectionWithWebAndFlange
     required_strength_major_axis: Quantity | None = None
     safety_factor: SafetyFactor = AllowableStrengthDesign()
 
@@ -227,7 +95,7 @@ class BeamShearWeb:
         if type(self.profile) == DoublySymmetricI:
             profile: DoublySymmetricI = self.profile
             if profile.construction == ConstructionType.ROLLED:
-                if self.profile.slenderness.web.ratio <= self.profile.web_shear_coefficient_limit_0:
+                if self.profile.slenderness.web.slenderness_ratio <= self.profile.web_shear_coefficient_limit_0:
                     if type(SafetyFactor) == AllowableStrengthDesign:
                         self.safety_factor.value = 1.5
                     elif type(SafetyFactor) == LoadAndResistanceFactorDesign:
@@ -264,7 +132,7 @@ class BeamShearWeb:
 
 @dataclass
 class BeamCompressionFlexuralBuckling:
-    profile: SectionProfile
+    profile: Section
     unbraced_length_major_axis: Quantity
     unbraced_length_minor_axis: Quantity | None = None
     factor_k_minor_axis: float = 1.0
@@ -378,7 +246,7 @@ class BeamCompressionFlexuralBuckling:
 
 @dataclass
 class BeamCompressionTorsionalBuckling:
-    profile: SectionProfile
+    profile: Section
     unbraced_length: Quantity
     factor_k: float = 1.0
     required_strength: Quantity | None = None
@@ -388,7 +256,7 @@ class BeamCompressionTorsionalBuckling:
     def torsional_slenderness(self):
         return member_slenderness_ratio(
             factor_k=self.factor_k,
-            radius_of_gyration=self.profile.area_properties.major_axis_radius_of_gyration,
+            radius_of_gyration=self.profile.area_properties.major_axis.radius_of_gyration,
             unbraced_length=self.unbraced_length
         )
 
@@ -462,7 +330,7 @@ def lateral_torsional_buckling_modification_factor_default(
 
 @dataclass
 class BeamFlexureDoublySymmetric:
-    profile: SectionProfile
+    profile: Section
     unbraced_length_major_axis: Quantity
     lateral_torsional_buckling_modification_factor: float = 1.
     required_major_axis_flexural_strength: Quantity | None = None
@@ -535,7 +403,7 @@ class BeamFlexureDoublySymmetric:
         return _flexural_flange_local_buckling_non_compact(
             compact_limit_ratio=self.profile.slenderness.flange.flexural_major_axis.compact_limit_ratio,
             slender_limit_ratio=self.profile.slenderness.flange.flexural_major_axis.slender_limit_ratio,
-            flange_ratio=self.profile.slenderness.flange.ratio,
+            flange_ratio=self.profile.slenderness.flange.slenderness_ratio,
             plastic_moment=self.plastic_moment_major_axis,
             section_modulus=self.profile.area_properties.major_axis_elastic_section_modulus,
             yield_stress=self.profile.material.yield_stress
@@ -546,7 +414,7 @@ class BeamFlexureDoublySymmetric:
         return _flexural_flange_local_buckling_non_compact(
             compact_limit_ratio=self.profile.slenderness.flange.flexural_minor_axis.compact_limit_ratio,
             slender_limit_ratio=self.profile.slenderness.flange.flexural_minor_axis.slender_limit_ratio,
-            flange_ratio=self.profile.slenderness.flange.ratio,
+            flange_ratio=self.profile.slenderness.flange.slenderness_ratio,
             plastic_moment=self.plastic_moment_minor_axis,
             section_modulus=self.profile.area_properties.minor_axis_elastic_section_modulus,
             yield_stress=self.profile.material.yield_stress
@@ -642,7 +510,7 @@ class BeamFlexureDoublySymmetric:
 
 @dataclass
 class BeamCompressionFlexureDoublySymmetricEffectiveLength:
-    profile: SectionProfile
+    profile: Section
     unbraced_length_major_axis: Quantity
     unbraced_length_minor_axis: Quantity | None = None
     lateral_torsional_buckling_modification_factor: float = 1.0
@@ -682,7 +550,7 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
             unbraced_length_minor_axis=self.unbraced_length_minor_axis,
             factor_k_major_axis=self.factor_k_major_axis,
             factor_k_minor_axis=self.factor_k_minor_axis,
-            factor_k_torsion=self.factor_k_torsion,
+            # factor_k_torsion=self.factor_k_torsion,
             required_strength=self.required_axial_strength
         )
 
@@ -737,146 +605,143 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLength:
         )
 
 
+# @dataclass
+# class BeamModel:
+#     profile: Section
+#     unbraced_length_major_axis: Quantity
+#     unbraced_length_minor_axis: Quantity | None = None
+#     unbraced_length_torsion: Quantity | None = None
+#     factor_k_minor_axis: float = 1.0
+#     factor_k_major_axis: float = 1.0
+#     factor_k_torsion: float = 1.0
+#     lateral_torsional_buckling_modification_factor: float = 1.0
+#     safety_factor: SafetyFactor = AllowableStrengthDesign()
+#
+#     def __post_init__(self):
+#         if not self.unbraced_length_minor_axis:
+#             self.unbraced_length_minor_axis = self.unbraced_length_major_axis
+#         if not self.unbraced_length_torsion:
+#             self.unbraced_length_torsion = self.unbraced_length_major_axis
+#
+#     table_shear_major_axis = {
+#         DoublySymmetricI: (shear_major_axis,),
+#         Channel: (shear_major_axis,)
+#     }
+#
+#     table_shear_minor_axis = {
+#         DoublySymmetricI: (shear_minor_axis,),
+#         Channel: (shear_minor_axis,)
+#     }
+#
+#     @cached_property
+#     def shear_major_axis_criteria(self):
+#         return tuple(criteria(self) for criteria in self.table_shear_major_axis[type(self.profile)])
+#
+#     @cached_property
+#     def shear_major_axis_design_strength(self):
+#         return
+#
+#     def result(
+#             self,
+#             required_axial_strength: Quantity = 0 * N,
+#             required_major_axis_flexural_strength: Quantity = 0 * N * m,
+#             required_minor_axis_flexural_strength: Quantity = 0 * N * m,
+#             required_major_axis_shear_strength: Quantity = 0 * N,
+#             required_minor_axis_shear_strength: Quantity = 0 * N,
+#             required_torsional_strength: Quantity = 0 * N * m,
+#             safety_factor: SafetyFactor = AllowableStrengthDesign(),
+#     ):
+#         return BeamResult(
+#             model=self,
+#             required_axial_strength=required_axial_strength,
+#             required_major_axis_flexural_strength=required_major_axis_flexural_strength,
+#             required_minor_axis_flexural_strength=required_minor_axis_flexural_strength,
+#             required_major_axis_shear_strength=required_major_axis_shear_strength,
+#             required_minor_axis_shear_strength=required_minor_axis_shear_strength,
+#             required_torsional_strength=required_torsional_strength,
+#             safety_factor=safety_factor
+#         )
 
 
-
-@dataclass
-class BeamModel:
-    profile: SectionProfile
-    unbraced_length_major_axis: Quantity
-    unbraced_length_minor_axis: Quantity | None = None
-    unbraced_length_torsion: Quantity | None = None
-    factor_k_minor_axis: float = 1.0
-    factor_k_major_axis: float = 1.0
-    factor_k_torsion: float = 1.0
-    lateral_torsional_buckling_modification_factor: float = 1.0
-    safety_factor: SafetyFactor = AllowableStrengthDesign()
-
-    def __post_init__(self):
-        if not self.unbraced_length_minor_axis:
-            self.unbraced_length_minor_axis = self.unbraced_length_major_axis
-        if not self.unbraced_length_torsion:
-            self.unbraced_length_torsion = self.unbraced_length_major_axis
-
-    table_shear_major_axis = {
-        DoublySymmetricI: (shear_major_axis,),
-        Channel: (shear_major_axis,)
-    }
-
-    table_shear_minor_axis = {
-        DoublySymmetricI: (shear_minor_axis,),
-        Channel: (shear_minor_axis,)
-    }
-
-    @cached_property
-    def shear_major_axis_criteria(self):
-        return tuple(criteria(self) for criteria in self.table_shear_major_axis[type(self.profile)])
-
-    @cached_property
-    def shear_major_axis_design_strength(self):
-        return
-
-    def result(
-            self,
-            required_axial_strength: Quantity = 0 * N,
-            required_major_axis_flexural_strength: Quantity = 0 * N * m,
-            required_minor_axis_flexural_strength: Quantity = 0 * N * m,
-            required_major_axis_shear_strength: Quantity = 0 * N,
-            required_minor_axis_shear_strength: Quantity = 0 * N,
-            required_torsional_strength: Quantity = 0 * N * m,
-            safety_factor: SafetyFactor = AllowableStrengthDesign(),
-    ):
-        return BeamResult(
-            model=self,
-            required_axial_strength=required_axial_strength,
-            required_major_axis_flexural_strength=required_major_axis_flexural_strength,
-            required_minor_axis_flexural_strength=required_minor_axis_flexural_strength,
-            required_major_axis_shear_strength=required_major_axis_shear_strength,
-            required_minor_axis_shear_strength=required_minor_axis_shear_strength,
-            required_torsional_strength=required_torsional_strength,
-            safety_factor=safety_factor
-        )
-
-
-@dataclass
-class BeamResult:
-    model: BeamModel
-    required_axial_strength: Quantity = 0 * N
-    required_major_axis_flexural_strength: Quantity = 0 * N * m
-    required_minor_axis_flexural_strength: Quantity = 0 * N * m
-    required_major_axis_shear_strength: Quantity = 0 * N
-    required_minor_axis_shear_strength: Quantity = 0 * N
-    required_torsional_strength: Quantity = 0 * N * m
-    safety_factor: SafetyFactor = AllowableStrengthDesign()
-
-    @cached_property
-    def compression_flexure_analysis(self):
-        return BeamCompressionFlexureDoublySymmetricEffectiveLength(
-            profile=self.model.profile,
-            unbraced_length_minor_axis=self.model.unbraced_length_minor_axis,
-            unbraced_length_major_axis=self.model.unbraced_length_major_axis,
-            lateral_torsional_buckling_modification_factor=self.lateral_torsional_buckling_modification_factor,
-            factor_k_major_axis=self.model.factor_k_major_axis,
-            factor_k_minor_axis=self.model.factor_k_minor_axis,
-            safety_factor=self.safety_factor,
-            required_axial_strength=self.required_axial_strength,
-            required_major_axis_flexural_strength=self.required_major_axis_flexural_strength,
-            required_minor_axis_flexural_strength=self.required_minor_axis_flexural_strength
-        )
-
-    @cached_property
-    def compression_analysis(self):
-        return self.compression_flexure_analysis.compression
-
-    @cached_property
-    def flexure_analysis(self):
-        return self.compression_flexure_analysis.flexure
-
-    @cached_property
-    def shear_analysis(self):
-        return BeamShearWeb(
-            profile=self.model.profile,
-            required_strength=self.required_major_axis_shear_strength,
-            safety_factor=self.safety_factor
-        )
-
-    @cached_property
-    def critical_strengths(self):
-        df = pd.concat(
-            (
-                self.compression_flexure_analysis.compression.strength_resume,
-                self.compression_flexure_analysis.flexure.strength_resume,
-                self.shear_analysis.strength_resume,
-            ),
-            axis=1
-        )
-        return df
-
-    @cached_property
-    def required_strengths_df(self):
-        return pd.DataFrame(
-            {
-                "axial load": [self.required_axial_strength.rescale(config_dict.required_axial_strength.print_units)],
-                "major axis load": [self.required_major_axis_flexural_strength.rescale(
-                    config_dict.required_major_axis_flexural_strength.print_units)],
-                "minor axis load": [self.required_minor_axis_flexural_strength.rescale(
-                    config_dict.required_major_axis_flexural_strength.print_units)],
-                "shear load": [
-                    self.required_major_axis_shear_strength.rescale(config_dict.required_axial_strength.print_units)],
-                "torsion load": [self.required_torsional_strength.rescale(
-                    config_dict.required_major_axis_flexural_strength.print_units)]
-            }
-        )
-
-    @cached_property
-    def results(self):
-        return pd.concat(
-            (
-                self.required_strengths_df,
-                self.compression_flexure_analysis.criteria_df,
-                self.shear_analysis.criteria_df
-            ),
-            axis=1
-        )
-
-
+# @dataclass
+# class BeamResult:
+#     model: BeamModel
+#     required_axial_strength: Quantity = 0 * N
+#     required_major_axis_flexural_strength: Quantity = 0 * N * m
+#     required_minor_axis_flexural_strength: Quantity = 0 * N * m
+#     required_major_axis_shear_strength: Quantity = 0 * N
+#     required_minor_axis_shear_strength: Quantity = 0 * N
+#     required_torsional_strength: Quantity = 0 * N * m
+#     safety_factor: SafetyFactor = AllowableStrengthDesign()
+#
+#     @cached_property
+#     def compression_flexure_analysis(self):
+#         return BeamCompressionFlexureDoublySymmetricEffectiveLength(
+#             profile=self.model.profile,
+#             unbraced_length_minor_axis=self.model.unbraced_length_minor_axis,
+#             unbraced_length_major_axis=self.model.unbraced_length_major_axis,
+#             lateral_torsional_buckling_modification_factor=self.lateral_torsional_buckling_modification_factor,
+#             factor_k_major_axis=self.model.factor_k_major_axis,
+#             factor_k_minor_axis=self.model.factor_k_minor_axis,
+#             safety_factor=self.safety_factor,
+#             required_axial_strength=self.required_axial_strength,
+#             required_major_axis_flexural_strength=self.required_major_axis_flexural_strength,
+#             required_minor_axis_flexural_strength=self.required_minor_axis_flexural_strength
+#         )
+#
+#     @cached_property
+#     def compression_analysis(self):
+#         return self.compression_flexure_analysis.compression
+#
+#     @cached_property
+#     def flexure_analysis(self):
+#         return self.compression_flexure_analysis.flexure
+#
+#     @cached_property
+#     def shear_analysis(self):
+#         return BeamShearWeb(
+#             profile=self.model.profile,
+#             required_strength=self.required_major_axis_shear_strength,
+#             safety_factor=self.safety_factor
+#         )
+#
+#     @cached_property
+#     def critical_strengths(self):
+#         df = pd.concat(
+#             (
+#                 self.compression_flexure_analysis.compression.strength_resume,
+#                 self.compression_flexure_analysis.flexure.strength_resume,
+#                 self.shear_analysis.strength_resume,
+#             ),
+#             axis=1
+#         )
+#         return df
+#
+#     @cached_property
+#     def required_strengths_df(self):
+#         return pd.DataFrame(
+#             {
+#                 "axial load": [self.required_axial_strength.rescale(config_dict.required_axial_strength.print_units)],
+#                 "major axis load": [self.required_major_axis_flexural_strength.rescale(
+#                     config_dict.required_major_axis_flexural_strength.print_units)],
+#                 "minor axis load": [self.required_minor_axis_flexural_strength.rescale(
+#                     config_dict.required_major_axis_flexural_strength.print_units)],
+#                 "shear load": [
+#                     self.required_major_axis_shear_strength.rescale(config_dict.required_axial_strength.print_units)],
+#                 "torsion load": [self.required_torsional_strength.rescale(
+#                     config_dict.required_major_axis_flexural_strength.print_units)]
+#             }
+#         )
+#
+#     @cached_property
+#     def results(self):
+#         return pd.concat(
+#             (
+#                 self.required_strengths_df,
+#                 self.compression_flexure_analysis.criteria_df,
+#                 self.shear_analysis.criteria_df
+#             ),
+#             axis=1
+#         )
+#
+#

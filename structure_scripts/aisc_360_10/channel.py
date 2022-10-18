@@ -4,9 +4,9 @@ from typing import Optional, Union
 
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.sections import AreaProperties
+from structure_scripts.shared.sections import AreaProperties
 from structure_scripts.aisc_360_10.helpers import _total_height, _web_height, _channel_area
-from structure_scripts.aisc_360_10.slenderness import FlangeWebSectionSlenderness
+from structure_scripts.aisc_360_10.slenderness import FlangeWebSlenderness
 
 
 @dataclass
@@ -66,6 +66,6 @@ class Channel:
     area_properties: Union[AreaProperties, None] = None
 
     @cached_property
-    def slenderness(self) -> FlangeWebSectionSlenderness:
+    def slenderness(self) -> FlangeWebSlenderness:
         # TODO
         return

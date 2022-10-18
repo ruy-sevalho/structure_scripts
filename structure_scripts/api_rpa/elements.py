@@ -6,7 +6,7 @@ from quantities import Quantity, GPa, MPa, mm
 
 from structure_scripts.shared.helpers import _circular_section_radius_of_gyration, _circular_section_moment_of_inertia, \
     circular_section_polar_moment_of_inertia, section_modulus
-from structure_scripts.shared.materials import IsoTropicMaterial, Material
+from structure_scripts.shared.materials import IsotropicIsotropicMaterialUserDefined, IsotropicMaterial
 from structure_scripts.api_rpa.helpers import _representative_elastic_local_buckling_strength, \
     _local_buckling_strength
 
@@ -60,5 +60,5 @@ class CircularSectionGeometry:
 @dataclass
 class CircularSection:
     geometry: CircularSectionGeometry
-    material: Material
+    material: IsotropicMaterial
 

@@ -1,6 +1,13 @@
 import math
+from enum import Enum
+from typing import Collection
 
 from quantities import Quantity, dimensionless
+
+
+class Axis(str, Enum):
+    MAJOR = "MAJOR"
+    MINOR = "MINOR"
 
 
 def ratio_simplify(q1: Quantity, q2: Quantity) -> float:
@@ -37,3 +44,28 @@ def same_units_simplify(q1: Quantity, q2: Quantity):
 
 def section_modulus(inertia: Quantity, max_distance_to_neutral_axis: Quantity) -> Quantity:
     return inertia / max_distance_to_neutral_axis
+
+
+def _radius_of_gyration(moment_of_inertia: Quantity, gross_section_area: Quantity):
+    return (moment_of_inertia / gross_section_area) ** 0.5
+
+
+def _self_inertia(width: Quantity, height: Quantity) -> Quantity:
+    return width * height ** 3 / 12
+
+
+def _transfer_inertia(area: Quantity, center_to_na_distance: Quantity) -> Quantity:
+    return area * center_to_na_distance ** 2
+
+
+def _rectangle_area(width: Quantity, height: Quantity) -> Quantity:
+    return width * height
+
+
+def _areas_centroid(areas: Collection[tuple[Quantity, Quantity]]) -> Quantity:
+    summation_weighted_areas = Quantity(0, "mm**3")
+    summation_areas = Quantity(0, "mm**2")
+    for area in areas:
+        summation_weighted_areas = summation_weighted_areas + area[0] * area[1]
+        summation_areas = summation_areas + area[0]
+    return summation_weighted_areas / summation_areas
