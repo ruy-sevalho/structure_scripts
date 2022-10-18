@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from functools import cached_property
 from typing import Protocol
 
 from quantities import Quantity, N, m
@@ -91,7 +90,8 @@ class BucklingParam:
 
 @dataclass
 class BeamGlobalData:
-    """buckling_param: BucklingParam
+    """
+    buckling_param: BucklingParam
     loads: BeamLoading | None = None
     lateral_torsional_buckling_modification_factor: float = 1.0
     safety_factor: SafetyFactor = AllowableStrengthDesign()
@@ -103,46 +103,54 @@ class BeamGlobalData:
 
 
 @dataclass
+class BeamSlenderness:
+    major_axis: float
+    minor_axis: float
+
+@dataclass
 class BeamAnalysis:
+    """
+    section: Section
+    beam: BeamGlobalData
+    """
     section: Section
     beam: BeamGlobalData
 
+    # @property
+    # def slenderness_limit(self):
+    #     return _member_slenderness_limit(
+    #         modulus_linear=self.section.material.modulus_linear,
+    #         yield_stress=self.section.material.yield_stress
+    #     )
+    #
+    # @property
+    # def major_axis_slenderness(self):
+    #     return member_slenderness_ratio(
+    #         factor_k=self.beam.buckling_param.factor_k_major_axis,
+    #         unbraced_length=self.beam.buckling_param.length_major_axis,
+    #         radius_of_gyration=self.section.area_properties.major_axis.radius_of_gyration
+    #     )
+    #
+    # @property
+    # def minor_axis_slenderness(self):
+    #     return member_slenderness_ratio(
+    #         factor_k=self.beam.buckling_param.factor_k_minor_axis,
+    #         unbraced_length=self.beam.buckling_param.length_minor_axis,
+    #         radius_of_gyration=self.section.area_properties.minor_axis.radius_of_gyration
+    #     )
+    #
+    # @property
+    # def torsion_slenderness(self):
+    #     return member_slenderness_ratio(
+    #         factor_k=self.beam.buckling_param.factor_k_torsion,
+    #         unbraced_length=self.beam.buckling_param.length_torsion,
+    #         radius_of_gyration=self.section.area_properties.torsion.radius_of_gyration
+    #     )
 
-    @cached_property
-    def slenderness_limit(self):
-        return _member_slenderness_limit(
-            modulus_linear=self.section.material.modulus_linear,
-            yield_stress=self.section.material.yield_stress
-        )
-
-    @cached_property
-    def major_axis_slenderness(self):
-        return member_slenderness_ratio(
-            factor_k=self.beam.buckling_param.factor_k_major_axis,
-            unbraced_length=self.beam.buckling_param.length_major_axis,
-            radius_of_gyration=self.section.area_properties.major_axis.radius_of_gyration
-        )
-
-    @cached_property
-    def minor_axis_slenderness(self):
-        return member_slenderness_ratio(
-            factor_k=self.beam.buckling_param.factor_k_minor_axis,
-            unbraced_length=self.beam.buckling_param.length_minor_axis,
-            radius_of_gyration=self.section.area_properties.minor_axis.radius_of_gyration
-        )
-
-    @cached_property
-    def torsion_slenderness(self):
-        return member_slenderness_ratio(
-            factor_k=self.beam.buckling_param.factor_k_torsion,
-            unbraced_length=self.beam.buckling_param.length_torsion,
-            radius_of_gyration=self.section.area_properties.torsion.radius_of_gyration
-        )
-
-    @cached_property
+    @property
     def compression(self):
         return self.section.compression(beam=self.beam)
 
-    @cached_property
+    @property
     def shear_major_axis(self):
         return self.section.shear_major_axis(beam=self.beam)

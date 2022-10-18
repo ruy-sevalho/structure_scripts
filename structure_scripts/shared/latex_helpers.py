@@ -20,7 +20,7 @@ from quantities import Quantity, percent
 
 from structure_scripts.aisc_360_10.criteria import AllowableStrengthDesign, LoadAndResistanceFactorDesign, SafetyFactor
 from structure_scripts.shared.report_config import ReportConfig, PrintOptions
-from structure_scripts.aisc_360_10.slenderness import Slenderness
+from structure_scripts.aisc_360_10.section_slenderness import Slenderness
 
 env = JinjaEnvironment(loader=PackageLoader("structure_scripts.aisc_360_10"))
 

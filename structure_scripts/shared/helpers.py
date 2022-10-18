@@ -46,23 +46,23 @@ def section_modulus(inertia: Quantity, max_distance_to_neutral_axis: Quantity) -
     return inertia / max_distance_to_neutral_axis
 
 
-def _radius_of_gyration(moment_of_inertia: Quantity, gross_section_area: Quantity):
+def radius_of_gyration(moment_of_inertia: Quantity, gross_section_area: Quantity):
     return (moment_of_inertia / gross_section_area) ** 0.5
 
 
-def _self_inertia(width: Quantity, height: Quantity) -> Quantity:
+def self_inertia(width: Quantity, height: Quantity) -> Quantity:
     return width * height ** 3 / 12
 
 
-def _transfer_inertia(area: Quantity, center_to_na_distance: Quantity) -> Quantity:
+def transfer_inertia(area: Quantity, center_to_na_distance: Quantity) -> Quantity:
     return area * center_to_na_distance ** 2
 
 
-def _rectangle_area(width: Quantity, height: Quantity) -> Quantity:
+def rectangle_area(width: Quantity, height: Quantity) -> Quantity:
     return width * height
 
 
-def _areas_centroid(areas: Collection[tuple[Quantity, Quantity]]) -> Quantity:
+def areas_centroid(areas: Collection[tuple[Quantity, Quantity]]) -> Quantity:
     summation_weighted_areas = Quantity(0, "mm**3")
     summation_areas = Quantity(0, "mm**2")
     for area in areas:

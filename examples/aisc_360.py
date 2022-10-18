@@ -1,11 +1,13 @@
+from dataclasses import dataclass
+
 from quantities import UnitQuantity, Quantity, GPa, MPa, cm, m, mm, N
 
-from structure_scripts.aisc_360_10.beams import BeamParameters, BeamAnalysis
+from structure_scripts.aisc_360_10.beams import BeamAnalysis, BeamGlobalData, BucklingParam
 from structure_scripts.aisc_360_10.elements import (
     BeamCompressionFlexuralBuckling,
     BeamFlexureDoublySymmetric,
     BeamShearWeb,
-    BeamCompressionTorsionalBuckling, BeamModel
+    BeamCompressionTorsionalBuckling,
 )
 from structure_scripts.aisc_360_10.sections import AreaProperties, GenericAreaProperties
 from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIDimensionsUserDefined, DoublySymmetricI
@@ -21,7 +23,6 @@ MN = UnitQuantity("mega newton", 1000000 * N, symbol="MN")
 # Doubly symmetric I profiles
 area_properties_127x76x13 = GenericAreaProperties(
     area=16.5 * cm ** 2,
-    web_area=447.2 * mm ** 2,
     minor_axis_inertia=56 * cm ** 4,
     minor_axis_elastic_section_modulus=15 * cm ** 3,
     major_axis_inertia=473 * cm ** 4,
@@ -101,16 +102,37 @@ channel_1_area_properties = ChannelAreaProperties(dimensions=channel_1_dimension
 # beam_shear_web_1 = BeamShearWeb(profile=profile_200x10_200x10)
 # beam_shear_web_1_shear_nominal_strength = Quantity(426 * kN)
 
-beam_model = BeamModel(
-    profile=profile_200x10_200x10,
-    unbraced_length_major_axis=1.0*m
-)
-beam_param = BeamParameters(
-    unbraced_length_major_axis=1.0*m,
-)
+# beam_model = BeamModel(
+#     profile=profile_200x10_200x10,
+#     unbraced_length_major_axis=1.0*m
+# )
+# beam_param = BeamParameters(
+#     unbraced_length_major_axis=1.0*m,
+# )
 beam_analysis = BeamAnalysis(
-    beam_parameters=beam_param,
-    section=profile_built_up
+    section=profile_built_up,
+    beam=BeamGlobalData(
+        buckling_param=BucklingParam(
+            length_major_axis=1*m
+        )
+    )
 )
-for criteria in beam_analysis.compression.items():
-    print(f"{criteria[0]} {criteria[1].design_strength}")
+NAME="name"
+
+@dataclass
+class TestInner:
+    @property
+    def name(self):
+        return "name"
+
+@dataclass
+class Test:
+    t: TestInner
+
+    @property
+    def name(self):
+        return self.t.name
+
+ti = TestInner
+t = Test(ti)
+n = t.name

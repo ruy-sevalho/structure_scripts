@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from enum import Enum
-from functools import cached_property
 from typing import Protocol
 
 from quantities import Quantity
@@ -39,21 +38,28 @@ class LoadAndResistanceFactorDesign(SafetyFactor):
 
 class Criteria(Protocol):
     safety_factor: SafetyFactor
+    name: str
+
+    @property
+    def valid(self) -> bool:
+        return True
 
     @property
     def nominal_strength(self) -> Quantity:
         ...
 
-    @cached_property
+    @property
     def design_strength(self):
         return self.safety_factor.allowable_value(self.nominal_strength)
 
-    @cached_property
+    @property
     def aux_parameters(self) -> dict[str, Quantity | float] | None:
         return None
 
 
 class CriteriaAdaptor(Criteria, Protocol):
+    name: str
+
     @property
     def criteria(self) -> Criteria:
         ...
@@ -66,7 +72,7 @@ class CriteriaAdaptor(Criteria, Protocol):
     def design_strength(self):
         return self.criteria.design_strength
 
-    @cached_property
+    @property
     def aux_parameters(self) -> dict[str, Quantity | float] | None:
         return self.criteria.aux_parameters
 
@@ -79,7 +85,7 @@ class CriteriaAdaptor(Criteria, Protocol):
 #     theoretical_limit_value: Quantity
 #     safety_factor: SafetyFactor
 #
-#     @cached_property
+#     @property
 #     def allowable_value(self) -> Quantity:
 #         return self.safety_factor.allowable_value(self.theoretical_limit_value)
 
@@ -95,13 +101,13 @@ class CriteriaAdaptor(Criteria, Protocol):
 #         self.calculated_value = q1
 #         self.calculated_value = q2
 #
-#     @cached_property
+#     @property
 #     def passed(self):
 #         if self.calculated_value < self.safety_factor.allowable_value:
 #             return True
 #         return False
 #
-#     @cached_property
+#     @property
 #     def ratio(self):
 #         ratio = self.safety_factor.allowable_value / self.calculated_value
 #         # Since ths is allowable/calculated value for design purposes, the real concern is for ratios<1

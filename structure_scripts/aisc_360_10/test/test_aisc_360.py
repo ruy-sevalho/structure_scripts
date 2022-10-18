@@ -1,12 +1,15 @@
 from pytest import approx, mark, raises
 from quantities import UnitQuantity, Quantity, GPa, MPa, cm, m, mm, N
 
+from structure_scripts.aisc_360_10.compression_criteria import FLEXURAL_BUCKLING_MAJOR, FlexuralBucklingAdaptor, \
+    FLEXURAL_BUCKLING_MINOR
 from structure_scripts.aisc_360_10.elements import (
     BeamCompressionFlexuralBuckling,
     BeamFlexureDoublySymmetric,
     BeamShearWeb,
     BeamCompressionTorsionalBuckling
 )
+from structure_scripts.aisc_360_10.shear_criteria import SHEAR_STRENGTH
 from structure_scripts.shared.sections import AreaProperties, DirectInputAreaProperties
 from structure_scripts.aisc_360_10.sections import GenericAreaProperties
 from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIDimensionsUserDefined, DoublySymmetricI
@@ -78,6 +81,25 @@ beam_200x10_analysis = BeamAnalysis(
         buckling_param=BucklingParam(length_major_axis=1.0 * m),
     )
 )
+beam_127x76x13_rolled_1m = BeamAnalysis(
+    section=profile_127x76x13_rolled,
+    beam=BeamGlobalData(
+        buckling_param=BucklingParam(length_major_axis=1.0 * m),
+    )
+)
+beam_127x76x13_rolled_2m = BeamAnalysis(
+    section=profile_127x76x13_rolled,
+    beam=BeamGlobalData(
+        buckling_param=BucklingParam(length_major_axis=2.0 * m),
+    )
+)
+beam_127x76x13_rolled_4m = BeamAnalysis(
+    section=profile_127x76x13_rolled,
+    beam=BeamGlobalData(
+        buckling_param=BucklingParam(length_major_axis=4.0 * m),
+    )
+)
+
 # beam_1_compression_flexural_buckling = BeamCompressionFlexuralBuckling(
 #     profile=profile_127x76x13_rolled,
 #     unbraced_length_major_axis=1.0 * m,
@@ -190,37 +212,39 @@ def test_doubly_symmetric_i_web_flexural_limit():
     assert (profile_127x76x13_rolled.slenderness.web.axial_compression_limit_ratio == approx(35.36609341))
 
 
-#
-# @mark.parametrize(
-#     "beam",
-#     [(beam_1_compression_flexural_buckling, 54.28101483)]
-# )
-# def test_beam_compression_effective_length_minor_axis_flexural_slenderness(
-#         beam: tuple[BeamCompressionFlexuralBuckling, float]
-# ):
-#     assert beam[0].minor_axis_slenderness == approx(beam[1])
-#
-#
-# @mark.parametrize(
-#     "beam",
-#     [(beam_1_compression_flexural_buckling, Quantity(669.9367836, MPa))]
-# )
-# def test_beam_compression_effective_length_elastic_flexural_buckling_stress(
-#         beam: tuple[BeamCompressionFlexuralBuckling, Quantity]
-# ):
-#     calculated, reference = same_units_simplify(beam[0].elastic_flexural_buckling_stress_minor_axis, beam[1])
-#     assert (calculated == approx(reference))
-#
-#
-# @mark.parametrize(
-#     "beam",
-#     [(beam_1_compression_flexural_buckling, Quantity(284.3846289, MPa))]
-# )
-# def test_beam_compression_effective_length_flexural_buckling_critical_stress(
-#         beam: tuple[BeamCompressionFlexuralBuckling, Quantity]
-# ):
-#     calculated, reference = same_units_simplify(beam[0].flexural_buckling_critical_stress_minor_axis, beam[1])
-#     assert calculated == approx(reference)
+@mark.parametrize(
+    "beam, minor_axis_slenderness",
+    [(beam_127x76x13_rolled_1m, 54.28101483)]
+)
+def test_beam_compression_effective_length_minor_axis_flexural_slenderness(
+        beam: BeamAnalysis, minor_axis_slenderness: float
+):
+    flexural_buckling_criteria: FlexuralBucklingAdaptor = beam.compression[FLEXURAL_BUCKLING_MINOR]
+    assert flexural_buckling_criteria.beam_slenderness == approx(minor_axis_slenderness)
+
+
+@mark.parametrize(
+    "beam, elastic_stress",
+    [(beam_127x76x13_rolled_1m, Quantity(669.9367836, MPa))]
+)
+def test_minor_axis_flexural_buckling_elastic_stress(
+        beam: BeamAnalysis, elastic_stress: Quantity
+):
+    flexural_buckling_criteria: FlexuralBucklingAdaptor = beam.compression[FLEXURAL_BUCKLING_MINOR]
+    calculated, reference = same_units_simplify(flexural_buckling_criteria.elastic_buckling_stress, elastic_stress)
+    assert (calculated == approx(reference))
+
+
+@mark.parametrize(
+    "beam, critical_stress",
+    [(beam_127x76x13_rolled_1m, Quantity(284.3846289, MPa))]
+)
+def test_beam_compression_effective_length_flexural_buckling_critical_stress(
+        beam: BeamAnalysis, critical_stress: Quantity
+):
+    flexural_buckling_criteria: FlexuralBucklingAdaptor = beam.compression[FLEXURAL_BUCKLING_MINOR]
+    calculated, reference = same_units_simplify(flexural_buckling_criteria.critical_stress, critical_stress)
+    assert calculated == approx(reference)
 #
 #
 # @mark.parametrize(
@@ -317,11 +341,25 @@ def test_doubly_symmetric_i_web_flexural_limit():
 #
 
 @mark.parametrize(
-    "beam",
+    "beam, expected_nominal_strength_shear_major_axis",
     [(beam_200x10_analysis, Quantity(426 * kN))]
 )
-def test_beam_web_shear(beam: tuple[BeamAnalysis, Quantity]):
-    calculated, reference = same_units_simplify(beam[0].shear_major_axis["Shear Strength"].nominal_strength, beam[1])
+def test_beam_web_shear_nominal_strength(beam: BeamAnalysis, expected_nominal_strength_shear_major_axis: Quantity):
+    calculated, reference = same_units_simplify(
+        beam.shear_major_axis[SHEAR_STRENGTH].nominal_strength, expected_nominal_strength_shear_major_axis
+    )
+    assert calculated == approx(reference)
+
+
+@mark.parametrize(
+    "beam, expected_design_strength_shear_major_axis",
+    [(beam_200x10_analysis, Quantity(284 * kN))]
+)
+def test_beam_web_shear_design_strength(beam: BeamAnalysis, expected_design_strength_shear_major_axis: Quantity):
+    # Only special case where the safety factor value is supposed to change
+    calculated, reference = same_units_simplify(
+        beam.shear_major_axis[SHEAR_STRENGTH].design_strength, expected_design_strength_shear_major_axis
+    )
     assert calculated == approx(reference)
 
 

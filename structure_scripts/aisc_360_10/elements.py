@@ -16,20 +16,20 @@ from structure_scripts.aisc_360_10.elements_latex import (
     BeamCompressionFlexureDoublySymmetricEffectiveLengthLatex
 )
 from structure_scripts.aisc_360_10.helpers import (
-    _critical_compression_stress_buckling_default,
-    _elastic_flexural_buckling_stress,
+    critical_compression_stress_buckling_default,
+    elastic_flexural_buckling_stress,
     _flexural_flange_local_buckling_non_compact,
     _flexural_lateral_torsional_buckling_critical_stress_compact_doubly_symmetric,
     _flexural_lateral_torsional_buckling_strength,
     _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_b,
     _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_c,
-    _flexural_major_axis_yield_strength,
+    flexural_major_axis_yield_strength,
     _flexural_minor_axis_yield_strength, _flexural_and_axial_compression_h1_1_criteria,
-    _lateral_torsional_buckling_modification_factor_default, _minimum_allowed_strength,
+    lateral_torsional_buckling_modification_factor_default, _minimum_allowed_strength,
     _nominal_compressive_strength, _member_slenderness_limit,
     _nominal_shear_strength, ConstructionType
 )
-from structure_scripts.aisc_360_10.slenderness import Slenderness
+from structure_scripts.aisc_360_10.section_slenderness import Slenderness
 from structure_scripts.aisc_360_10.sections import Section, SectionWithWebAndFlange
 from structure_scripts.shared.helpers import ratio_simplify, member_slenderness_ratio
 from structure_scripts.shared.report_config import config_dict
@@ -164,14 +164,14 @@ class BeamCompressionFlexuralBuckling:
 
     @cached_property
     def elastic_flexural_buckling_stress_minor_axis(self):
-        return _elastic_flexural_buckling_stress(
+        return elastic_flexural_buckling_stress(
             modulus_linear=self.profile.material.modulus_linear,
             member_slenderness_ratio=self.minor_axis_slenderness
         )
 
     @cached_property
     def elastic_flexural_buckling_stress_major_axis(self):
-        return _elastic_flexural_buckling_stress(
+        return elastic_flexural_buckling_stress(
             modulus_linear=self.profile.material.modulus_linear,
             member_slenderness_ratio=self.major_axis_slenderness
         )
@@ -185,7 +185,7 @@ class BeamCompressionFlexuralBuckling:
 
     @cached_property
     def flexural_buckling_critical_stress_minor_axis(self):
-        return _critical_compression_stress_buckling_default(
+        return critical_compression_stress_buckling_default(
             member_slenderness=self.minor_axis_slenderness,
             elastic_buckling_stress=self.elastic_flexural_buckling_stress_minor_axis,
             member_slenderness_limit=self.member_slenderness_limit,
@@ -194,7 +194,7 @@ class BeamCompressionFlexuralBuckling:
 
     @cached_property
     def flexural_buckling_critical_stress_major_axis(self):
-        return _critical_compression_stress_buckling_default(
+        return critical_compression_stress_buckling_default(
             member_slenderness=self.major_axis_slenderness,
             elastic_buckling_stress=self.elastic_flexural_buckling_stress_major_axis,
             member_slenderness_limit=self.member_slenderness_limit,
@@ -306,7 +306,7 @@ class LateralTorsionalBucklingModificationFactorDefault:
 
     @cached_property
     def value(self):
-        return _lateral_torsional_buckling_modification_factor_default(
+        return lateral_torsional_buckling_modification_factor_default(
             self.moment_max,
             self.moment_quarter,
             self.moment_center,
@@ -320,7 +320,7 @@ def lateral_torsional_buckling_modification_factor_default(
         moment_center: Quantity,
         moment_three_quarter: Quantity
 ):
-    return _lateral_torsional_buckling_modification_factor_default(
+    return lateral_torsional_buckling_modification_factor_default(
         moment_max,
         moment_quarter,
         moment_center,
@@ -343,7 +343,7 @@ class BeamFlexureDoublySymmetric:
 
     @cached_property
     def strength_major_axis_yield(self) -> Quantity:
-        return _flexural_major_axis_yield_strength(
+        return flexural_major_axis_yield_strength(
             self.profile.material.yield_stress,
             self.profile.area_properties.major_axis_plastic_section_modulus
         )

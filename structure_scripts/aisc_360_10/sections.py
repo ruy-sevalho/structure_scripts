@@ -7,8 +7,8 @@ from quantities import Quantity
 from structure_scripts.aisc_360_10.criteria import Criteria
 from structure_scripts.aisc_360_10.elements_latex import AreaPropertiesLatex
 from structure_scripts.aisc_360_10.helpers import ConstructionType, _member_slenderness_limit
-from structure_scripts.shared.helpers import _radius_of_gyration
-from structure_scripts.aisc_360_10.slenderness import FlangeWebSlenderness, ElementSlenderness
+from structure_scripts.shared.helpers import radius_of_gyration
+from structure_scripts.aisc_360_10.section_slenderness import FlangeWebSlenderness, ElementSlenderness
 from structure_scripts.shared.data import extract_input_dataframe
 from structure_scripts.shared.materials import IsotropicMaterial
 from structure_scripts.shared.sections import AreaProperties
@@ -129,8 +129,8 @@ class GenericAreaProperties:
         if not self.minor_axis_plastic_section_modulus:
             self.minor_axis_plastic_section_modulus = self.minor_axis_elastic_section_modulus
         if not self.minor_axis_radius_of_gyration:
-            self.minor_axis_radius_of_gyration = _radius_of_gyration(self.minor_axis_inertia, self.area)
+            self.minor_axis_radius_of_gyration = radius_of_gyration(self.minor_axis_inertia, self.area)
         if not self.major_axis_radius_of_gyration:
-            self.major_axis_radius_of_gyration = _radius_of_gyration(self.major_axis_inertia, self.area)
+            self.major_axis_radius_of_gyration = radius_of_gyration(self.major_axis_inertia, self.area)
         if not self.torsional_radius_of_gyration:
-            self.torsional_radius_of_gyration = _radius_of_gyration(self.torsional_constant, self.area)
+            self.torsional_radius_of_gyration = radius_of_gyration(self.torsional_constant, self.area)

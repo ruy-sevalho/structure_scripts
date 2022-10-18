@@ -5,7 +5,7 @@ import numpy as np
 
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.slenderness import Slenderness
+from structure_scripts.aisc_360_10.section_slenderness import Slenderness
 from structure_scripts.shared.helpers import ratio_simplify, same_units_simplify
 
 
@@ -29,7 +29,7 @@ def _member_slenderness_limit(
     return member_slenderness_limit.magnitude
 
 
-def _critical_compression_stress_buckling_default(
+def critical_compression_stress_buckling_default(
         member_slenderness: float,
         yield_stress: Quantity,
         elastic_buckling_stress: Quantity,
@@ -44,12 +44,12 @@ def _critical_compression_stress_buckling_default(
 
 
 # E(3-4)
-def _elastic_flexural_buckling_stress(modulus_linear: Quantity, member_slenderness_ratio: float) -> Quantity:
+def elastic_flexural_buckling_stress(modulus_linear: Quantity, member_slenderness_ratio: float) -> Quantity:
     return np.pi ** 2 * modulus_linear / member_slenderness_ratio ** 2
 
 
 # (E4-4)
-def _elastic_torsional_buckling_stress_doubly_symmetric_member(
+def elastic_torsional_buckling_stress_doubly_symmetric_member(
         modulus_linear: Quantity,
         modulus_shear: Quantity,
         effective_length_factor_torsional_buckling: float,
@@ -69,24 +69,24 @@ def _elastic_torsional_buckling_stress_doubly_symmetric_member(
 
 
 # Note of page Sect. E4.] TORSIONAL AND FLEXURAL-TORSIONAL BUCKLING OF MEMBERS
-def _warping_constant(moment_of_inertia: Quantity, distance_between_flanges_centroid: Quantity):
+def warping_constant(moment_of_inertia: Quantity, distance_between_flanges_centroid: Quantity):
     return moment_of_inertia * distance_between_flanges_centroid ** 2 / 4
 
 
 # ANSI/AISC 360-10 page 16.1–16 (reference rules)
-def _kc_coefficient(web_height: Quantity, web_thickness: Quantity):
+def kc_coefficient(web_height: Quantity, web_thickness: Quantity):
     ratio = ratio_simplify(web_height, web_thickness)
     return min((max((4 / ratio ** 0.5, 0.35)), 0.76))
 
 
 # ANSI/AISC 360-10 page 16.1–16 (reference rules)
-def _limit_ratio_default(modulus_linear: Quantity, stress: Quantity, factor: float, kc_coefficient: float = 1):
+def limit_ratio_default(modulus_linear: Quantity, stress: Quantity, factor: float, kc_coefficient: float = 1):
     ratio = ratio_simplify(modulus_linear, stress)
     return factor * (kc_coefficient * ratio) ** (1 / 2)
 
 
 # ANSI/AISC 360-10 page 16.1–17
-def _limit_stress_built_up_sections(
+def limit_stress_built_up_sections(
         yield_stress: Quantity,
         section_modulus_tension: Quantity,
         section_modulus_compression: Quantity
@@ -97,7 +97,7 @@ def _limit_stress_built_up_sections(
     return min((yield_stress * ratio, yield_stress * 0.5))
 
 
-def _flexural_slenderness_several_elements(slenderness_list: list["Slenderness"]) -> "Slenderness":
+def flexural_slenderness_several_elements(slenderness_list: list["Slenderness"]) -> "Slenderness":
     if Slenderness.SLENDER in slenderness_list:
         return Slenderness.SLENDER
     elif Slenderness.NON_COMPACT in slenderness_list:
@@ -106,7 +106,7 @@ def _flexural_slenderness_several_elements(slenderness_list: list["Slenderness"]
         return Slenderness.COMPACT
 
 
-def _lateral_torsional_buckling_modification_factor_default(
+def lateral_torsional_buckling_modification_factor_default(
         moment_max: Quantity,
         moment_a: Quantity,
         moment_b: Quantity,
@@ -117,7 +117,7 @@ def _lateral_torsional_buckling_modification_factor_default(
     return ratio_simplify(numerator, denominator)
 
 
-def _flexural_major_axis_yield_strength(yield_stress: Quantity, section_modulus: Quantity) -> Quantity:
+def flexural_major_axis_yield_strength(yield_stress: Quantity, section_modulus: Quantity) -> Quantity:
     return yield_stress * section_modulus
 
 
@@ -188,11 +188,11 @@ def _flexural_lateral_torsional_buckling_critical_stress_compact_doubly_symmetri
     return first_term * second_term
 
 
-def _limiting_length_yield(radius_of_gyration: Quantity, modulus: Quantity, yield_stress: Quantity) -> Quantity:
+def limiting_length_yield(radius_of_gyration: Quantity, modulus: Quantity, yield_stress: Quantity) -> Quantity:
     return 1.76 * radius_of_gyration * (modulus / yield_stress) ** 0.5
 
 
-def _limiting_length_torsional_buckling(
+def limiting_length_torsional_buckling(
         modulus: Quantity,
         yield_stress: Quantity,
         section_modulus: Quantity,
@@ -207,7 +207,7 @@ def _limiting_length_torsional_buckling(
     return 1.95 * effective_radius_of_gyration * modulus / (0.7 * yield_stress) * outer_root
 
 
-def _effective_radius_of_gyration(
+def effective_radius_of_gyration(
         major_section_modulus: Quantity, minor_inertia: Quantity, warping_constant: Quantity
 ) -> Quantity:
     return ((minor_inertia * warping_constant) ** 0.5 / major_section_modulus) ** 0.5
@@ -284,7 +284,7 @@ def _minimum_allowed_strength(strengths: Collection[Quantity]):
     return min(strengths)
 
 
-def _doubly_symmetric_i_torsional_constant(
+def doubly_symmetric_i_torsional_constant(
         flange_width: Quantity,
         total_height: Quantity,
         flange_thickness: Quantity,
@@ -312,7 +312,7 @@ def _web_shear_coefficient_ii(
     return 1.10 * (shear_buckling_coefficient * modulus_linear / yield_stress) ** 0.5 / web_slenderness
 
 
-def _web_shear_coefficient_iii(
+def web_shear_coefficient_iii(
         shear_buckling_coefficient: float,
         modulus_linear: Quantity,
         yield_stress: Quantity,
@@ -321,7 +321,7 @@ def _web_shear_coefficient_iii(
     return 1.51 * shear_buckling_coefficient * modulus_linear / (yield_stress * web_slenderness ** 2)
 
 
-def _web_height(total_height: Quantity, flange_thickness: Quantity):
+def web_height(total_height: Quantity, flange_thickness: Quantity):
     return total_height - 2 * flange_thickness
 
 

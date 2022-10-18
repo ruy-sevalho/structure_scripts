@@ -13,7 +13,7 @@ class Slenderness(str, Enum):
     NON_COMPACT = "NON_COMPACT"
 
 
-def _flexural_slenderness_per_element(limit_slender: float, limit_compact: float, ratio: float) -> "Slenderness":
+def flexural_slenderness_per_element(limit_slender: float, limit_compact: float, ratio: float) -> "Slenderness":
     if ratio < limit_compact:
         return Slenderness.COMPACT
     elif ratio < limit_slender:
@@ -76,7 +76,7 @@ class FlexuralSlendernessCompute(FlexuralSlenderness):
 
     @cached_property
     def value(self):
-        return _flexural_slenderness_per_element(
+        return flexural_slenderness_per_element(
             limit_slender=self.slender_limit_ratio,
             limit_compact=self.compact_limit_ratio,
             ratio=self.slenderness_ratio

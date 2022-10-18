@@ -3,7 +3,7 @@ from typing import Protocol
 
 from quantities import Quantity
 
-from structure_scripts.shared.helpers import _radius_of_gyration
+from structure_scripts.shared.helpers import radius_of_gyration
 
 
 class AxisBending(Protocol):
@@ -61,11 +61,11 @@ class DirectInputAreaProperties(AreaProperties):
         if not minor_axis_plastic_section_modulus:
             minor_axis_plastic_section_modulus = minor_axis_elastic_section_modulus
         if not minor_axis_radius_of_gyration:
-            minor_axis_radius_of_gyration = _radius_of_gyration(minor_axis_inertia, area)
+            minor_axis_radius_of_gyration = radius_of_gyration(minor_axis_inertia, area)
         if not major_axis_radius_of_gyration:
-            major_axis_radius_of_gyration = _radius_of_gyration(major_axis_inertia, area)
+            major_axis_radius_of_gyration = radius_of_gyration(major_axis_inertia, area)
         if not torsional_radius_of_gyration:
-            torsional_radius_of_gyration = _radius_of_gyration(polar_inertia, area)
+            torsional_radius_of_gyration = radius_of_gyration(polar_inertia, area)
         self.area = area
         self.major_axis = AxisBendingData(
             inertia=major_axis_inertia,
