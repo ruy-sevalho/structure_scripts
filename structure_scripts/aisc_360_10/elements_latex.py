@@ -963,9 +963,9 @@ class BeamCompressionEffectiveLengthLatex:
     def design_strength_equation(self):
         return _design_strength(
             nominal_strength=self.nominal_strength,
-            safety_factor=str(self.model.safety_factor.value),
+            safety_factor=str(self.model.design_type.value),
             design_strength=self.design_strength,
-            safety_factor_type=self.model.safety_factor,
+            safety_factor_type=self.model.design_type,
             strength_type="force"
         )
 
@@ -1216,8 +1216,8 @@ class BeamFlexureMajorAxisDoublySymmetricLatex:
     def design_strength_equation(self):
         return _design_strength(
             nominal_strength=self.nominal_strength,
-            safety_factor_type=self.model.safety_factor,
-            safety_factor=str(self.model.safety_factor.value),
+            safety_factor_type=self.model.design_type,
+            safety_factor=str(self.model.design_type.value),
             design_strength=self.design_strength,
             strength_type="moment"
         )
@@ -1301,8 +1301,8 @@ class BeamFlexureMinorAxisDoublySymmetricLatex:
     def design_strength_equation(self):
         return _design_strength(
             nominal_strength=self.nominal_strength,
-            safety_factor_type=self.model.safety_factor,
-            safety_factor=str(self.model.safety_factor.value),
+            safety_factor_type=self.model.design_type,
+            safety_factor=str(self.model.design_type.value),
             design_strength=self.design_strength,
             strength_type="moment"
         )

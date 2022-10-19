@@ -1,65 +1,147 @@
-from dataclasses import dataclass
+import abc
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Protocol
 
 from quantities import Quantity
 
 
-class SafetyFactorType(str, Enum):
+class DesignType(str, Enum):
     ASD = "ASD"
     LRFD = "LRFD"
 
 
-class SafetyFactor(Protocol):
-    value: float
-    
-    def allowable_value(self, theoretical_limit_value: Quantity) -> Quantity:
-        ...
+# class SafetyFactor(Protocol):
+#     value: float
+#
+#     def allowable_value(self, theoretical_limit_value: Quantity) -> Quantity:
+#         ...
+#
+#     def ratio(
+#         self, theoretical_limit_value: Quantity, required_value
+#     ) -> Quantity:
+#         return abs(
+#             required_value / self.allowable_value(theoretical_limit_value)
+#         )
+#
+#
+# @dataclass
+# class AllowableStrengthDesign(SafetyFactor):
+#     value: float = 1.67
+#
+#     def allowable_value(self, theoretical_limit_value: Quantity) -> Quantity:
+#         return theoretical_limit_value / self.value
+#
+#
+# @dataclass
+# class LoadAndResistanceFactorDesign(SafetyFactor):
+#     value: float = 0.90
+#
+#     def allowable_value(self, theoretical_limit_value: Quantity) -> Quantity:
+#         return theoretical_limit_value * self.value
 
-    def ratio(self, theoretical_limit_value: Quantity, required_value) -> Quantity:
-        return abs(required_value / self.allowable_value(theoretical_limit_value))
+
+def design_strength(
+    nominal_strength: Quantity,
+    design_type: DesignType,
+    safety_factor_table: dict[DesignType, float],
+):
+    def asd(nominal_strength: Quantity, safety_factor: float) -> Quantity:
+        return nominal_strength / safety_factor
+
+    def lrfd(nominal_strength: Quantity, safety_factor: float) -> Quantity:
+        return nominal_strength * safety_factor
+
+    table = {
+        DesignType.ASD: asd,
+        DesignType.LRFD: lrfd,
+    }
+    return table[design_type](
+        nominal_strength=nominal_strength,
+        safety_factor=safety_factor_table[design_type],
+    )
 
 
-@dataclass
-class AllowableStrengthDesign(SafetyFactor):
-    value: float = 1.67
-
-    def allowable_value(self, theoretical_limit_value: Quantity) -> Quantity:
-        return theoretical_limit_value / self.value
-
-
-@dataclass
-class LoadAndResistanceFactorDesign(SafetyFactor):
-    value: float = 0.90
-
-    def allowable_value(self, theoretical_limit_value: Quantity) -> Quantity:
-        return theoretical_limit_value * self.value
+def default_design_type_factors():
+    return {
+        DesignType.ASD: 1.67,
+        DesignType.LRFD: 0.9,
+    }
 
 
-class Criteria(Protocol):
-    safety_factor: SafetyFactor
-    name: str
-
+class NominalStrengthModel(Protocol):
+    @abc.abstractmethod
     @property
-    def valid(self) -> bool:
-        return True
+    def design_type_factors(self) -> dict[DesignType, float]:
+        pass
 
+    @abc.abstractmethod
     @property
     def nominal_strength(self) -> Quantity:
-        ...
+        pass
+
+    @abc.abstractmethod
+    @property
+    def valid(self) -> True:
+        pass
+
+
+@dataclass
+class Criteria:
+    strength_models: dict[str, NominalStrengthModel]
+    design_type_factors: dict[DesignType, float]
+    design_type: DesignType
 
     @property
-    def design_strength(self):
-        return self.safety_factor.allowable_value(self.nominal_strength)
+    def design_strength(self) -> Quantity:
+        return design_strength(
+            nominal_strength=self.strength_model.nominal_strength,
+            design_type=self.design_type,
+        )
 
     @property
-    def aux_parameters(self) -> dict[str, Quantity | float] | None:
-        return None
+    def nominal_strength(self):
+        return self.strength_model.nominal_strength
+
+
+# class Criteria(Protocol):
+#     @property
+#     def valid(self) -> bool:
+#         return True
+#
+#     @property
+#     def nominal_strength(self) -> Quantity:
+#         ...
+#
+#     @property
+#     def design_strength(self):
+#         return design_strength(
+#             nominal_strength=self.nominal_strength,
+#             safety_factor=self.design_type_factors[self.design_type],
+#         )
+#
+#     @property
+#     def aux_parameters(self) -> dict[str, Quantity | float] | None:
+#         return None
+
+
+# class DesignStrength:
+#     nominal_strength: Quantity
+#     design_type: DesignType
+#     design_type_factors: dict[DesignType, float] = {
+#         DesignType.ASD: 1.67,
+#         DesignType.LRFD: 0.9,
+#     }
+#
+#     @property
+#     def design_strength(self):
+#         return design_strength(
+#             nominal_strength=self.nominal_strength,
+#             safety_factor=self.design_type_factors[self.design_type],
+#         )
 
 
 class CriteriaAdaptor(Criteria, Protocol):
-    name: str
-
     @property
     def criteria(self) -> Criteria:
         ...
@@ -78,7 +160,27 @@ class CriteriaAdaptor(Criteria, Protocol):
 
     @property
     def safety_factor(self):
-        return self.criteria.safety_factor
+        return self.criteria.design_type
+
+
+@dataclass
+class CriteriaCollection:
+    criteria_dict: dict[str, Criteria]
+
+    @property
+    def design_strength_criteria(self) -> tuple[Criteria, str]:
+        return min(
+            (x for x in self.criteria_dict.values() if x.valid),
+            key=lambda x: x.design_strength,
+        )
+
+    @property
+    def nominal_strength(self) -> Quantity:
+        return min(
+            (x for x in self.criteria_dict.values() if x.valid),
+            key=lambda x: x.nominal_strength,
+        ).nominal_strength
+
 
 # @dataclass
 # class DesignStrength:
@@ -126,17 +228,15 @@ class CriteriaAdaptor(Criteria, Protocol):
 #             return True
 #         return False
 
-    # def to_latex(self, round_precision: int = 2):
-    #     ratio = self.ratio
-    #     if ratio > 10:
-    #         return ">10"
-    #     print_ratio = Quantity(
-    #         Quantity(ratio), options={"round-precision": round_precision}
-    #     )
-    #     if ratio < 1:
-    #         print_ratio = Command(
-    #             "textcolor", arguments="red", extra_arguments=print_ratio
-    #         )
-    #     return print_ratio
-
-
+# def to_latex(self, round_precision: int = 2):
+#     ratio = self.ratio
+#     if ratio > 10:
+#         return ">10"
+#     print_ratio = Quantity(
+#         Quantity(ratio), options={"round-precision": round_precision}
+#     )
+#     if ratio < 1:
+#         print_ratio = Command(
+#             "textcolor", arguments="red", extra_arguments=print_ratio
+#         )
+#     return print_ratio

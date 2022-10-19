@@ -186,18 +186,18 @@ class BeamCompressionFlexuralBuckling:
     @cached_property
     def flexural_buckling_critical_stress_minor_axis(self):
         return critical_compression_stress_buckling_default(
-            member_slenderness=self.minor_axis_slenderness,
+            # member_slenderness=self.minor_axis_slenderness,
             elastic_buckling_stress=self.elastic_flexural_buckling_stress_minor_axis,
-            member_slenderness_limit=self.member_slenderness_limit,
+            # member_slenderness_limit=self.member_slenderness_limit,
             yield_stress=self.profile.material.yield_stress
         )
 
     @cached_property
     def flexural_buckling_critical_stress_major_axis(self):
         return critical_compression_stress_buckling_default(
-            member_slenderness=self.major_axis_slenderness,
+            # member_slenderness=self.major_axis_slenderness,
             elastic_buckling_stress=self.elastic_flexural_buckling_stress_major_axis,
-            member_slenderness_limit=self.member_slenderness_limit,
+            # member_slenderness_limit=self.member_slenderness_limit,
             yield_stress=self.profile.material.yield_stress
         )
 

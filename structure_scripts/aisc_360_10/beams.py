@@ -3,28 +3,56 @@ from typing import Protocol
 
 from quantities import Quantity, N, m
 
-from structure_scripts.aisc_360_10.criteria import SafetyFactor, AllowableStrengthDesign
+from structure_scripts.aisc_360_10.criteria import (
+    SafetyFactor,
+    AllowableStrengthDesign,
+    CriteriaCollection,
+)
 from structure_scripts.aisc_360_10.helpers import _member_slenderness_limit
 from structure_scripts.aisc_360_10.sections import Section
 from structure_scripts.shared.helpers import member_slenderness_ratio
 
 
-# class BeamParameters(Protocol):
+# class BeamInput(Protocol):
 #     unbraced_length_major_axis: Quantity
-#     unbraced_length_minor_axis: Quantity
-#     unbraced_length_torsion: Quantity
+#     unbraced_length_minor_axis: Quantity | None
+#     unbraced_length_torsion: Quantity | None
 #     factor_k_minor_axis: float
 #     factor_k_major_axis: float
 #     factor_k_torsion: float
-#     # lateral_torsional_buckling_modification_factor: float
-#     # axial_force: Quantity | None
-#     # major_axis_bending_moment: Quantity | None
-#     # major_axis_shear_force: Quantity | None
-#     # minor_axis_bending_moment: Quantity | None
-#     # minor_axis_shear_force: Quantity | None
-#     # torsion_moment: Quantity | None
-#     safety_factor: SafetyFactor
+#     lateral_torsional_buckling_modification_factor: float | None
+#     axial_force: Quantity | None
+#     major_axis_bending_moment: Quantity | None
+#     major_axis_shear_force: Quantity | None
+#     minor_axis_bending_moment: Quantity | None
+#     minor_axis_shear_force: Quantity | None
+#     torsion_moment: Quantity | None
+#     safety_factor: SafetyFactor = AllowableStrengthDesign()
 #
+#
+# @dataclass
+# class BeamParameters:
+#     unbraced_length_major_axis: Quantity
+#     unbraced_length_minor_axis: Quantity | None = None
+#     unbraced_length_torsion: Quantity | None = None
+#     factor_k_minor_axis: float = 1.0
+#     factor_k_major_axis: float = 1.0
+#     factor_k_torsion: float = 1.0
+#     lateral_torsional_buckling_modification_factor: float = 1.0
+#     axial_force: Quantity | None = None
+#     major_axis_bending_moment: Quantity | None = None
+#     major_axis_shear_force: Quantity | None = None
+#     minor_axis_bending_moment: Quantity | None = None
+#     minor_axis_shear_force: Quantity | None = None
+#     torsion_moment: Quantity | None = None
+#     safety_factor: SafetyFactor = AllowableStrengthDesign()
+#
+#     def __post_init__(self):
+#         if not self.unbraced_length_minor_axis:
+#             self.unbraced_length_minor_axis = self.unbraced_length_major_axis
+#         if not self.unbraced_length_torsion:
+#             self.unbraced_length_torsion = self.unbraced_length_major_axis
+
 
 # @dataclass
 # class BeamParametersData(BeamParameters):
@@ -34,32 +62,32 @@ from structure_scripts.shared.helpers import member_slenderness_ratio
 #     factor_k_minor_axis: float = 1.0
 #     factor_k_major_axis: float = 1.0
 #     factor_k_torsion: float = 1.0
-    # lateral_torsional_buckling_modification_factor: float = 1.0
-    # axial_force: Quantity | None = None
-    # major_axis_bending_moment: Quantity | None = None
-    # major_axis_shear_force: Quantity | None = None
-    # minor_axis_bending_moment: Quantity | None = None
-    # minor_axis_shear_force: Quantity | None = None
-    # torsion_moment: Quantity | None = None
+# lateral_torsional_buckling_modification_factor: float = 1.0
+# axial_force: Quantity | None = None
+# major_axis_bending_moment: Quantity | None = None
+# major_axis_shear_force: Quantity | None = None
+# minor_axis_bending_moment: Quantity | None = None
+# minor_axis_shear_force: Quantity | None = None
+# torsion_moment: Quantity | None = None
 
-    # def __post_init__(self):
-    #     if not self.unbraced_length_minor_axis:
-    #         self.unbraced_length_minor_axis = self.unbraced_length_major_axis
-    #     if not self.unbraced_length_torsion:
-    #         self.unbraced_length_torsion = self.unbraced_length_major_axis
+# def __post_init__(self):
+#     if not self.unbraced_length_minor_axis:
+#         self.unbraced_length_minor_axis = self.unbraced_length_major_axis
+#     if not self.unbraced_length_torsion:
+#         self.unbraced_length_torsion = self.unbraced_length_major_axis
 
 
-class BeamLoading(Protocol):
-    axial_force: Quantity | None = None
-    major_axis_bending_moment: Quantity | None = None
-    major_axis_shear_force: Quantity | None = None
-    minor_axis_bending_moment: Quantity | None = None
-    minor_axis_shear_force: Quantity | None = None
-    torsion_moment: Quantity | None = None
+# class BeamLoading(Protocol):
+#     axial_force: Quantity | None = None
+#     major_axis_bending_moment: Quantity | None = None
+#     major_axis_shear_force: Quantity | None = None
+#     minor_axis_bending_moment: Quantity | None = None
+#     minor_axis_shear_force: Quantity | None = None
+#     torsion_moment: Quantity | None = None
 
 
 @dataclass
-class BeamLoadingData(BeamLoading):
+class BeamLoading:
     axial_force: Quantity | None = None
     major_axis_bending_moment: Quantity | None = None
     major_axis_shear_force: Quantity | None = None
@@ -68,10 +96,10 @@ class BeamLoadingData(BeamLoading):
     torsion_moment: Quantity | None = None
 
 
-class BeamSlenderness(Protocol):
-    major_axis: float
-    minor_axis: float
-    torsion: float
+# class BeamSlenderness(Protocol):
+#     major_axis: float
+#     minor_axis: float
+#     torsion: float
 
 
 @dataclass
@@ -89,32 +117,29 @@ class BucklingParam:
 
 
 @dataclass
-class BeamGlobalData:
+class Beam:
     """
     buckling_param: BucklingParam
     loads: BeamLoading | None = None
     lateral_torsional_buckling_modification_factor: float = 1.0
     safety_factor: SafetyFactor = AllowableStrengthDesign()
     """
+
     buckling_param: BucklingParam
     loads: BeamLoading | None = None
     lateral_torsional_buckling_modification_factor: float = 1.0
     safety_factor: SafetyFactor = AllowableStrengthDesign()
 
-
-@dataclass
-class BeamSlenderness:
-    major_axis: float
-    minor_axis: float
 
 @dataclass
 class BeamAnalysis:
     """
     section: Section
-    beam: BeamGlobalData
+    beam: Beam
     """
+
     section: Section
-    beam: BeamGlobalData
+    beam: Beam
 
     # @property
     # def slenderness_limit(self):
@@ -149,7 +174,7 @@ class BeamAnalysis:
 
     @property
     def compression(self):
-        return self.section.compression(beam=self.beam)
+        return CriteriaCollection(self.section.compression(beam=self.beam))
 
     @property
     def shear_major_axis(self):

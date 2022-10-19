@@ -96,7 +96,7 @@ class MaterialLatex:
 
 
 # Commonly used materials
-steel = IsotropicIsotropicMaterialUserDefined(
+steel355mpa = IsotropicIsotropicMaterialUserDefined(
     modulus_linear=200 * GPa,
     modulus_shear=77 * GPa,
     poisson_ratio=0.3,

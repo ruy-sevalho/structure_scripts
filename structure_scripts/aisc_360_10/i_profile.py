@@ -65,7 +65,7 @@ from structure_scripts.shared.sections import (
 )
 
 if TYPE_CHECKING:
-    from structure_scripts.aisc_360_10.beams import BeamAnalysis, BeamGlobalData
+    from structure_scripts.aisc_360_10.beams import BeamAnalysis, Beam
 
 
 @dataclass
@@ -841,8 +841,8 @@ class DoublySymmetricI(SectionProfileWebFlangeTorsBuck):
 
     def torsional_buckling_critical_stress_effective_length(self, beam: "BeamAnalysis"):
         return critical_compression_stress_buckling_default(
-            member_slenderness=beam.torsion_slenderness,
-            member_slenderness_limit=beam.slenderness_limit,
+            # member_slenderness=beam.torsion_slenderness,
+            # member_slenderness_limit=beam.slenderness_limit,
             yield_stress=self.material.yield_stress,
             elastic_buckling_stress=self.elastic_torsional_buckling_stress(beam),
         )
@@ -851,7 +851,7 @@ class DoublySymmetricI(SectionProfileWebFlangeTorsBuck):
     def latex(self):
         return DoublySymmetricIUserDefinedLatex(self)
 
-    def compression(self, beam: "BeamGlobalData") -> dict[str, Criteria]:
+    def compression(self, beam: "Beam") -> dict[str, Criteria]:
         return {
             FLEXURAL_BUCKLING_MAJOR: FlexuralBucklingAdaptor(
                 section=self,
@@ -873,7 +873,7 @@ class DoublySymmetricI(SectionProfileWebFlangeTorsBuck):
         #     ),
         # }
 
-    def shear_major_axis(self, beam: "BeamGlobalData") -> dict[str, Criteria]:
+    def shear_major_axis(self, beam: "Beam") -> dict[str, Criteria]:
         return {
             SHEAR_STRENGTH: StandardShearCriteriaAdaptor(
                 beam=beam, section=self, axis=Axis.MAJOR

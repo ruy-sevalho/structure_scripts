@@ -31,7 +31,7 @@ def _member_slenderness_limit(
 
 
 def critical_compression_stress_buckling_default(
-    member_slenderness: float,
+    # member_slenderness: float,
     yield_stress: Quantity,
     elastic_buckling_stress: Quantity,
     # member_slenderness_limit: float,

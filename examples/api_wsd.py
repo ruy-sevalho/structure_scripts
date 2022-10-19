@@ -1,4 +1,4 @@
-from structure_scripts.shared.materials import IsotropicIsotropicMaterialUserDefined, steel
+from structure_scripts.shared.materials import IsotropicIsotropicMaterialUserDefined, steel355mpa
 from structure_scripts.api_rpa.elements import CircularSection, CircularSectionGeometry
 from structure_scripts.api_rpa.elements_wsd import BeamModel
 from quantities import Quantity, m, N, MPa, GPa, mm, inch
@@ -9,7 +9,7 @@ p4geo = CircularSectionGeometry(
 )
 p4 = CircularSection(
     geometry=p4geo,
-    material=steel
+    material=steel355mpa
 )
 beam = BeamModel(
     profile=p4,

@@ -13,7 +13,7 @@ from structure_scripts.aisc_360_10.criteria import (
 from structure_scripts.aisc_360_10.beams import (
     BucklingParam,
     BeamAnalysis,
-    BeamGlobalData,
+    Beam,
 )
 from structure_scripts.aisc_360_10.helpers import (
     elastic_flexural_buckling_stress,
@@ -94,33 +94,30 @@ TORSIONAL_BUCKLING = "torsional_buckling"
 
 
 @dataclass
-class BucklingStrength(Criteria):
+class BucklingStrength:
     elastic_buckling_stress: Quantity
-    slenderness: float
     section_area: Quantity
     yield_stress: Quantity
-    # member_slenderness_limit: float
 
     @property
     def critical_stress(self):
         return critical_compression_stress_buckling_default(
-            member_slenderness=self.slenderness,
             elastic_buckling_stress=self.elastic_buckling_stress,
-            # member_slenderness_limit=self.member_slenderness_limit,
             yield_stress=self.yield_stress,
         )
 
     @property
     def nominal_strength(self) -> Quantity:
         return _nominal_compressive_strength(
-            critical_stress=self.critical_stress, sectional_area=self.section_area
+            critical_stress=self.critical_stress,
+            sectional_area=self.section_area,
         )
 
 
 @dataclass
 class FlexuralBucklingAdaptor(CriteriaAdaptor):
     section: Section
-    beam: BeamGlobalData
+    beam: Beam
     axis: Axis
 
     @property
@@ -176,6 +173,7 @@ class FlexuralBucklingAdaptor(CriteriaAdaptor):
             slenderness=self.beam_slenderness,
             section_area=self.section.area_properties.area,
             yield_stress=self.section.material.yield_stress,
+            safety_factor=self.beam.safety_factor,
         )
 
     @property
