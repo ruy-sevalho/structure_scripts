@@ -1,6 +1,7 @@
+from ast import Call
 from dataclasses import dataclass
 from functools import partial
-from typing import Literal
+from typing import Callable, Literal, Protocol
 
 from quantities import Quantity
 
@@ -21,6 +22,7 @@ from structure_scripts.aisc_360_10.helpers import (
     critical_compression_stress_buckling_default,
     _nominal_compressive_strength,
 )
+from structure_scripts.aisc_360_10.i_profile import DoublySymmetricI
 from structure_scripts.aisc_360_10.sections import Section
 from structure_scripts.shared.helpers import member_slenderness_ratio, Axis
 from structure_scripts.shared.materials import IsotropicMaterial
@@ -115,17 +117,14 @@ class BucklingStrength:
 
 
 @dataclass
-class FlexuralBucklingAdaptor(CriteriaAdaptor):
+class FlexuralBucklingAdaptor:
     section: Section
     beam: Beam
     axis: Axis
 
     @property
-    def beam_slenderness_limit(self):
-        return _member_slenderness_limit(
-            modulus_linear=self.section.material.modulus_linear,
-            yield_stress=self.section.material.yield_stress,
-        )
+    def valid(self) -> bool:
+        return True
 
     @property
     def factor_k(self):
@@ -167,18 +166,85 @@ class FlexuralBucklingAdaptor(CriteriaAdaptor):
         )
 
     @property
-    def criteria(self) -> BucklingStrength:
+    def buckling_strength_model(self) -> BucklingStrength:
         return BucklingStrength(
             elastic_buckling_stress=self.elastic_buckling_stress,
-            slenderness=self.beam_slenderness,
             section_area=self.section.area_properties.area,
             yield_stress=self.section.material.yield_stress,
-            safety_factor=self.beam.safety_factor,
         )
 
     @property
+    def nominal_strength(self):
+        return self.buckling_strength_model.nominal_strength
+
+    @property
     def critical_stress(self):
-        return self.criteria.critical_stress
+        return self.buckling_strength_model.critical_stress
+
+
+@dataclass
+class TorsionalBucklingAdaptor:
+    section: DoublySymmetricI
+    beam: Beam
+
+    @property
+    def valid(self) -> bool:
+        return True
+
+    @property
+    def factor_k(self):
+        table = {
+            Axis.MAJOR: self.beam.buckling_param.factor_k_major_axis,
+            Axis.MINOR: self.beam.buckling_param.factor_k_minor_axis,
+        }
+        return table[self.axis]
+
+    @property
+    def radius_of_gyration(self):
+        table = {
+            Axis.MAJOR: self.section.area_properties.major_axis.radius_of_gyration,
+            Axis.MINOR: self.section.area_properties.minor_axis.radius_of_gyration,
+        }
+        return table[self.axis]
+
+    @property
+    def length(self):
+        table = {
+            Axis.MAJOR: self.beam.buckling_param.length_major_axis,
+            Axis.MINOR: self.beam.buckling_param.length_minor_axis,
+        }
+        return table[self.axis]
+
+    @property
+    def beam_slenderness(self):
+        return member_slenderness_ratio(
+            factor_k=self.factor_k,
+            radius_of_gyration=self.radius_of_gyration,
+            unbraced_length=self.length,
+        )
+
+    @property
+    def elastic_buckling_stress(self):
+        return elastic_flexural_buckling_stress(
+            modulus_linear=self.section.material.modulus_linear,
+            member_slenderness_ratio=self.beam_slenderness,
+        )
+
+    @property
+    def buckling_strength_model(self) -> BucklingStrength:
+        return BucklingStrength(
+            elastic_buckling_stress=self.elastic_buckling_stress,
+            section_area=self.section.area_properties.area,
+            yield_stress=self.section.material.yield_stress,
+        )
+
+    @property
+    def nominal_strength(self):
+        return self.buckling_strength_model.nominal_strength
+
+    @property
+    def critical_stress(self):
+        return self.buckling_strength_model.critical_stress
 
 
 # def create_compression_flexural_buckling_criteria(
