@@ -8,24 +8,28 @@ import numpy as np
 import pandas as pd
 from quantities import Quantity, GPa, MPa, m, mm, cm, UnitQuantity, N
 from structure_scripts.aisc_360_10.elements import (
-    BeamCompressionFlexureDoublySymmetricEffectiveLength
+    BeamCompressionFlexureDoublySymmetricEffectiveLength,
 )
-from structure_scripts.aisc_360_10.sections import GenericAreaProperties
-from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIDimensionsUserDefined, DoublySymmetricI
-from structure_scripts.shared.materials import IsotropicIsotropicMaterialUserDefined
+from structure_scripts.aisc_360_10.i_profile import (
+    DoublySymmetricIDimensionsUserDefined,
+    DoublySymmetricI,
+)
+from structure_scripts.shared.materials import (
+    IsotropicIsotropicMaterialUserDefined,
+)
+from structure_scripts.shared.sections import DirectInputAreaProperties
 
-kN = UnitQuantity("kN", 1000*N)
+kN = UnitQuantity("kN", 1000 * N)
 
 
 def several_loads_results(
-        profile: DoublySymmetricI,
-        unbraced_length: Quantity,
-        loads: Collection[tuple[Quantity, Quantity, Quantity]],
-        factor_k_minor_axis: float = 1.0,
-        factor_k_major_axis: float = 1.0,
-        factor_k_torsion: float = 1.0,
-        reactions_info: pd.DataFrame = pd.DataFrame()
-
+    profile: DoublySymmetricI,
+    unbraced_length: Quantity,
+    loads: Collection[tuple[Quantity, Quantity, Quantity]],
+    factor_k_minor_axis: float = 1.0,
+    factor_k_major_axis: float = 1.0,
+    factor_k_torsion: float = 1.0,
+    reactions_info: pd.DataFrame = pd.DataFrame(),
 ):
     partial_beam = partial(
         BeamCompressionFlexureDoublySymmetricEffectiveLength,
@@ -33,14 +37,16 @@ def several_loads_results(
         unbraced_length_major_axis=unbraced_length,
         factor_k_torsion=factor_k_torsion,
         factor_k_major_axis=factor_k_major_axis,
-        factor_k_minor_axis=factor_k_minor_axis
+        factor_k_minor_axis=factor_k_minor_axis,
     )
     results_df = pd.DataFrame()
     for load in loads:
-        beam: BeamCompressionFlexureDoublySymmetricEffectiveLength = partial_beam(
-            required_axial_strength=load[0].rescale(kN),
-            required_major_axis_flexural_strength=load[1].rescale(kN * m),
-            required_minor_axis_flexural_strength=load[2].rescale(kN * m),
+        beam: BeamCompressionFlexureDoublySymmetricEffectiveLength = (
+            partial_beam(
+                required_axial_strength=load[0].rescale(kN),
+                required_major_axis_flexural_strength=load[1].rescale(kN * m),
+                required_minor_axis_flexural_strength=load[2].rescale(kN * m),
+            )
         )
         results_df = pd.concat((results_df, beam.results_h1_df))
     if not reactions_info.empty:
@@ -53,38 +59,37 @@ if __name__ == "__main__":
         modulus_linear=200 * GPa,
         modulus_shear=77 * GPa,
         poisson_ratio=0.3,
-        yield_stress=355 * MPa
+        yield_stress=355 * MPa,
     )
-    area_properties_wx250x250x73 = GenericAreaProperties(
-        area=94.90 * cm ** 2,
-        web_area=902.4*mm**2,
-        minor_axis_inertia=3883 * cm ** 4,
-        minor_axis_elastic_section_modulus=306 * cm ** 3,
-        minor_axis_plastic_section_modulus=463 * cm ** 3,
-        major_axis_inertia=11508 * cm ** 4,
-        major_axis_elastic_section_modulus=910 * cm ** 3,
-        major_axis_plastic_section_modulus=1007 * cm ** 3,
+    area_properties_wx250x250x73 = DirectInputAreaProperties(
+        area=94.90 * cm**2,
+        minor_axis_inertia=3883 * cm**4,
+        minor_axis_elastic_section_modulus=306 * cm**3,
+        minor_axis_plastic_section_modulus=463 * cm**3,
+        major_axis_inertia=11508 * cm**4,
+        major_axis_elastic_section_modulus=910 * cm**3,
+        major_axis_plastic_section_modulus=1007 * cm**3,
         major_axis_radius_of_gyration=11 * cm,
-        torsional_constant=66 * cm ** 4,
-        warping_constant=544000 * cm ** 6
+        polar_inertia=66 * cm**4,
+        warping_constant=544000 * cm**6,
     )
     dimensions_wx250x250x73 = DoublySymmetricIDimensionsUserDefined(
         flange_width=254 * mm,
         flange_thickness=14.2 * mm,
         web_thickness=8.6 * mm,
-        total_height=254 * mm
+        total_height=254 * mm,
     )
     profile_wx250x250x73 = DoublySymmetricI(
         area_properties=area_properties_wx250x250x73,
         dimensions=dimensions_wx250x250x73,
-        material=steel
+        material=steel,
     )
     length = Quantity(3.3, m)
     analysis = BeamCompressionFlexureDoublySymmetricEffectiveLength(
         profile=profile_wx250x250x73,
         unbraced_length_major_axis=length,
-        required_axial_strength=2.3557e+005*N + 29*kN,
-        required_major_axis_flexural_strength=3.7063e+007*N*mm,
+        required_axial_strength=2.3557e005 * N + 29 * kN,
+        required_major_axis_flexural_strength=3.7063e007 * N * mm,
     )
     # report = analysis.latex.resume_latex
     loads_1 = (
@@ -96,7 +101,6 @@ if __name__ == "__main__":
         (125670 * N, 41909000 * N * mm, -257080 * N * mm),
         (126990 * N, 41675000 * N * mm, -258800 * N * mm),
         (126270 * N, 41520000 * N * mm, 113050 * N * mm),
-
     )
     loads_2 = (
         (268870 * N, 31992000 * N * mm, -181880 * N * mm),
@@ -107,7 +111,6 @@ if __name__ == "__main__":
         (230590 * N, 42322000 * N * mm, 361480 * N * mm),
         (228900 * N, 42171000 * N * mm, 371700 * N * mm),
         (227960 * N, 40917000 * N * mm, -192030 * N * mm),
-
     )
     loads_3 = (
         (203750 * N, 39622000 * N * mm, -763890 * N * mm),
@@ -118,27 +121,18 @@ if __name__ == "__main__":
         (219390 * N, 50249000 * N * mm, -460510 * N * mm),
         (233520 * N, 47305000 * N * mm, -371070 * N * mm),
         (247170 * N, 33399000 * N * mm, -580560 * N * mm),
-
     )
     mult_cases_1 = several_loads_results(
-        profile=profile_wx250x250x73,
-        unbraced_length=length,
-        loads=loads_1
+        profile=profile_wx250x250x73, unbraced_length=length, loads=loads_1
     )
     mult_cases_2 = several_loads_results(
-        profile=profile_wx250x250x73,
-        unbraced_length=length,
-        loads=loads_2
+        profile=profile_wx250x250x73, unbraced_length=length, loads=loads_2
     )
     mult_cases_3 = several_loads_results(
-        profile=profile_wx250x250x73,
-        unbraced_length=length,
-        loads=loads_3
+        profile=profile_wx250x250x73, unbraced_length=length, loads=loads_3
     )
     mult_cases_1.to_excel("mult_cases_c1.xlsx")
     mult_cases_2.to_excel("mult_cases_c2.xlsx")
     mult_cases_3.to_excel("mult_cases_c3.xlsx")
     # with open('carga_critica.tex', 'w') as f:
     #     f.write(report)
-
-

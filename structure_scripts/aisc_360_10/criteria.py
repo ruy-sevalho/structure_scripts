@@ -1,9 +1,11 @@
 import abc
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Protocol
+from typing import Protocol, Callable
 
 from quantities import Quantity
+
+NOMINAL_STRENGTH = "nominal_strength"
 
 
 class DesignType(str, Enum):
@@ -41,68 +43,69 @@ class DesignType(str, Enum):
 #         return theoretical_limit_value * self.value
 
 
-def design_strength(
-    nominal_strength: Quantity,
-    design_type: DesignType,
-    design_type_factors: dict[DesignType, float],
-):
-    def asd(nominal_strength: Quantity, safety_factor: float) -> Quantity:
-        return nominal_strength / safety_factor
-
-    def lrfd(nominal_strength: Quantity, safety_factor: float) -> Quantity:
-        return nominal_strength * safety_factor
-
-    table = {
-        DesignType.ASD: asd,
-        DesignType.LRFD: lrfd,
-    }
-    return table[design_type](
-        nominal_strength=nominal_strength,
-        safety_factor=design_type_factors[design_type],
-    )
+def asd(nominal_strength: Quantity, safety_factor: float) -> Quantity:
+    return nominal_strength / safety_factor
 
 
-def default_design_type_factors():
-    return {
-        DesignType.ASD: 1.67,
-        DesignType.LRFD: 0.9,
-    }
-
-
-class NominalStrengthModel(Protocol):
-    @abc.abstractmethod
-    @property
-    def nominal_strength(self) -> Quantity:
-        pass
-
-    @abc.abstractmethod
-    @property
-    def valid(self) -> True:
-        pass
+def lrfd(nominal_strength: Quantity, safety_factor: float) -> Quantity:
+    return nominal_strength * safety_factor
 
 
 @dataclass
 class Criteria:
-    strength_models: dict[str, NominalStrengthModel]
-    design_type_factors: dict[DesignType, float]
-    design_type: DesignType
+    allowable_strength: float = 1.67
+    load_resistance_factor: float = 0.9
+
+    def design_strength(
+        self, nominal_strength: Quantity, design_type: DesignType
+    ):
+        table: dict[
+            DesignType, tuple[Callable[[Quantity, float], Quantity], float]
+        ] = {
+            DesignType.ASD: (asd, self.allowable_strength),
+            DesignType.LRFD: (lrfd, self.load_resistance_factor),
+        }
+        function, factor = table[design_type]
+        return function(nominal_strength, factor)
+
+
+class Strength(Protocol):
+    @property
+    @abc.abstractmethod
+    def nominal_strength(self) -> Quantity:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def valid(self) -> True:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def detailed_results(self) -> dict[str, Quantity | float | bool]:
+        pass
+
+
+@dataclass
+class DesignStrength:
+    strengths: dict[str, Strength]
+    criteria: Criteria = Criteria()
+    design_type: DesignType = DesignType.ASD
 
     @property
     def design_strength(self) -> tuple[Quantity, str]:
-        d = self.strength_models
-        nominal_strength_key = min(
-            (key for key in self.strength_models if d[key].valid),
-            key=lambda key: d[key].nominal_strength,
-        )
-        return (
-            design_strength(
-                nominal_strength=self.strength_models[
-                    nominal_strength_key
-                ].nominal_strength,
-                design_type=self.design_type,
-                design_type_factors=self.design_type_factors,
+        return min(
+            (
+                (
+                    self.criteria.design_strength(
+                        item[1].nominal_strength, self.design_type
+                    ),
+                    item[0],
+                )
+                for item in self.strengths.items()
+                if item[1].valid
             ),
-            nominal_strength_key,
+            key=lambda x: x[1].nominal_strength,
         )
 
 

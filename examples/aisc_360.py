@@ -2,14 +2,11 @@ from dataclasses import dataclass
 
 from quantities import UnitQuantity, Quantity, GPa, MPa, cm, m, mm, N
 
-from structure_scripts.aisc_360_10.beams import BeamAnalysis, Beam, BucklingParam
-from structure_scripts.aisc_360_10.elements import (
-    BeamCompressionFlexuralBuckling,
-    BeamFlexureDoublySymmetric,
-    BeamShearWeb,
-    BeamCompressionTorsionalBuckling,
+from structure_scripts.aisc_360_10.beams import (
+    BeamAnalysis,
+    Beam,
+    BucklingParam,
 )
-from structure_scripts.aisc_360_10.sections import AreaProperties, GenericAreaProperties
 from structure_scripts.aisc_360_10.i_profile import (
     DoublySymmetricIDimensionsUserDefined,
     DoublySymmetricI,
@@ -24,20 +21,21 @@ from structure_scripts.shared.materials import (
     IsotropicIsotropicMaterialUserDefined,
     steel355mpa,
 )
+from structure_scripts.shared.sections import DirectInputAreaProperties
 
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilo newton", 1000 * N, symbol="kN")
 MN = UnitQuantity("mega newton", 1000000 * N, symbol="MN")
 
 # Doubly symmetric I profiles
-area_properties_127x76x13 = GenericAreaProperties(
+area_properties_127x76x13 = DirectInputAreaProperties(
     area=16.5 * cm**2,
     minor_axis_inertia=56 * cm**4,
     minor_axis_elastic_section_modulus=15 * cm**3,
     major_axis_inertia=473 * cm**4,
     major_axis_elastic_section_modulus=75 * cm**3,
     major_axis_plastic_section_modulus=84 * cm**3,
-    torsional_constant=2.85 * cm**4,
+    polar_inertia=2.85 * cm**4,
     warping_constant=2000000000 * mm**6,
 )
 dimensions_127x76x13 = DoublySymmetricIDimensionsUserDefined(
@@ -74,7 +72,9 @@ channel_1_dimensions = ChannelDimensions(
     flange_thickness=10 * mm,
     flange_width=50 * mm,
 )
-channel_1_area_properties = ChannelAreaProperties(dimensions=channel_1_dimensions)
+channel_1_area_properties = ChannelAreaProperties(
+    dimensions=channel_1_dimensions
+)
 
 # beam analysis
 # beam_1_compression_flexural_buckling = BeamCompressionFlexuralBuckling(

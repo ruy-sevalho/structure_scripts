@@ -6,11 +6,9 @@ from typing import Protocol, TYPE_CHECKING, Literal
 from quantities import Quantity
 
 from structure_scripts.aisc_360_10.criteria import (
-    Criteria,
-    SafetyFactor,
-    AllowableStrengthDesign,
-    LoadAndResistanceFactorDesign,
-    CriteriaAdaptor,
+    DesignStrength,
+    DesignType,
+    Strength,
 )
 from structure_scripts.aisc_360_10.helpers import (
     _web_shear_coefficient_limit,
@@ -123,14 +121,12 @@ SHEAR_STRENGTH = "shear_strength"
 
 
 @dataclass
-class ShearStrength(Criteria):
+class ShearStrength:
     material: IsotropicMaterial
     element: ElementSlendernessDefinition
     shear_coefficient: float
     rolled_i_shaped: bool = False
-    design_type: SafetyFactor = AllowableStrengthDesign()
-
-    name = SHEAR_STRENGTH
+    design_type: DesignType = DesignType.ASD
 
     @property
     def shear_coefficient_limit_0(self):
@@ -260,7 +256,7 @@ class StandardShearCoefficient:
 
 
 @dataclass
-class StandardShearCriteriaAdaptor(CriteriaAdaptor):
+class StandardShearCriteriaAdaptor:
     section: "SectionWithWebAndFlange"
     beam: "BeamGlobalData"
     axis: Axis

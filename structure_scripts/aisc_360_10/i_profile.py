@@ -4,13 +4,15 @@ from typing import Protocol, TYPE_CHECKING, Optional
 import pandas as pd
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.compression_criteria import (
-    FLEXURAL_BUCKLING_MAJOR,
-    FLEXURAL_BUCKLING_MINOR,
-    FlexuralBucklingAdaptor,
+from structure_scripts.aisc_360_10.compression import (
+    FLEXURAL_BUCKLING_MAJOR_AXIS_STRENGTH,
+    FLEXURAL_BUCKLING_MINOR_AXIS_STRENGTH,
+    FlexuralBuckling,
 )
-from structure_scripts.aisc_360_10.criteria import Criteria
-from structure_scripts.aisc_360_10.sections import SectionProfileWebFlangeTorsBuck
+from structure_scripts.aisc_360_10.criteria import DesignStrength
+from structure_scripts.aisc_360_10.sections import (
+    SectionProfileWebFlangeTorsBuck,
+)
 from structure_scripts.aisc_360_10.elements_latex import (
     DoublySymmetricIDimensionsLatex,
     DoublySymmetricIUserDefinedLatex,
@@ -26,12 +28,12 @@ from structure_scripts.aisc_360_10.helpers import (
     _web_shear_coefficient_limit,
     web_shear_coefficient_iii,
     effective_radius_of_gyration,
-    limiting_length_torsional_buckling,
+    limiting_length_lateral_torsional_buckling,
     limiting_length_yield,
     elastic_torsional_buckling_stress_doubly_symmetric_member,
     critical_compression_stress_buckling_default,
 )
-from structure_scripts.aisc_360_10.shear_criteria import (
+from structure_scripts.aisc_360_10.shear import (
     StandardShearMajorAxisCriteriaAdaptor,
     StandardShearCriteriaAdaptor,
     SHEAR_STRENGTH,
@@ -114,13 +116,15 @@ class DoublySymmetricIAreaPropertiesCompute(AreaProperties):
     @property
     def _flange_area(self):
         return rectangle_area(
-            width=self.dimensions.flange_width, height=self.dimensions.flange_thickness
+            width=self.dimensions.flange_width,
+            height=self.dimensions.flange_thickness,
         )
 
     @property
     def web_area(self):
         return rectangle_area(
-            width=self.dimensions.web_thickness, height=self.dimensions.web_height
+            width=self.dimensions.web_thickness,
+            height=self.dimensions.web_height,
         )
 
     @property
@@ -130,25 +134,29 @@ class DoublySymmetricIAreaPropertiesCompute(AreaProperties):
     @property
     def _flange_self_inertia_major_axis(self) -> Quantity:
         return self_inertia(
-            width=self.dimensions.flange_width, height=self.dimensions.flange_thickness
+            width=self.dimensions.flange_width,
+            height=self.dimensions.flange_thickness,
         )
 
     @property
     def _flange_self_inertia_minor_axis(self) -> Quantity:
         return self_inertia(
-            width=self.dimensions.flange_thickness, height=self.dimensions.flange_width
+            width=self.dimensions.flange_thickness,
+            height=self.dimensions.flange_width,
         )
 
     @property
     def _web_self_inertia_major_axis(self) -> Quantity:
         return self_inertia(
-            width=self.dimensions.web_thickness, height=self.dimensions.web_height
+            width=self.dimensions.web_thickness,
+            height=self.dimensions.web_height,
         )
 
     @property
     def _web_self_inertia_minor_axis(self) -> Quantity:
         return self_inertia(
-            width=self.dimensions.web_height, height=self.dimensions.web_thickness
+            width=self.dimensions.web_height,
+            height=self.dimensions.web_thickness,
         )
 
     @property
@@ -165,7 +173,8 @@ class DoublySymmetricIAreaPropertiesCompute(AreaProperties):
     @property
     def minor_axis_inertia(self):
         return (
-            2 * self._flange_self_inertia_minor_axis + self._web_self_inertia_minor_axis
+            2 * self._flange_self_inertia_minor_axis
+            + self._web_self_inertia_minor_axis
         )
 
     @property
@@ -191,13 +200,15 @@ class DoublySymmetricIAreaPropertiesCompute(AreaProperties):
     @property
     def major_axis_radius_of_gyration(self) -> Quantity:
         return radius_of_gyration(
-            moment_of_inertia=self.major_axis_inertia, gross_section_area=self.area
+            moment_of_inertia=self.major_axis_inertia,
+            gross_section_area=self.area,
         )
 
     @property
     def minor_axis_radius_of_gyration(self) -> Quantity:
         return radius_of_gyration(
-            moment_of_inertia=self.minor_axis_inertia, gross_section_area=self.area
+            moment_of_inertia=self.minor_axis_inertia,
+            gross_section_area=self.area,
         )
 
     @property
@@ -219,7 +230,8 @@ class DoublySymmetricIAreaPropertiesCompute(AreaProperties):
     @property
     def torsional_radius_of_gyration(self):
         return radius_of_gyration(
-            moment_of_inertia=self.torsional_constant, gross_section_area=self.area
+            moment_of_inertia=self.torsional_constant,
+            gross_section_area=self.area,
         )
 
     @property
@@ -297,13 +309,15 @@ class DoublySymmetricIAreaPropertiesFromDimensions(AreaProperties):
     @property
     def _flange_area(self):
         return rectangle_area(
-            width=self.dimensions.flange_width, height=self.dimensions.flange_thickness
+            width=self.dimensions.flange_width,
+            height=self.dimensions.flange_thickness,
         )
 
     @property
     def _web_area(self):
         return rectangle_area(
-            width=self.dimensions.web_thickness, height=self.dimensions.web_height
+            width=self.dimensions.web_thickness,
+            height=self.dimensions.web_height,
         )
 
     @property
@@ -313,25 +327,29 @@ class DoublySymmetricIAreaPropertiesFromDimensions(AreaProperties):
     @property
     def _flange_self_inertia_major_axis(self) -> Quantity:
         return self_inertia(
-            width=self.dimensions.flange_width, height=self.dimensions.flange_thickness
+            width=self.dimensions.flange_width,
+            height=self.dimensions.flange_thickness,
         )
 
     @property
     def _flange_self_inertia_minor_axis(self) -> Quantity:
         return self_inertia(
-            width=self.dimensions.flange_thickness, height=self.dimensions.flange_width
+            width=self.dimensions.flange_thickness,
+            height=self.dimensions.flange_width,
         )
 
     @property
     def _web_self_inertia_major_axis(self) -> Quantity:
         return self_inertia(
-            width=self.dimensions.web_thickness, height=self.dimensions.web_height
+            width=self.dimensions.web_thickness,
+            height=self.dimensions.web_height,
         )
 
     @property
     def _web_self_inertia_minor_axis(self) -> Quantity:
         return self_inertia(
-            width=self.dimensions.web_height, height=self.dimensions.web_thickness
+            width=self.dimensions.web_height,
+            height=self.dimensions.web_thickness,
         )
 
     @property
@@ -348,7 +366,8 @@ class DoublySymmetricIAreaPropertiesFromDimensions(AreaProperties):
     @property
     def _minor_axis_inertia(self):
         return (
-            2 * self._flange_self_inertia_minor_axis + self._web_self_inertia_minor_axis
+            2 * self._flange_self_inertia_minor_axis
+            + self._web_self_inertia_minor_axis
         )
 
     @property
@@ -374,13 +393,15 @@ class DoublySymmetricIAreaPropertiesFromDimensions(AreaProperties):
     @property
     def _major_axis_radius_of_gyration(self) -> Quantity:
         return radius_of_gyration(
-            moment_of_inertia=self._major_axis_inertia, gross_section_area=self.area
+            moment_of_inertia=self._major_axis_inertia,
+            gross_section_area=self.area,
         )
 
     @property
     def _minor_axis_radius_of_gyration(self) -> Quantity:
         return radius_of_gyration(
-            moment_of_inertia=self._minor_axis_inertia, gross_section_area=self.area
+            moment_of_inertia=self._minor_axis_inertia,
+            gross_section_area=self.area,
         )
 
     @property
@@ -395,7 +416,8 @@ class DoublySymmetricIAreaPropertiesFromDimensions(AreaProperties):
     @property
     def _torsional_radius_of_gyration(self):
         return radius_of_gyration(
-            moment_of_inertia=self._torsional_constant, gross_section_area=self.area
+            moment_of_inertia=self._torsional_constant,
+            gross_section_area=self.area,
         )
 
     @property
@@ -558,7 +580,8 @@ class DoublySymmetricIWebSlenderness(ElementSlenderness):
     @property
     def shear_area(self) -> Quantity:
         return (
-            self.profile.dimensions.web_height * self.profile.dimensions.web_thickness
+            self.profile.dimensions.web_height
+            * self.profile.dimensions.web_thickness
         )
 
 
@@ -660,24 +683,11 @@ class DoublySymmetricIFlangeSlenderness(ElementSlenderness):
             factor=1,
         )
 
-    # @property
-    # def flexural_minor_axis_value(self):
-    #     limit_slender = self.flexural_minor_axis_slender_limit_ratio
-    #     limit_compact = self.flexural_compact_limit_ratio
-    #     ratio = self.slenderness_ratio
-    #     return _flexural_slenderness_per_element(limit_slender=limit_slender, limit_compact=limit_compact, ratio=ratio)
-    #
-    # @property
-    # def flexural_major_axis_value(self):
-    #     limit_slender = self.flexural_major_axis_slender_limit_ratio
-    #     limit_compact = self.flexural_compact_limit_ratio
-    #     ratio = self.slenderness_ratioratio
-    #     return _flexural_slenderness_per_element(limit_slender=limit_slender, limit_compact=limit_compact, ratio=ratio)
-
     @property
     def axial_compression(self):
         return AxialSlendernessCompute(
-            limit_ratio=self.axial_limit_ratio, slenderness_ratio=self.slenderness_ratio
+            limit_ratio=self.axial_limit_ratio,
+            slenderness_ratio=self.slenderness_ratio,
         )
 
     @property
@@ -705,17 +715,17 @@ class DoublySymmetricIFlangeSlenderness(ElementSlenderness):
 
 
 @dataclass
-class DoublySymmetricI(SectionProfileWebFlangeTorsBuck):
+class DoublySymmetricI:
     dimensions: DoublySymmetricIDimensions
     material: IsotropicMaterial
-    area_properties: AreaProperties | None = None
+    area_properties: AreaProperties = None
     construction: ConstructionType = ConstructionType.ROLLED
-    coefficient_c: float = 1.0
+    # coefficient_c: float = 1.0
 
     def __post_init__(self):
         if not self.area_properties:
-            self.area_properties = DoublySymmetricIAreaPropertiesFromDimensions(
-                self.dimensions
+            self.area_properties = (
+                DoublySymmetricIAreaPropertiesFromDimensions(self.dimensions)
             )
 
     # @property
@@ -729,141 +739,150 @@ class DoublySymmetricI(SectionProfileWebFlangeTorsBuck):
     #     )
     #     warping_constant_table = pd.DataFrame({"warping_constant": [self.warping_constant]})
     #     return pd.concat((dimensions_table, area_properties_table, warping_constant_table, extra_table), axis=1)
+    #
+    # @property
+    # def web_shear_buckling_coefficient(self):
+    #     return 5
+    #
+    # @property
+    # def web_shear_coefficient_limit_0(self):
+    #     return _web_shear_coefficient_limit(
+    #         factor=2.24,
+    #         web_shear_buckling_coefficient=1.0,
+    #         modulus_linear=self.material.modulus_linear,
+    #         yield_stress=self.material.yield_stress,
+    #     )
+    #
+    # @property
+    # def web_shear_coefficient_limit_i(self):
+    #     return _web_shear_coefficient_limit(
+    #         factor=1.1,
+    #         web_shear_buckling_coefficient=self.web_shear_buckling_coefficient,
+    #         modulus_linear=self.material.modulus_linear,
+    #         yield_stress=self.material.yield_stress,
+    #     )
+    #
+    # @property
+    # def web_shear_coefficient_limit_ii(self):
+    #     return _web_shear_coefficient_limit(
+    #         factor=1.37,
+    #         web_shear_buckling_coefficient=self.web_shear_buckling_coefficient,
+    #         modulus_linear=self.material.modulus_linear,
+    #         yield_stress=self.material.yield_stress,
+    #     )
+    #
+    # @property
+    # def web_shear_coefficient_iii(self):
+    #     return web_shear_coefficient_iii(
+    #         shear_buckling_coefficient=self.web_shear_buckling_coefficient,
+    #         modulus_linear=self.material.modulus_linear,
+    #         yield_stress=self.material.yield_stress,
+    #         web_slenderness=self.slenderness.web.slenderness_ratio,
+    #     )
+    #
+    # @property
+    # def web_shear_coefficient(self):
+    #     if (
+    #         self.slenderness.web.slenderness_ratio
+    #         <= self.web_shear_coefficient_limit_0
+    #     ):
+    #         return 1.0
+    #     if (
+    #         self.slenderness.web.slenderness_ratio
+    #         < self.web_shear_coefficient_limit_i
+    #     ):
+    #         return 1.0
+    #     elif (
+    #         self.slenderness.web.slenderness_ratio
+    #         < self.web_shear_coefficient_limit_ii
+    #     ):
+    #         return (
+    #             self.web_shear_coefficient_limit_i
+    #             / self.slenderness.web.slenderness_ratio
+    #         )
+    #     else:
+    #         return self.web_shear_coefficient_iii
 
-    @property
-    def web_shear_buckling_coefficient(self):
-        return 5
-
-    @property
-    def web_shear_coefficient_limit_0(self):
-        return _web_shear_coefficient_limit(
-            factor=2.24,
-            web_shear_buckling_coefficient=1.0,
-            modulus_linear=self.material.modulus_linear,
-            yield_stress=self.material.yield_stress,
-        )
-
-    @property
-    def web_shear_coefficient_limit_i(self):
-        return _web_shear_coefficient_limit(
-            factor=1.1,
-            web_shear_buckling_coefficient=self.web_shear_buckling_coefficient,
-            modulus_linear=self.material.modulus_linear,
-            yield_stress=self.material.yield_stress,
-        )
-
-    @property
-    def web_shear_coefficient_limit_ii(self):
-        return _web_shear_coefficient_limit(
-            factor=1.37,
-            web_shear_buckling_coefficient=self.web_shear_buckling_coefficient,
-            modulus_linear=self.material.modulus_linear,
-            yield_stress=self.material.yield_stress,
-        )
-
-    @property
-    def web_shear_coefficient_iii(self):
-        return web_shear_coefficient_iii(
-            shear_buckling_coefficient=self.web_shear_buckling_coefficient,
-            modulus_linear=self.material.modulus_linear,
-            yield_stress=self.material.yield_stress,
-            web_slenderness=self.slenderness.web.slenderness_ratio,
-        )
-
-    @property
-    def web_shear_coefficient(self):
-        if self.slenderness.web.slenderness_ratio <= self.web_shear_coefficient_limit_0:
-            return 1.0
-        if self.slenderness.web.slenderness_ratio < self.web_shear_coefficient_limit_i:
-            return 1.0
-        elif (
-            self.slenderness.web.slenderness_ratio < self.web_shear_coefficient_limit_ii
-        ):
-            return (
-                self.web_shear_coefficient_limit_i
-                / self.slenderness.web.slenderness_ratio
-            )
-        else:
-            return self.web_shear_coefficient_iii
-
-    @property
-    def warping_constant(self):
-        if self.area_properties.warping_constant:
-            return self.area_properties.warping_constant
-        return warping_constant(
-            moment_of_inertia=self.area_properties.minor_axis.inertia,
-            distance_between_flanges_centroid=self.dimensions.distance_between_centroids,
-        )
-
-    @property
-    def effective_radius_of_gyration(self):
-        return effective_radius_of_gyration(
-            major_section_modulus=self.area_properties.major_axis.elastic_section_modulus,
-            minor_inertia=self.area_properties.minor_axis.inertia,
-            warping_constant=self.warping_constant,
-        )
-
-    @property
-    def limit_length_torsional_buckling(self):
-        return limiting_length_torsional_buckling(
-            modulus=self.material.modulus_linear,
-            yield_stress=self.material.yield_stress,
-            section_modulus=self.area_properties.major_axis.elastic_section_modulus,
-            torsional_constant=self.area_properties.torsion.inertia,
-            effective_radius_of_gyration=self.effective_radius_of_gyration,
-            distance_between_centroids=self.dimensions.distance_between_centroids,
-            coefficient_c=self.coefficient_c,
-        )
-
-    @property
-    def limit_length_yield(self):
-        return limiting_length_yield(
-            modulus=self.material.modulus_linear,
-            radius_of_gyration=self.area_properties.minor_axis.radius_of_gyration,
-            yield_stress=self.material.yield_stress,
-        )
+    # @property
+    # def warping_constant(self):
+    #     if self.area_properties.warping_constant:
+    #         return self.area_properties.warping_constant
+    #     return warping_constant(
+    #         moment_of_inertia=self.area_properties.minor_axis.inertia,
+    #         distance_between_flanges_centroid=self.dimensions.distance_between_centroids,
+    #     )
+    #
+    # @property
+    # def effective_radius_of_gyration(self):
+    #     return effective_radius_of_gyration(
+    #         major_section_modulus=self.area_properties.major_axis.elastic_section_modulus,
+    #         minor_inertia=self.area_properties.minor_axis.inertia,
+    #         warping_constant=self.warping_constant,
+    #     )
+    #
+    # @property
+    # def limit_length_torsional_buckling(self):
+    #     return limiting_length_lateral_torsional_buckling(
+    #         modulus=self.material.modulus_linear,
+    #         yield_stress=self.material.yield_stress,
+    #         section_modulus=self.area_properties.major_axis.elastic_section_modulus,
+    #         torsional_constant=self.area_properties.torsion.inertia,
+    #         effective_radius_of_gyration=self.effective_radius_of_gyration,
+    #         distance_between_centroids=self.dimensions.distance_between_centroids,
+    #         coefficient_c=self.coefficient_c,
+    #     )
+    #
+    # @property
+    # def limit_length_yield(self):
+    #     return limiting_length_yield(
+    #         modulus=self.material.modulus_linear,
+    #         radius_of_gyration=self.area_properties.minor_axis.radius_of_gyration,
+    #         yield_stress=self.material.yield_stress,
+    #     )
 
     @property
     def slenderness(self):
         return DoublySymmetricIFlangeWebSlenderness(section=self)
 
-    def elastic_torsional_buckling_stress(self, beam: "BeamAnalysis"):
-        return elastic_torsional_buckling_stress_doubly_symmetric_member(
-            modulus_linear=self.material.modulus_linear,
-            modulus_shear=self.material.modulus_shear,
-            effective_length_factor_torsional_buckling=beam.parameters.factor_k_torsion,
-            member_length=beam.parameters.unbraced_length_torsion,
-            torsional_constant=self.area_properties.torsion.inertia,
-            major_axis_inertia=self.area_properties.major_axis.inertia,
-            minor_axis_inertia=self.area_properties.minor_axis.inertia,
-            warping_constant=self.warping_constant,
+    # def elastic_torsional_buckling_stress(self, beam: "BeamAnalysis"):
+    #     return elastic_torsional_buckling_stress_doubly_symmetric_member(
+    #         modulus_linear=self.material.modulus_linear,
+    #         modulus_shear=self.material.modulus_shear,
+    #         factor_k=beam.parameters.factor_k_torsion,
+    #         length=beam.parameters.unbraced_length_torsion,
+    #         torsional_constant=self.area_properties.torsion.inertia,
+    #         major_axis_inertia=self.area_properties.major_axis.inertia,
+    #         minor_axis_inertia=self.area_properties.minor_axis.inertia,
+    #         warping_constant=self.warping_constant,
+    #     )
+
+    # def torsional_buckling_critical_stress_effective_length(
+    #     self, beam: "BeamAnalysis"
+    # ):
+    #     return critical_compression_stress_buckling_default(
+    #         # member_slenderness=beam.torsion_slenderness,
+    #         # member_slenderness_limit=beam.slenderness_limit,
+    #         yield_stress=self.material.yield_stress,
+    #         elastic_buckling_stress=self.elastic_torsional_buckling_stress(
+    #             beam
+    #         ),
+    #     )
+
+    def compression(self, beam: "Beam") -> DesignStrength:
+        return DesignStrength(
+            strengths={
+                FLEXURAL_BUCKLING_MAJOR_AXIS_STRENGTH: FlexuralBuckling(
+                    section=self,
+                    beam=beam,
+                    axis=Axis.MAJOR,
+                ),
+                FLEXURAL_BUCKLING_MINOR_AXIS_STRENGTH: FlexuralBuckling(
+                    section=self,
+                    beam=beam,
+                    axis=Axis.MINOR,
+                ),
+            }
         )
-
-    def torsional_buckling_critical_stress_effective_length(self, beam: "BeamAnalysis"):
-        return critical_compression_stress_buckling_default(
-            # member_slenderness=beam.torsion_slenderness,
-            # member_slenderness_limit=beam.slenderness_limit,
-            yield_stress=self.material.yield_stress,
-            elastic_buckling_stress=self.elastic_torsional_buckling_stress(beam),
-        )
-
-    @property
-    def latex(self):
-        return DoublySymmetricIUserDefinedLatex(self)
-
-    def compression(self, beam: "Beam") -> dict[str, Criteria]:
-        return {
-            FLEXURAL_BUCKLING_MAJOR: FlexuralBucklingAdaptor(
-                section=self,
-                beam=beam,
-                axis=Axis.MAJOR,
-            ),
-            FLEXURAL_BUCKLING_MINOR: FlexuralBucklingAdaptor(
-                section=self,
-                beam=beam,
-                axis=Axis.MINOR,
-            ),
-        }
         # return {
         #     f"{FLEXURAL_BUCKLING}_major": create_compression_flexural_buckling_criteria(
         #         beam_param=beam_param, section=self, axis="major"
@@ -873,7 +892,7 @@ class DoublySymmetricI(SectionProfileWebFlangeTorsBuck):
         #     ),
         # }
 
-    def shear_major_axis(self, beam: "Beam") -> dict[str, Criteria]:
+    def shear_major_axis(self, beam: "Beam") -> DesignStrength:
         return {
             SHEAR_STRENGTH: StandardShearCriteriaAdaptor(
                 beam=beam, section=self, axis=Axis.MAJOR

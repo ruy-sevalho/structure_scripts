@@ -6,7 +6,10 @@ import numpy as np
 from quantities import Quantity
 
 from structure_scripts.aisc_360_10.section_slenderness import Slenderness
-from structure_scripts.shared.helpers import ratio_simplify, same_units_simplify
+from structure_scripts.shared.helpers import (
+    ratio_simplify,
+    same_units_simplify,
+)
 
 
 class ConstructionType(str, Enum):
@@ -25,7 +28,9 @@ def _member_slenderness_limit(
     modulus_linear: Quantity,
     yield_stress: Quantity,
 ):
-    member_slenderness_limit: Quantity = 4.71 * (modulus_linear / yield_stress) ** 0.5
+    member_slenderness_limit: Quantity = (
+        4.71 * (modulus_linear / yield_stress) ** 0.5
+    )
     member_slenderness_limit = member_slenderness_limit.simplified
     return member_slenderness_limit.magnitude
 
@@ -55,8 +60,8 @@ def elastic_flexural_buckling_stress(
 def elastic_torsional_buckling_stress_doubly_symmetric_member(
     modulus_linear: Quantity,
     modulus_shear: Quantity,
-    effective_length_factor_torsional_buckling: float,
-    member_length: Quantity,
+    factor_k: float,
+    length: Quantity,
     torsional_constant: Quantity,
     major_axis_inertia: Quantity,
     minor_axis_inertia: Quantity,
@@ -66,7 +71,7 @@ def elastic_torsional_buckling_stress_doubly_symmetric_member(
         np.pi**2
         * modulus_linear
         * warping_constant
-        / (effective_length_factor_torsional_buckling * member_length) ** 2
+        / (factor_k * length) ** 2
         + modulus_shear * torsional_constant
     ) * (1 / (minor_axis_inertia + major_axis_inertia))
 
@@ -86,7 +91,10 @@ def kc_coefficient(web_height: Quantity, web_thickness: Quantity):
 
 # ANSI/AISC 360-10 page 16.1–16 (reference rules)
 def limit_ratio_default(
-    modulus_linear: Quantity, stress: Quantity, factor: float, kc_coefficient: float = 1
+    modulus_linear: Quantity,
+    stress: Quantity,
+    factor: float,
+    kc_coefficient: float = 1,
 ):
     ratio = ratio_simplify(modulus_linear, stress)
     return factor * (kc_coefficient * ratio) ** (1 / 2)
@@ -116,7 +124,10 @@ def flexural_slenderness_several_elements(
 
 
 def lateral_torsional_buckling_modification_factor_default(
-    moment_max: Quantity, moment_a: Quantity, moment_b: Quantity, moment_c: Quantity
+    moment_max: Quantity,
+    moment_a: Quantity,
+    moment_b: Quantity,
+    moment_c: Quantity,
 ):
     numerator = 12.5 * moment_max
     denominator = 2.5 * moment_max + 3 * moment_a + 4 * moment_b + 3 * moment_c
@@ -154,12 +165,16 @@ def _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_
     ).simplified
     mp_factor = plastic_moment - 0.7 * yield_stress * section_modulus
     calculated_moment = mod_factor * (plastic_moment - mp_factor * l_factor)
-    momt_calc, momt_plastic = same_units_simplify(calculated_moment, plastic_moment)
+    momt_calc, momt_plastic = same_units_simplify(
+        calculated_moment, plastic_moment
+    )
     return min(momt_calc, momt_plastic)
 
 
 def _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_c(
-    plastic_moment: Quantity, section_modulus: Quantity, critical_stress: Quantity
+    plastic_moment: Quantity,
+    section_modulus: Quantity,
+    critical_stress: Quantity,
 ) -> Quantity:
     return critical_stress * section_modulus
 
@@ -207,7 +222,7 @@ def limiting_length_yield(
     return 1.76 * radius_of_gyration * (modulus / yield_stress) ** 0.5
 
 
-def limiting_length_torsional_buckling(
+def limiting_length_lateral_torsional_buckling(
     modulus: Quantity,
     yield_stress: Quantity,
     section_modulus: Quantity,
@@ -221,7 +236,9 @@ def limiting_length_torsional_buckling(
         * coefficient_c
         / (section_modulus * distance_between_centroids)
     )
-    inner_root = (ratio**2 + 6.76 * (0.7 * yield_stress / modulus) ** 2) ** 0.5
+    inner_root = (
+        ratio**2 + 6.76 * (0.7 * yield_stress / modulus) ** 2
+    ) ** 0.5
     outer_root = (ratio + inner_root) ** 0.5
     return (
         1.95
@@ -233,9 +250,13 @@ def limiting_length_torsional_buckling(
 
 
 def effective_radius_of_gyration(
-    major_section_modulus: Quantity, minor_inertia: Quantity, warping_constant: Quantity
+    major_section_modulus: Quantity,
+    minor_inertia: Quantity,
+    warping_constant: Quantity,
 ) -> Quantity:
-    return ((minor_inertia * warping_constant) ** 0.5 / major_section_modulus) ** 0.5
+    return (
+        (minor_inertia * warping_constant) ** 0.5 / major_section_modulus
+    ) ** 0.5
 
 
 def _flexural_flange_local_buckling_non_compact(
@@ -250,7 +271,8 @@ def _flexural_flange_local_buckling_non_compact(
         compact_limit_ratio - slender_limit_ratio
     )
     return (
-        plastic_moment - (plastic_moment - 0.7 * yield_stress * section_modulus) * ratio
+        plastic_moment
+        - (plastic_moment - 0.7 * yield_stress * section_modulus) * ratio
     )
 
 
@@ -305,7 +327,8 @@ def _flexural_and_axial_compression_h1_3_validity(
     available_minor_axis_flexural_strength: Quantity,
 ) -> bool:
     ratio = ratio_simplify(
-        required_minor_axis_flexural_strength, available_minor_axis_flexural_strength
+        required_minor_axis_flexural_strength,
+        available_minor_axis_flexural_strength,
     )
     return ratio >= 0.05
 
@@ -321,7 +344,8 @@ def _flexural_and_axial_compression_h1_3_criteria(
         required_axial_strength, available_axial_strength
     )
     flexural_strength_ratio = ratio_simplify(
-        required_major_axis_flexural_strength, available_major_axis_flexural_strength
+        required_major_axis_flexural_strength,
+        available_major_axis_flexural_strength,
     )
     return (
         axial_strength_ratio * (1.5 + 0.5 * available_axial_strength)
@@ -347,7 +371,9 @@ def doubly_symmetric_i_torsional_constant(
 
 
 def _nominal_shear_strength(
-    yield_stress: Quantity, web_area: Quantity, web_shear_coefficient: float = 1.0
+    yield_stress: Quantity,
+    web_area: Quantity,
+    web_shear_coefficient: float = 1.0,
 ):
     return 0.6 * yield_stress * web_area * web_shear_coefficient
 
@@ -360,7 +386,9 @@ def _web_shear_coefficient_limit(
 ) -> float:
     return (
         factor
-        * ratio_simplify(web_shear_buckling_coefficient * modulus_linear, yield_stress)
+        * ratio_simplify(
+            web_shear_buckling_coefficient * modulus_linear, yield_stress
+        )
         ** 0.5
     )
 

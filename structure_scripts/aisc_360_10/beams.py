@@ -3,11 +3,13 @@ from typing import Protocol
 
 from quantities import Quantity, N, m
 
-from structure_scripts.aisc_360_10.criteria import (
-    SafetyFactor,
-    AllowableStrengthDesign,
-    CriteriaCollection,
-)
+from structure_scripts.aisc_360_10.criteria import DesignType
+
+# from structure_scripts.aisc_360_10.criteria import (
+#     # SafetyFactor,
+#     # AllowableStrengthDesign,
+#     # CriteriaCollection,
+# )
 from structure_scripts.aisc_360_10.helpers import _member_slenderness_limit
 from structure_scripts.aisc_360_10.sections import Section
 from structure_scripts.shared.helpers import member_slenderness_ratio
@@ -112,7 +114,9 @@ class BucklingParam:
     factor_k_torsion: float = 1.0
 
     def __post_init__(self):
-        self.length_minor_axis = self.length_minor_axis or self.length_major_axis
+        self.length_minor_axis = (
+            self.length_minor_axis or self.length_major_axis
+        )
         self.length_torsion = self.length_torsion or self.length_major_axis
 
 
@@ -128,7 +132,7 @@ class Beam:
     buckling_param: BucklingParam
     loads: BeamLoading | None = None
     lateral_torsional_buckling_modification_factor: float = 1.0
-    safety_factor: SafetyFactor = AllowableStrengthDesign()
+    safety_factor: DesignType = DesignType.ASD
 
 
 @dataclass
@@ -174,7 +178,7 @@ class BeamAnalysis:
 
     @property
     def compression(self):
-        return CriteriaCollection(self.section.compression(beam=self.beam))
+        return
 
     @property
     def shear_major_axis(self):
