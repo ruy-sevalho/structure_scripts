@@ -44,7 +44,7 @@ class DesignType(str, Enum):
 def design_strength(
     nominal_strength: Quantity,
     design_type: DesignType,
-    safety_factor_table: dict[DesignType, float],
+    design_type_factors: dict[DesignType, float],
 ):
     def asd(nominal_strength: Quantity, safety_factor: float) -> Quantity:
         return nominal_strength / safety_factor
@@ -58,7 +58,7 @@ def design_strength(
     }
     return table[design_type](
         nominal_strength=nominal_strength,
-        safety_factor=safety_factor_table[design_type],
+        safety_factor=design_type_factors[design_type],
     )
 
 
@@ -70,11 +70,6 @@ def default_design_type_factors():
 
 
 class NominalStrengthModel(Protocol):
-    @abc.abstractmethod
-    @property
-    def design_type_factors(self) -> dict[DesignType, float]:
-        pass
-
     @abc.abstractmethod
     @property
     def nominal_strength(self) -> Quantity:
@@ -93,15 +88,22 @@ class Criteria:
     design_type: DesignType
 
     @property
-    def design_strength(self) -> Quantity:
-        return design_strength(
-            nominal_strength=self.strength_model.nominal_strength,
-            design_type=self.design_type,
+    def design_strength(self) -> tuple[Quantity, str]:
+        d = self.strength_models
+        nominal_strength_key = min(
+            (key for key in self.strength_models if d[key].valid),
+            key=lambda key: d[key].nominal_strength,
         )
-
-    @property
-    def nominal_strength(self):
-        return self.strength_model.nominal_strength
+        return (
+            design_strength(
+                nominal_strength=self.strength_models[
+                    nominal_strength_key
+                ].nominal_strength,
+                design_type=self.design_type,
+                design_type_factors=self.design_type_factors,
+            ),
+            nominal_strength_key,
+        )
 
 
 # class Criteria(Protocol):
@@ -141,45 +143,45 @@ class Criteria:
 #         )
 
 
-class CriteriaAdaptor(Criteria, Protocol):
-    @property
-    def criteria(self) -> Criteria:
-        ...
+# class CriteriaAdaptor(Criteria, Protocol):
+#     @property
+#     def criteria(self) -> Criteria:
+#         ...
 
-    @property
-    def nominal_strength(self):
-        return self.criteria.nominal_strength
+#     @property
+#     def nominal_strength(self):
+#         return self.criteria.nominal_strength
 
-    @property
-    def design_strength(self):
-        return self.criteria.design_strength
+#     @property
+#     def design_strength(self):
+#         return self.criteria.design_strength
 
-    @property
-    def aux_parameters(self) -> dict[str, Quantity | float] | None:
-        return self.criteria.aux_parameters
+#     @property
+#     def aux_parameters(self) -> dict[str, Quantity | float] | None:
+#         return self.criteria.aux_parameters
 
-    @property
-    def safety_factor(self):
-        return self.criteria.design_type
+#     @property
+#     def safety_factor(self):
+#         return self.criteria.design_type
 
 
-@dataclass
-class CriteriaCollection:
-    criteria_dict: dict[str, Criteria]
+# @dataclass
+# class CriteriaCollection:
+#     criteria_dict: dict[str, Criteria]
 
-    @property
-    def design_strength_criteria(self) -> tuple[Criteria, str]:
-        return min(
-            (x for x in self.criteria_dict.values() if x.valid),
-            key=lambda x: x.design_strength,
-        )
+#     @property
+#     def design_strength_criteria(self) -> tuple[Criteria, str]:
+#         return min(
+#             (x for x in self.criteria_dict.values() if x.valid),
+#             key=lambda x: x.design_strength,
+#         )
 
-    @property
-    def nominal_strength(self) -> Quantity:
-        return min(
-            (x for x in self.criteria_dict.values() if x.valid),
-            key=lambda x: x.nominal_strength,
-        ).nominal_strength
+#     @property
+#     def nominal_strength(self) -> Quantity:
+#         return min(
+#             (x for x in self.criteria_dict.values() if x.valid),
+#             key=lambda x: x.nominal_strength,
+#         ).nominal_strength
 
 
 # @dataclass
