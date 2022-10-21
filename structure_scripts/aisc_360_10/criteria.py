@@ -86,6 +86,13 @@ class Strength(Protocol):
         pass
 
 
+class StrengthCollection(Protocol):
+    @property
+    @abc.abstractmethod
+    def values(self) -> dict[str, Quantity]:
+        ...
+
+
 @dataclass
 class DesignStrength:
     strengths: dict[str, Strength]
