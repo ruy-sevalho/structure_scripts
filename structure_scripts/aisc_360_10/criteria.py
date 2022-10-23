@@ -56,12 +56,8 @@ class Criteria:
     allowable_strength: float = 1.67
     load_resistance_factor: float = 0.9
 
-    def design_strength(
-        self, nominal_strength: Quantity, design_type: DesignType
-    ):
-        table: dict[
-            DesignType, tuple[Callable[[Quantity, float], Quantity], float]
-        ] = {
+    def design_strength(self, nominal_strength: Quantity, design_type: DesignType):
+        table: dict[DesignType, tuple[Callable[[Quantity, float], Quantity], float]] = {
             DesignType.ASD: (asd, self.allowable_strength),
             DesignType.LRFD: (lrfd, self.load_resistance_factor),
         }

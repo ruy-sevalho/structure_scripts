@@ -10,9 +10,7 @@ from structure_scripts.aisc_360_10.compression import (
     FlexuralBuckling,
 )
 from structure_scripts.aisc_360_10.criteria import DesignStrength
-from structure_scripts.aisc_360_10.sections import (
-    SectionProfileWebFlangeTorsBuck,
-)
+
 from structure_scripts.aisc_360_10.elements_latex import (
     DoublySymmetricIDimensionsLatex,
     DoublySymmetricIUserDefinedLatex,
@@ -67,7 +65,7 @@ from structure_scripts.shared.sections import (
 )
 
 if TYPE_CHECKING:
-    from structure_scripts.aisc_360_10.beams import BeamAnalysis, Beam
+    from structure_scripts.aisc_360_10.beams import Beam
 
 
 @dataclass
@@ -173,8 +171,7 @@ class DoublySymmetricIAreaPropertiesCompute(AreaProperties):
     @property
     def minor_axis_inertia(self):
         return (
-            2 * self._flange_self_inertia_minor_axis
-            + self._web_self_inertia_minor_axis
+            2 * self._flange_self_inertia_minor_axis + self._web_self_inertia_minor_axis
         )
 
     @property
@@ -366,8 +363,7 @@ class DoublySymmetricIAreaPropertiesFromDimensions(AreaProperties):
     @property
     def _minor_axis_inertia(self):
         return (
-            2 * self._flange_self_inertia_minor_axis
-            + self._web_self_inertia_minor_axis
+            2 * self._flange_self_inertia_minor_axis + self._web_self_inertia_minor_axis
         )
 
     @property
@@ -580,8 +576,7 @@ class DoublySymmetricIWebSlenderness(ElementSlenderness):
     @property
     def shear_area(self) -> Quantity:
         return (
-            self.profile.dimensions.web_height
-            * self.profile.dimensions.web_thickness
+            self.profile.dimensions.web_height * self.profile.dimensions.web_thickness
         )
 
 
@@ -724,8 +719,8 @@ class DoublySymmetricI:
 
     def __post_init__(self):
         if not self.area_properties:
-            self.area_properties = (
-                DoublySymmetricIAreaPropertiesFromDimensions(self.dimensions)
+            self.area_properties = DoublySymmetricIAreaPropertiesFromDimensions(
+                self.dimensions
             )
 
     # @property

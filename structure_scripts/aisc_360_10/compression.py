@@ -107,9 +107,7 @@ class BucklingStrengthGeneralCalculation(Strength, Protocol):
     critical_stress: Quantity
 
 
-class BucklingStrengthEulerCalculation(
-    BucklingStrengthGeneralCalculation, Protocol
-):
+class BucklingStrengthEulerCalculation(BucklingStrengthGeneralCalculation, Protocol):
     elastic_buckling_stress: Quantity
 
 
@@ -134,8 +132,34 @@ class BucklingStrength:
         )
 
 
+class BucklingMixin:
+    @property
+    def buckling_strength_model(self) -> BucklingStrength:
+        return BucklingStrength(
+            elastic_buckling_stress=self.elastic_buckling_stress,
+            section_area=self.section.area_properties.area,
+            yield_stress=self.section.material.yield_stress,
+        )
+
+    @property
+    def nominal_strength(self):
+        return self.buckling_strength_model.nominal_strength
+
+    @property
+    def critical_stress(self):
+        return self.buckling_strength_model.critical_stress
+
+    @property
+    def detailed_results(self):
+        return {
+            ELASTIC_BUCKLING_STRESS: self.elastic_buckling_stress,
+            BUCKLING_CRITICAL_STRESS: self.critical_stress,
+            NOMINAL_STRENGTH: self.nominal_strength,
+        }
+
+
 @dataclass
-class FlexuralBuckling:
+class FlexuralBuckling(BucklingMixin):
     section: Section
     beam: Beam
     axis: Axis
@@ -183,33 +207,33 @@ class FlexuralBuckling:
             member_slenderness_ratio=self.beam_slenderness,
         )
 
-    @property
-    def buckling_strength_model(self) -> BucklingStrength:
-        return BucklingStrength(
-            elastic_buckling_stress=self.elastic_buckling_stress,
-            section_area=self.section.area_properties.area,
-            yield_stress=self.section.material.yield_stress,
-        )
+    # @property
+    # def buckling_strength_model(self) -> BucklingStrength:
+    #     return BucklingStrength(
+    #         elastic_buckling_stress=self.elastic_buckling_stress,
+    #         section_area=self.section.area_properties.area,
+    #         yield_stress=self.section.material.yield_stress,
+    #     )
 
-    @property
-    def nominal_strength(self):
-        return self.buckling_strength_model.nominal_strength
+    # @property
+    # def nominal_strength(self):
+    #     return self.buckling_strength_model.nominal_strength
 
-    @property
-    def critical_stress(self):
-        return self.buckling_strength_model.critical_stress
+    # @property
+    # def critical_stress(self):
+    #     return self.buckling_strength_model.critical_stress
 
-    @property
-    def detailed_results(self):
-        return {
-            ELASTIC_BUCKLING_STRESS: self.elastic_buckling_stress,
-            BUCKLING_CRITICAL_STRESS: self.critical_stress,
-            NOMINAL_STRENGTH: self.nominal_strength,
-        }
+    # @property
+    # def detailed_results(self):
+    #     return {
+    #         ELASTIC_BUCKLING_STRESS: self.elastic_buckling_stress,
+    #         BUCKLING_CRITICAL_STRESS: self.critical_stress,
+    #         NOMINAL_STRENGTH: self.nominal_strength,
+    #     }
 
 
 @dataclass
-class TorsionalBucklingDoublySymmetricI:
+class TorsionalBucklingDoublySymmetricI(BucklingMixin):
     section: "DoublySymmetricI"
     beam: Beam
 
@@ -229,29 +253,29 @@ class TorsionalBucklingDoublySymmetricI:
             modulus_shear=self.section.material.modulus_shear,
         )
 
-    @property
-    def buckling_strength(self) -> BucklingStrength:
-        return BucklingStrength(
-            elastic_buckling_stress=self.elastic_buckling_stress,
-            section_area=self.section.area_properties.area,
-            yield_stress=self.section.material.yield_stress,
-        )
+    # @property
+    # def buckling_strength(self) -> BucklingStrength:
+    #     return BucklingStrength(
+    #         elastic_buckling_stress=self.elastic_buckling_stress,
+    #         section_area=self.section.area_properties.area,
+    #         yield_stress=self.section.material.yield_stress,
+    #     )
 
-    @property
-    def nominal_strength(self):
-        return self.buckling_strength.nominal_strength
+    # @property
+    # def nominal_strength(self):
+    #     return self.buckling_strength.nominal_strength
 
-    @property
-    def critical_stress(self):
-        return self.buckling_strength.critical_stress
+    # @property
+    # def critical_stress(self):
+    #     return self.buckling_strength.critical_stress
 
-    @property
-    def detailed_results(self):
-        return {
-            ELASTIC_BUCKLING_STRESS: self.elastic_buckling_stress,
-            BUCKLING_CRITICAL_STRESS: self.critical_stress,
-            FLEXURAL_BUCKLING_MAJOR_AXIS_STRENGTH: self.nominal_strength,
-        }
+    # @property
+    # def detailed_results(self):
+    #     return {
+    #         ELASTIC_BUCKLING_STRESS: self.elastic_buckling_stress,
+    #         BUCKLING_CRITICAL_STRESS: self.critical_stress,
+    #         FLEXURAL_BUCKLING_MAJOR_AXIS_STRENGTH: self.nominal_strength,
+    #     }
 
 
 # def create_compression_flexural_buckling_criteria(

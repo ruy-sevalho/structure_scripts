@@ -17,7 +17,7 @@ from structure_scripts.aisc_360_10.helpers import (
     ConstructionType,
 )
 
-from structure_scripts.aisc_360_10.sections import SectionWithWebAndFlange
+
 from structure_scripts.aisc_360_10.section_slenderness import (
     ElementSlendernessDefinition,
 )
@@ -25,7 +25,7 @@ from structure_scripts.shared.helpers import Axis
 from structure_scripts.shared.materials import IsotropicMaterial
 
 if TYPE_CHECKING:
-    from beams import BeamAnalysis
+    from beams import Beam
     from structure_scripts.aisc_360_10.i_profile import DoublySymmetricI
     from structure_scripts.aisc_360_10.sections import Section
 
@@ -137,19 +137,16 @@ class ShearStrength:
             yield_stress=self.material.yield_stress,
         )
 
-    def __post_init__(self):
-        # This code sure smells
-        if self.rolled_i_shaped:
-            if (
-                self.element.slenderness_ratio
-                <= self.shear_coefficient_limit_0
-            ):
-                self.safety_factor = deepcopy(self.safety_factor)
-                self.shear_coefficient = 1.0
-                if type(self.safety_factor) == AllowableStrengthDesign:
-                    self.safety_factor.value = 1.5
-                elif type(self.safety_factor) == LoadAndResistanceFactorDesign:
-                    self.safety_factor.value = 1.0
+    # def __post_init__(self):
+    #     # This code sure smells
+    #     if self.rolled_i_shaped:
+    #         if self.element.slenderness_ratio <= self.shear_coefficient_limit_0:
+    #             self.safety_factor = deepcopy(self.safety_factor)
+    #             self.shear_coefficient = 1.0
+    #             if type(self.safety_factor) == AllowableStrengthDesign:
+    #                 self.safety_factor.value = 1.5
+    #             elif type(self.safety_factor) == LoadAndResistanceFactorDesign:
+    #                 self.safety_factor.value = 1.0
 
     @property
     def nominal_strength(self):
@@ -206,9 +203,7 @@ class StandardShearCoefficient:
         if self.element.slenderness_ratio < self.shear_coefficient_limit_i:
             return 1.0
         elif self.element.slenderness_ratio < self.shear_coefficient_limit_ii:
-            return (
-                self.shear_coefficient_limit_i / self.element.slenderness_ratio
-            )
+            return self.shear_coefficient_limit_i / self.element.slenderness_ratio
         else:
             return self.shear_coefficient_iii
 
@@ -257,8 +252,8 @@ class StandardShearCoefficient:
 
 @dataclass
 class StandardShearCriteriaAdaptor:
-    section: "SectionWithWebAndFlange"
-    beam: "BeamGlobalData"
+    section: "Section"
+    beam: "Beam"
     axis: Axis
 
     name = SHEAR_STRENGTH
