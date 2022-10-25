@@ -1,4 +1,4 @@
-import abc
+from abc import abstractmethod, ABC
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Protocol, Callable
@@ -71,17 +71,17 @@ class Criteria:
 
 class Strength(Protocol):
     @property
-    @abc.abstractmethod
+    @abstractmethod
     def nominal_strength(self) -> Quantity:
         pass
 
     @property
-    @abc.abstractmethod
+    @abstractmethod
     def valid(self) -> True:
         pass
 
     @property
-    @abc.abstractmethod
+    @abstractmethod
     def detailed_results(self) -> dict[str, Quantity | float | bool]:
         pass
 
@@ -93,24 +93,25 @@ class Strength(Protocol):
 #         ...
 
 
-@dataclass
-class DesignStrength:
-    strengths: dict[str, Strength]
+class DesignStrengthMixin(ABC):
     criteria: Criteria = Criteria()
     design_type: DesignType = DesignType.ASD
+
+    @property
+    @abc.abstractmethod
+    def strengths(self) -> dict[str, Quantity]:
+        pass
 
     @property
     def design_strength(self) -> tuple[Quantity, str]:
         return min(
             (
                 (
-                    self.criteria.design_strength(
-                        item[1].nominal_strength, self.design_type
-                    ),
+                    self.criteria.design_strength(item[1], self.design_type),
                     item[0],
                 )
                 for item in self.strengths.items()
-                if item[1].valid
+                if item[1]
             ),
             key=lambda x: x[1].nominal_strength,
         )
