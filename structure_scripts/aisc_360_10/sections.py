@@ -2,10 +2,10 @@ import abc
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Protocol, Any, Optional, TYPE_CHECKING
-
+from numpy import array
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.criteria import DesignStrength
+from structure_scripts.aisc_360_10.criteria import DesignStrength, DesignType
 from structure_scripts.aisc_360_10.elements_latex import AreaPropertiesLatex
 from structure_scripts.aisc_360_10.helpers import (
     ConstructionType,
@@ -74,15 +74,29 @@ class Section(Protocol):
     material: IsotropicMaterial
     construction: ConstructionType
 
-    @property
-    @abc.abstractmethod
-    def slenderness(self) -> FlangeWebSlenderness | ElementSlenderness:
-        ...
+    # @property
+    # @abc.abstractmethod
+    # def slenderness(self) -> FlangeWebSlenderness | ElementSlenderness:
+    #     ...
 
-    def compression(self, beam: "Beam") -> DesignStrength:
-        ...
+    def compression_strength(
+        self,
+        length_major_axis: Quantity,
+        factor_k_major_axis: float = 1.0,
+        length_minor_axis: Quantity = None,
+        factor_k_minor_axis: float = 1.0,
+        length_torsion: Quantity = None,
+        factor_k_torsion: float = 1.0,
+        design_type: DesignType = DesignType.ASD,
+    ) -> DesignStrength:
+        pass
 
-    def shear_major_axis(self, beam: "Beam") -> DesignStrength:
+    # def compression(self, beam: "Beam") -> DesignStrength:
+    #     ...
+
+    def shear_major_axis_strength(
+        self, design_type: DesignType = DesignType.ASD
+    ) -> DesignStrength:
         ...
 
 

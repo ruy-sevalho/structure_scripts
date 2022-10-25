@@ -107,7 +107,9 @@ class BucklingStrengthGeneralCalculation(Strength, Protocol):
     critical_stress: Quantity
 
 
-class BucklingStrengthEulerCalculation(BucklingStrengthGeneralCalculation, Protocol):
+class BucklingStrengthEulerCalculation(
+    BucklingStrengthGeneralCalculation, Protocol
+):
     elastic_buckling_stress: Quantity
 
 
@@ -132,7 +134,10 @@ class BucklingStrength:
         )
 
 
-class BucklingMixin:
+class BucklingMixin(abc.ABC):
+    section: Section
+
+    @property
     @property
     def buckling_strength_model(self) -> BucklingStrength:
         return BucklingStrength(

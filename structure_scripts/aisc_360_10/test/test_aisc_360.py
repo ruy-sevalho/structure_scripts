@@ -88,33 +88,35 @@ channel_1_dimensions = ChannelDimensions(
     flange_thickness=10 * mm,
     flange_width=50 * mm,
 )
-channel_1_area_properties = ChannelAreaProperties(dimensions=channel_1_dimensions)
+channel_1_area_properties = ChannelAreaProperties(
+    dimensions=channel_1_dimensions
+)
 
 # beam analysis
-beam_200x10_analysis = BeamAnalysis(
-    section=profile_200x10_200x10,
-    beam=Beam(
-        buckling_param=BucklingParam(length_major_axis=1.0 * m),
-    ),
-)
-beam_127x76x13_rolled_1m = BeamAnalysis(
-    section=profile_127x76x13_rolled,
-    beam=Beam(
-        buckling_param=BucklingParam(length_major_axis=1.0 * m),
-    ),
-)
-beam_127x76x13_rolled_2m = BeamAnalysis(
-    section=profile_127x76x13_rolled,
-    beam=Beam(
-        buckling_param=BucklingParam(length_major_axis=2.0 * m),
-    ),
-)
-beam_127x76x13_rolled_4m = BeamAnalysis(
-    section=profile_127x76x13_rolled,
-    beam=Beam(
-        buckling_param=BucklingParam(length_major_axis=4.0 * m),
-    ),
-)
+# beam_200x10_analysis = BeamAnalysis(
+#     section=profile_200x10_200x10,
+#     beam=Beam(
+#         buckling_param=BucklingParam(length_major_axis=1.0 * m),
+#     ),
+# )
+# beam_127x76x13_rolled_1m = BeamAnalysis(
+#     section=profile_127x76x13_rolled,
+#     beam=Beam(
+#         buckling_param=BucklingParam(length_major_axis=1.0 * m),
+#     ),
+# )
+# beam_127x76x13_rolled_2m = BeamAnalysis(
+#     section=profile_127x76x13_rolled,
+#     beam=Beam(
+#         buckling_param=BucklingParam(length_major_axis=2.0 * m),
+#     ),
+# )
+# beam_127x76x13_rolled_4m = BeamAnalysis(
+#     section=profile_127x76x13_rolled,
+#     beam=Beam(
+#         buckling_param=BucklingParam(length_major_axis=4.0 * m),
+#     ),
+# )
 
 # beam_1_compression_flexural_buckling = BeamCompressionFlexuralBuckling(
 #     profile=profile_127x76x13_rolled,
@@ -212,9 +214,9 @@ def test_doubly_symmetric_i_kc_coefficient(
 def test_doubly_symmetric_i_flange_axial_slenderness_limit(
     profile: tuple[DoublySymmetricI, float]
 ):
-    assert profile[0].slenderness.flange.axial_compression.limit_ratio == approx(
-        profile[1]
-    )
+    assert profile[
+        0
+    ].slenderness.flange.axial_compression.limit_ratio == approx(profile[1])
 
 
 def test_doubly_symmetric_i_web_axial_slenderness_limit():
@@ -225,8 +227,9 @@ def test_doubly_symmetric_i_web_axial_slenderness_limit():
 
 
 def test_doubly_symmetric_i_flange_flexural_slenderness_limit():
-    assert profile_127x76x13_rolled.slenderness.flange.axial_limit_ratio == approx(
-        13.29195457
+    assert (
+        profile_127x76x13_rolled.slenderness.flange.axial_limit_ratio
+        == approx(13.29195457)
     )
 
 
@@ -284,28 +287,29 @@ def test_doubly_symmetric_i_web_flexural_limit():
 #     assert calculated == approx(reference)
 
 
-def cheack_criteria(
-    calculated: dict[str, Quantity | float], expected: dict[str, Quantity | float]
-):
-    calculated, expected = same_units_dictionary_simplify(calculated, expected)
-
-
-@mark.parametrize(
-    "beam, nominal_buckling_strength",
-    [
-        (beam_127x76x13_rolled_1m, Quantity(469234.6376, N)),
-        (beam_127x76x13_rolled_2m, Quantity(241225.5807, N)),
-        (beam_127x76x13_rolled_4m, Quantity(60589.50142, N)),
-    ],
-)
-def test_beam_compression_effective_length_flexural_buckling_strength(
-    beam: BeamAnalysis, nominal_buckling_strength: Quantity
-):
-
-    calculated, reference = same_units_simplify(
-        beam.compression.design_strength, nominal_buckling_strength
-    )
-    assert calculated == approx(reference)
+# def check_criteria(
+#     calculated: dict[str, Quantity | float],
+#     expected: dict[str, Quantity | float],
+# ):
+#     calculated, expected = same_units_dictionary_simplify(calculated, expected)
+#
+#
+# @mark.parametrize(
+#     "beam, nominal_buckling_strength",
+#     [
+#         (beam_127x76x13_rolled_1m, Quantity(469234.6376, N)),
+#         (beam_127x76x13_rolled_2m, Quantity(241225.5807, N)),
+#         (beam_127x76x13_rolled_4m, Quantity(60589.50142, N)),
+#     ],
+# )
+# def test_beam_compression_effective_length_flexural_buckling_strength(
+#     beam: BeamAnalysis, nominal_buckling_strength: Quantity
+# ):
+#
+#     calculated, reference = same_units_simplify(
+#         beam.compression.design_strength, nominal_buckling_strength
+#     )
+#     assert calculated == approx(reference)
 
 
 #
@@ -387,34 +391,34 @@ def test_beam_compression_effective_length_flexural_buckling_strength(
 #
 #
 
-
-@mark.parametrize(
-    "beam, expected_nominal_strength_shear_major_axis",
-    [(beam_200x10_analysis, Quantity(426 * kN))],
-)
-def test_beam_web_shear_nominal_strength(
-    beam: BeamAnalysis, expected_nominal_strength_shear_major_axis: Quantity
-):
-    calculated, reference = same_units_simplify(
-        beam.shear_major_axis[SHEAR_STRENGTH].nominal_strength,
-        expected_nominal_strength_shear_major_axis,
-    )
-    assert calculated == approx(reference)
-
-
-@mark.parametrize(
-    "beam, expected_design_strength_shear_major_axis",
-    [(beam_200x10_analysis, Quantity(284 * kN))],
-)
-def test_beam_web_shear_design_strength(
-    beam: BeamAnalysis, expected_design_strength_shear_major_axis: Quantity
-):
-    # Only special case where the safety factor value is supposed to change
-    calculated, reference = same_units_simplify(
-        beam.shear_major_axis[SHEAR_STRENGTH].design_strength,
-        expected_design_strength_shear_major_axis,
-    )
-    assert calculated == approx(reference)
+#
+# @mark.parametrize(
+#     "beam, expected_nominal_strength_shear_major_axis",
+#     [(beam_200x10_analysis, Quantity(426 * kN))],
+# )
+# def test_beam_web_shear_nominal_strength(
+#     beam: BeamAnalysis, expected_nominal_strength_shear_major_axis: Quantity
+# ):
+#     calculated, reference = same_units_simplify(
+#         beam.shear_major_axis[SHEAR_STRENGTH].nominal_strength,
+#         expected_nominal_strength_shear_major_axis,
+#     )
+#     assert calculated == approx(reference)
+#
+#
+# @mark.parametrize(
+#     "beam, expected_design_strength_shear_major_axis",
+#     [(beam_200x10_analysis, Quantity(284 * kN))],
+# )
+# def test_beam_web_shear_design_strength(
+#     beam: BeamAnalysis, expected_design_strength_shear_major_axis: Quantity
+# ):
+#     # Only special case where the safety factor value is supposed to change
+#     calculated, reference = same_units_simplify(
+#         beam.shear_major_axis[SHEAR_STRENGTH].design_strength,
+#         expected_design_strength_shear_major_axis,
+#     )
+#     assert calculated == approx(reference)
 
 
 def test_channel_dimensions_does_not_accept_total_and_web_height():
@@ -483,7 +487,9 @@ def test_channel_dimensions_calculates_correct_web_height(
         (channel_1_area_properties, 1800 * mm**2),
     ],
 )
-def test_channel_dimensions_area(channel: AreaProperties, expected_area: Quantity):
+def test_channel_dimensions_area(
+    channel: AreaProperties, expected_area: Quantity
+):
     assert channel.area == expected_area
 
 
@@ -492,4 +498,4 @@ def test_pandas():
     class Data:
         x: float
 
-    assert Data(1.0) == approx(Data(1.0000000000001))
+    assert asdict(Data(1.0)) == approx(asdict(Data(1.0000000000001)))
