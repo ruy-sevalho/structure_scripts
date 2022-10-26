@@ -2,11 +2,10 @@ from copy import deepcopy
 from dataclasses import dataclass
 from functools import partial
 from typing import Protocol, TYPE_CHECKING, Literal
-
+from abc import ABC, abstractmethod
 from quantities import Quantity
 
 from structure_scripts.aisc_360_10.criteria import (
-    DesignStrength,
     DesignType,
     Strength,
 )
@@ -27,9 +26,95 @@ from structure_scripts.shared.materials import IsotropicMaterial
 if TYPE_CHECKING:
     from beams import Beam
     from structure_scripts.aisc_360_10.i_profile import DoublySymmetricI
-    from structure_scripts.aisc_360_10.sections import Section
+    from structure_scripts.aisc_360_10.sections import (
+        Section,
+        SectionWithWebFlange,
+    )
 
 SHEAR_STRENGTH = "shear_strength"
+
+
+@dataclass
+class StandardShearCoefficientMixin(ABC):
+    section: "SectionWithWebFlange"
+
+    @property
+    @abstractmethod
+    def shear_buckling_coefficient(self) -> float:
+        pass
+
+    @property
+    @abstractmethod
+    def element(self) -> ElementSlendernessDefinition:
+        pass
+
+    @property
+    def shear_coefficient_limit_i(self):
+        return _web_shear_coefficient_limit(
+            factor=1.1,
+            web_shear_buckling_coefficient=self.shear_buckling_coefficient,
+            modulus_linear=self.section.material.modulus_linear,
+            yield_stress=self.section.material.yield_stress,
+        )
+
+    @property
+    def shear_coefficient_limit_ii(self):
+        return _web_shear_coefficient_limit(
+            factor=1.37,
+            web_shear_buckling_coefficient=self.shear_buckling_coefficient,
+            modulus_linear=self.section.material.modulus_linear,
+            yield_stress=self.section.material.yield_stress,
+        )
+
+    @property
+    def shear_coefficient_iii(self):
+        return web_shear_coefficient_iii(
+            shear_buckling_coefficient=self.shear_buckling_coefficient,
+            modulus_linear=self.section.material.modulus_linear,
+            yield_stress=self.section.material.yield_stress,
+            web_slenderness=self.section.slenderness.web.slenderness_ratio,
+        )
+
+    @property
+    def shear_coefficient(self):
+        if self.element.slenderness_ratio < self.shear_coefficient_limit_i:
+            return 1.0
+        elif self.element.slenderness_ratio < self.shear_coefficient_limit_ii:
+            return (
+                self.shear_coefficient_limit_i / self.element.slenderness_ratio
+            )
+        else:
+            return self.shear_coefficient_iii
+
+
+@dataclass
+class ShearStrengthMixin(ABC):
+    section: "SectionWithWebFlange"
+
+    @property
+    @abstractmethod
+    def shear_coefficient(self) -> float:
+        pass
+
+    @property
+    @abstractmethod
+    def element(self) -> ElementSlendernessDefinition:
+        pass
+
+    @property
+    def nominal_strength(self):
+        return _nominal_shear_strength(
+            yield_stress=self.section.material.yield_stress,
+            web_area=self.element.shear_area,
+            web_shear_coefficient=self.shear_coefficient,
+        )
+
+
+@dataclass
+class StandardShearStrengthMixin(
+    StandardShearCoefficientMixin, ShearStrengthMixin, ABC
+):
+    pass
 
 
 # class ShearStrengthParam(Protocol):
@@ -125,17 +210,15 @@ class ShearStrength:
     material: IsotropicMaterial
     element: ElementSlendernessDefinition
     shear_coefficient: float
-    rolled_i_shaped: bool = False
-    design_type: DesignType = DesignType.ASD
 
-    @property
-    def shear_coefficient_limit_0(self):
-        return _web_shear_coefficient_limit(
-            factor=2.24,
-            web_shear_buckling_coefficient=1.0,
-            modulus_linear=self.material.modulus_linear,
-            yield_stress=self.material.yield_stress,
-        )
+    # @property
+    # def shear_coefficient_limit_0(self):
+    #     return _web_shear_coefficient_limit(
+    #         factor=2.24,
+    #         web_shear_buckling_coefficient=1.0,
+    #         modulus_linear=self.material.modulus_linear,
+    #         yield_stress=self.material.yield_stress,
+    #     )
 
     # def __post_init__(self):
     #     # This code sure smells
@@ -167,7 +250,7 @@ class ShearBucklingCoefficient(Protocol):
 
 @dataclass
 class StandardShearCoefficient:
-    section: "Section"
+    section: "SectionWithWebFlange"
     shear_buckling_coefficient: float
     element: ElementSlendernessDefinition
 
@@ -203,7 +286,9 @@ class StandardShearCoefficient:
         if self.element.slenderness_ratio < self.shear_coefficient_limit_i:
             return 1.0
         elif self.element.slenderness_ratio < self.shear_coefficient_limit_ii:
-            return self.shear_coefficient_limit_i / self.element.slenderness_ratio
+            return (
+                self.shear_coefficient_limit_i / self.element.slenderness_ratio
+            )
         else:
             return self.shear_coefficient_iii
 
@@ -251,9 +336,17 @@ class StandardShearCoefficient:
 
 
 @dataclass
+class DefaultWebShearCoefficientCalcMemory:
+    web_shear_coefficient_limit_i: float
+    web_shear_coefficient_limit_ii: float
+    web_shear_coefficient_limit_iii: float
+    web_shear_coefficient: float
+
+
+@dataclass
 class StandardShearCriteriaAdaptor:
-    section: "Section"
-    beam: "Beam"
+    section: "SectionWithWebFlange"
+    # beam: "Beam"
     axis: Axis
 
     name = SHEAR_STRENGTH
@@ -291,13 +384,11 @@ class StandardShearCriteriaAdaptor:
         )
 
     @property
-    def criteria(self):
+    def nominal_strength(self):
         return ShearStrength(
             element=self.element,
             material=self.section.material,
             shear_coefficient=self.shear_coefficient_model.shear_coefficient,
-            rolled_i_shaped=self.rolled,
-            safety_factor=self.beam.design_type,
         )
 
 

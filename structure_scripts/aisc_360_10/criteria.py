@@ -13,6 +13,18 @@ class DesignType(str, Enum):
     LRFD = "LRFD"
 
 
+class StrengthType(str, Enum):
+    SHEAR = "shear"
+    FLEXURAL_BUCKLING_MAJOR_AXIS = "flexural_buckling_major_axis"
+    FLEXURAL_BUCKLING_MINOR_AXIS = "flexural_buckling_minor_axis"
+    TORSIONAL_BUCKLING = "torsional_buckling"
+    YIELD = "yield"
+    LATERAL_TORSIONAL_BUCKLING = "lateral_torsional_buckling"
+    COMPRESSION_FLANGE_LOCAL_BUCKLING = "compression_flange_local_buckling"
+    COMPRESSION_FLANGE_YIELDING = "compression_flange_yielding"
+    TENSION_FLANGE_YIELDING = "tension_flange_yielding"
+
+
 # class SafetyFactor(Protocol):
 #     value: float
 #
@@ -56,8 +68,12 @@ class Criteria:
     allowable_strength: float = 1.67
     load_resistance_factor: float = 0.9
 
-    def design_strength(self, nominal_strength: Quantity, design_type: DesignType):
-        table: dict[DesignType, tuple[Callable[[Quantity, float], Quantity], float]] = {
+    def design_strength(
+            self, nominal_strength: Quantity, design_type: DesignType
+    ):
+        table: dict[
+            DesignType, tuple[Callable[[Quantity, float], Quantity], float]
+        ] = {
             DesignType.ASD: (asd, self.allowable_strength),
             DesignType.LRFD: (lrfd, self.load_resistance_factor),
         }
@@ -65,7 +81,7 @@ class Criteria:
         return function(nominal_strength, factor)
 
 
-class Strength(Protocol):
+class DesignStrength(Protocol):
     @property
     @abstractmethod
     def nominal_strength(self) -> Quantity:
@@ -73,12 +89,12 @@ class Strength(Protocol):
 
     @property
     @abstractmethod
-    def valid(self) -> True:
+    def design_strength(self) -> Quantity:
         pass
 
     @property
     @abstractmethod
-    def detailed_results(self) -> dict[str, Quantity | float | bool]:
+    def strength_type(self) -> StrengthType:
         pass
 
 
@@ -109,9 +125,8 @@ class DesignStrengthMixin(ABC):
                 for item in self.strengths.items()
                 if item[1]
             ),
-            key=lambda x: x[1].nominal_strength,
+            key=lambda x: x[1],
         )
-
 
 # class Criteria(Protocol):
 #     @property

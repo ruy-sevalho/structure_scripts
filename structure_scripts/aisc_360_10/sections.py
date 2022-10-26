@@ -1,11 +1,15 @@
-import abc
+from abc import abstractmethod, ABC
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Protocol, Any, Optional, TYPE_CHECKING
+from typing import Protocol, Any, Optional, TYPE_CHECKING, Union
 from numpy import array
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.criteria import DesignStrength, DesignType
+from structure_scripts.aisc_360_10.criteria import (
+    DesignStrength,
+    DesignType,
+    StrengthType,
+)
 from structure_scripts.aisc_360_10.elements_latex import AreaPropertiesLatex
 from structure_scripts.aisc_360_10.helpers import (
     ConstructionType,
@@ -68,18 +72,18 @@ if TYPE_CHECKING:
 # class AreaPropertiesWithWeb(AreaProperties, WebArea):
 #     ...
 
+LoadReturn = Union[
+    dict[StrengthType, Quantity],
+    dict[StrengthType, dict[str, Union[Quantity, float, None]]],
+]
+
 
 class Section(Protocol):
     area_properties: AreaProperties
     material: IsotropicMaterial
     construction: ConstructionType
 
-    # @property
-    # @abc.abstractmethod
-    # def slenderness(self) -> FlangeWebSlenderness | ElementSlenderness:
-    #     ...
-
-    def compression_strength(
+    def compression_design_strength(
         self,
         length_major_axis: Quantity,
         factor_k_major_axis: float = 1.0,
@@ -88,16 +92,82 @@ class Section(Protocol):
         length_torsion: Quantity = None,
         factor_k_torsion: float = 1.0,
         design_type: DesignType = DesignType.ASD,
-    ) -> DesignStrength:
+    ) -> tuple[Quantity, StrengthType]:
+        ...
+
+    def compression_nominal_strengths(
+        self,
+        length_major_axis: Quantity,
+        factor_k_major_axis: float = 1.0,
+        length_minor_axis: Quantity = None,
+        factor_k_minor_axis: float = 1.0,
+        length_torsion: Quantity = None,
+        factor_k_torsion: float = 1.0,
+        detailed_results: bool = False,
+        # design_type: DesignType = DesignType.ASD,
+    ) -> LoadReturn:
+        ...
+
+    def shear_major_axis_design_strength(
+        self, design_type: DesignType = DesignType.ASD
+    ) -> tuple[Quantity, StrengthType]:
+        ...
+
+    def shear_major_axis_nominal_strengths(
+        self, detailed_results: bool = False
+    ) -> LoadReturn:
+        ...
+
+    def shear_minor_axis_design_strength(
+        self, design_type: DesignType = DesignType.ASD
+    ) -> tuple[Quantity, StrengthType]:
+        ...
+
+    def shear_minor_axis_nominal_strengths(
+        self, detailed_results: bool = False
+    ) -> LoadReturn:
+        ...
+
+    def flexure_major_axis_design_strength(
+        self,
+        length: Quantity,
+        lateral_torsional_buckling_modification_factor: float = 1.0,
+    ) -> Quantity:
+        ...
+
+    def flexure_major_axis_nominal_strengths(
+        self,
+        length: Quantity,
+        lateral_torsional_buckling_modification_factor: float = 1.0,
+        detailed_results: bool = False,
+    ) -> Quantity:
+        ...
+
+    def flexure_minor_axis_design_strength(
+        self,
+        length: Quantity,
+        lateral_torsional_buckling_modification_factor: float = 1.0,
+    ) -> Quantity:
+        ...
+
+    def flexure_minor_axis_nominal_strengths(
+        self,
+        length: Quantity,
+        lateral_torsional_buckling_modification_factor: float = 1.0,
+        detailed_results: bool = False,
+    ) -> Quantity:
+        ...
+
+
+class HasWebFlange(Protocol):
+    @property
+    @abstractmethod
+    def slenderness(self) -> FlangeWebSlenderness:
         pass
 
-    # def compression(self, beam: "Beam") -> DesignStrength:
-    #     ...
 
-    def shear_major_axis_strength(
-        self, design_type: DesignType = DesignType.ASD
-    ) -> DesignStrength:
-        ...
+class SectionWithWebFlange(Section, HasWebFlange, Protocol):
+    pass
 
 
 #
