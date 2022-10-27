@@ -1,8 +1,3 @@
-from quantities import Quantity, cm, mm, m, N
-
-from structure_scripts.shared.sections import AreaProperties, AxisBendingData
-
-
 # def test_none_value_in_area_properties_constructor():
 #     area_prop = AreaProperties(
 #         area=10*cm**2,

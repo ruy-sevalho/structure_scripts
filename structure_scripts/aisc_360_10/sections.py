@@ -1,31 +1,17 @@
-from abc import abstractmethod, ABC
-from dataclasses import dataclass
-from functools import cached_property
-from typing import Protocol, Any, Optional, TYPE_CHECKING, Union
-from numpy import array
+from abc import abstractmethod
+from typing import Protocol, TYPE_CHECKING, Union
 from quantities import Quantity
 
 from structure_scripts.aisc_360_10.criteria import (
-    DesignStrength,
     DesignType,
     StrengthType,
 )
-from structure_scripts.aisc_360_10.elements_latex import AreaPropertiesLatex
-from structure_scripts.aisc_360_10.helpers import (
-    ConstructionType,
-    _member_slenderness_limit,
-)
-from structure_scripts.shared.helpers import radius_of_gyration
 from structure_scripts.aisc_360_10.section_slenderness import (
     FlangeWebSlenderness,
-    ElementSlenderness,
 )
-from structure_scripts.shared.data import extract_input_dataframe
-from structure_scripts.shared.materials import IsotropicMaterial
-from structure_scripts.shared.sections import AreaProperties
 
 if TYPE_CHECKING:
-    from beams import BeamAnalysis, Beam
+    pass
 #
 #
 # class WebArea(Protocol):
@@ -79,9 +65,13 @@ LoadReturn = Union[
 
 
 class Section(Protocol):
-    area_properties: AreaProperties
-    material: IsotropicMaterial
-    construction: ConstructionType
+    # material: IsotropicMaterial
+    # construction: ConstructionType
+    #
+    # @property
+    # @abstractmethod
+    # def area_properties(self) -> AreaProperties:
+    #     pass
 
     def compression_design_strength(
         self,
@@ -132,6 +122,7 @@ class Section(Protocol):
         self,
         length: Quantity,
         lateral_torsional_buckling_modification_factor: float = 1.0,
+        design_type: DesignType = DesignType.ASD,
     ) -> Quantity:
         ...
 
@@ -147,6 +138,7 @@ class Section(Protocol):
         self,
         length: Quantity,
         lateral_torsional_buckling_modification_factor: float = 1.0,
+        design_type: DesignType = DesignType.ASD,
     ) -> Quantity:
         ...
 

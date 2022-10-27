@@ -1,14 +1,8 @@
-from copy import deepcopy
 from dataclasses import dataclass
 from functools import partial
-from typing import Protocol, TYPE_CHECKING, Literal
+from typing import Protocol, TYPE_CHECKING
 from abc import ABC, abstractmethod
-from quantities import Quantity
 
-from structure_scripts.aisc_360_10.criteria import (
-    DesignType,
-    Strength,
-)
 from structure_scripts.aisc_360_10.helpers import (
     _web_shear_coefficient_limit,
     web_shear_coefficient_iii,
@@ -20,14 +14,11 @@ from structure_scripts.aisc_360_10.helpers import (
 from structure_scripts.aisc_360_10.section_slenderness import (
     ElementSlendernessDefinition,
 )
-from structure_scripts.shared.helpers import Axis
-from structure_scripts.shared.materials import IsotropicMaterial
+from structure_scripts.helpers import Axis
+from structure_scripts.materials import IsotropicMaterial
 
 if TYPE_CHECKING:
-    from beams import Beam
-    from structure_scripts.aisc_360_10.i_profile import DoublySymmetricI
     from structure_scripts.aisc_360_10.sections import (
-        Section,
         SectionWithWebFlange,
     )
 

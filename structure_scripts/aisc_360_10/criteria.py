@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABC
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol, Callable
 
@@ -69,7 +69,7 @@ class Criteria:
     load_resistance_factor: float = 0.9
 
     def design_strength(
-            self, nominal_strength: Quantity, design_type: DesignType
+        self, nominal_strength: Quantity, design_type: DesignType
     ):
         table: dict[
             DesignType, tuple[Callable[[Quantity, float], Quantity], float]
@@ -127,6 +127,7 @@ class DesignStrengthMixin(ABC):
             ),
             key=lambda x: x[1],
         )
+
 
 # class Criteria(Protocol):
 #     @property

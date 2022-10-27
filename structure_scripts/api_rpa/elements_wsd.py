@@ -6,12 +6,22 @@ from pandas import DataFrame, concat
 from quantities import Quantity, m
 
 from structure_scripts.api_rpa.elements import CircularSection
-from structure_scripts.api_rpa.helpers import _c_coefficient_collum_buck, _allowable_compressive_stress_a, \
-    _allowable_compressive_stress_b, ratio_limit_a, allowable_bending_stress_a, beam_shear_stress, \
-    allowable_shear_stress, max_torsional_shear_stress, axial_stress, bending_stress, \
-    combined_bending_compression_criteria_a, combined_bending_compression_criteria_b
+from structure_scripts.api_rpa.helpers import (
+    _c_coefficient_collum_buck,
+    _allowable_compressive_stress_a,
+    _allowable_compressive_stress_b,
+    ratio_limit_a,
+    allowable_bending_stress_a,
+    beam_shear_stress,
+    allowable_shear_stress,
+    max_torsional_shear_stress,
+    axial_stress,
+    bending_stress,
+    combined_bending_compression_criteria_a,
+    combined_bending_compression_criteria_b,
+)
 from structure_scripts.shared.data import extract_input_dataframe
-from structure_scripts.shared.helpers import member_slenderness_ratio, same_units_simplify, ratio_simplify
+from structure_scripts.helpers import member_slenderness_ratio, ratio_simplify
 
 
 class Analysis(Protocol):
@@ -21,7 +31,9 @@ class Analysis(Protocol):
         ...
 
     def criteria_ratio(self, load: Quantity):
-        return ratio_simplify(abs(self.acting_stress(load=load)), self.allowable_stress)
+        return ratio_simplify(
+            abs(self.acting_stress(load=load)), self.allowable_stress
+        )
 
 
 @dataclass
@@ -29,7 +41,9 @@ class Axial:
     profile: CircularSection
 
     def acting_stress(self, load: Quantity) -> Quantity:
-        return axial_stress(axial_force=load, cross_area=self.profile.geometry.area)
+        return axial_stress(
+            axial_force=load, cross_area=self.profile.geometry.area
+        )
 
 
 @dataclass
@@ -45,13 +59,13 @@ class AxialTension(Axial, Analysis):
 class AxialCompression(Axial, Analysis):
     profile: CircularSection
     length: Quantity
-    factor_k: float = 1.
+    factor_k: float = 1.0
 
     @cached_property
     def coefficient_c(self):
         return _c_coefficient_collum_buck(
             yield_stress=self.profile.material.yield_stress,
-            modulus_linear=self.profile.material.modulus_linear
+            modulus_linear=self.profile.material.modulus_linear,
         )
 
     @cached_property
@@ -59,7 +73,7 @@ class AxialCompression(Axial, Analysis):
         return member_slenderness_ratio(
             unbraced_length=self.length,
             factor_k=self.factor_k,
-            radius_of_gyration=self.profile.geometry.radius_of_gyration
+            radius_of_gyration=self.profile.geometry.radius_of_gyration,
         )
 
     @cached_property
@@ -67,14 +81,14 @@ class AxialCompression(Axial, Analysis):
         return _allowable_compressive_stress_a(
             slenderness=self.slenderness,
             c=self.coefficient_c,
-            yield_stress=self.profile.material.yield_stress
+            yield_stress=self.profile.material.yield_stress,
         )
 
     @cached_property
     def allowable_stress_b(self):
         return _allowable_compressive_stress_b(
             slenderness=self.slenderness,
-            modulus_linear=self.profile.material.modulus_linear
+            modulus_linear=self.profile.material.modulus_linear,
         )
 
     @cached_property
@@ -94,17 +108,25 @@ class Bending(Analysis):
 
     @cached_property
     def allowable_stress_a(self):
-        return allowable_bending_stress_a(yield_stress=self.profile.material.yield_stress)
+        return allowable_bending_stress_a(
+            yield_stress=self.profile.material.yield_stress
+        )
 
     @cached_property
     def allowable_stress(self):
-        ratio = self.profile.geometry.outer_diameter / self.profile.geometry.wall_thickness
+        ratio = (
+            self.profile.geometry.outer_diameter
+            / self.profile.geometry.wall_thickness
+        )
         if ratio < self.dia_thick_ratio_limit_a:
             return self.allowable_stress_a
         raise NotImplementedError
 
     def acting_stress(self, load: Quantity) -> Quantity:
-        return bending_stress(bending_moment=load, section_modulus=self.profile.geometry.section_modulus)
+        return bending_stress(
+            bending_moment=load,
+            section_modulus=self.profile.geometry.section_modulus,
+        )
 
 
 @dataclass
@@ -112,11 +134,15 @@ class Shear(Analysis):
     profile: CircularSection
 
     def acting_stress(self, load: Quantity):
-        return beam_shear_stress(shear_force=load, cross_area=self.profile.geometry.area)
+        return beam_shear_stress(
+            shear_force=load, cross_area=self.profile.geometry.area
+        )
 
     @cached_property
     def allowable_stress(self):
-        return allowable_shear_stress(yield_stress=self.profile.material.yield_stress)
+        return allowable_shear_stress(
+            yield_stress=self.profile.material.yield_stress
+        )
 
 
 @dataclass
@@ -127,12 +153,14 @@ class Torsion(Analysis):
         return max_torsional_shear_stress(
             outer_diameter=self.profile.geometry.outer_diameter,
             torsional_moment=load,
-            polar_inertia=self.profile.geometry.polar_moment_of_inertia
+            polar_inertia=self.profile.geometry.polar_moment_of_inertia,
         )
 
     @cached_property
     def allowable_stress(self):
-        return allowable_shear_stress(yield_stress=self.profile.material.yield_stress)
+        return allowable_shear_stress(
+            yield_stress=self.profile.material.yield_stress
+        )
 
 
 @dataclass
@@ -147,7 +175,9 @@ class BeamModel:
 
     @cached_property
     def compression(self):
-        return AxialCompression(profile=self.profile, length=self.length, factor_k=self.factor_k)
+        return AxialCompression(
+            profile=self.profile, length=self.length, factor_k=self.factor_k
+        )
 
     @cached_property
     def bending(self):
@@ -162,12 +192,12 @@ class BeamModel:
         return Shear(profile=self.profile)
 
     def results(
-            self,
-            axial_force: Quantity,
-            bending_moment_x: Quantity,
-            bending_moment_y: Quantity,
-            shear_force: Quantity,
-            torsion_moment: Quantity,
+        self,
+        axial_force: Quantity,
+        bending_moment_x: Quantity,
+        bending_moment_y: Quantity,
+        shear_force: Quantity,
+        torsion_moment: Quantity,
     ):
         return BeamResult(
             model=self,
@@ -175,7 +205,7 @@ class BeamModel:
             bending_moment_x=bending_moment_x,
             bending_moment_y=bending_moment_y,
             shear_force=shear_force,
-            torsion_moment=torsion_moment
+            torsion_moment=torsion_moment,
         )
 
 
@@ -223,7 +253,7 @@ class BeamResult:
             elastic_compressive_buckling_stress=self.model.compression.allowable_stress_b,
             allowable_compressive_stress=self.model.compression.allowable_stress,
             allowable_bending_stress=self.model.bending.allowable_stress,
-            modification_coefficient=self.modification_coefficient
+            modification_coefficient=self.modification_coefficient,
         ).magnitude
 
     @cached_property
@@ -233,7 +263,7 @@ class BeamResult:
             acting_bending_stress_x=self.acting_bending_stress_x,
             acting_bending_stress_y=self.acting_bending_stress_y,
             allowable_bending_stress=self.model.bending.allowable_stress,
-            yield_stress=self.model.profile.material.yield_stress
+            yield_stress=self.model.profile.material.yield_stress,
         )
 
     @cached_property
@@ -266,8 +296,10 @@ class BeamResult:
     def simple_results(self):
         return DataFrame(
             {
-                "torsion": [self.model.torsion.criteria_ratio(self.torsion_moment)],
-                "shear": [self.model.shear.criteria_ratio(self.shear_force)]
+                "torsion": [
+                    self.model.torsion.criteria_ratio(self.torsion_moment)
+                ],
+                "shear": [self.model.shear.criteria_ratio(self.shear_force)],
             }
         )
 
@@ -275,6 +307,5 @@ class BeamResult:
     def results(self):
         return concat(
             (self.loads_df, self.simple_results, self.combined_result_df),
-            axis=1
+            axis=1,
         )
-

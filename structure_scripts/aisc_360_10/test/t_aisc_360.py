@@ -1,18 +1,8 @@
 from dataclasses import dataclass, asdict
-from pandas import DataFrame
 from pytest import approx, mark, raises
-from quantities import UnitQuantity, Quantity, GPa, MPa, cm, m, mm, N
-from structure_scripts.aisc_360_10 import criteria
+from quantities import UnitQuantity, Quantity, cm, m, mm, N
 
-from structure_scripts.aisc_360_10.compression import (
-    FLEXURAL_BUCKLING_MAJOR_AXIS_STRENGTH,
-    FlexuralBuckling,
-    FLEXURAL_BUCKLING_MINOR_AXIS_STRENGTH,
-    BucklingStrengthEulerCalculation,
-)
-
-from structure_scripts.aisc_360_10.shear import SHEAR_STRENGTH
-from structure_scripts.shared.sections import (
+from structure_scripts.sections import (
     AreaProperties,
     DirectInputAreaProperties,
 )
@@ -25,17 +15,8 @@ from structure_scripts.aisc_360_10.channel import (
     ChannelAreaProperties,
 )
 from structure_scripts.aisc_360_10.helpers import ConstructionType
-from structure_scripts.shared.helpers import (
-    same_units_dictionary_simplify,
-    same_units_simplify,
-)
-from structure_scripts.shared.materials import (
+from structure_scripts.materials import (
     steel355mpa,
-)
-from structure_scripts.aisc_360_10.beams import (
-    BeamAnalysis,
-    BucklingParam,
-    Beam,
 )
 
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")

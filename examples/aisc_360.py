@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from quantities import UnitQuantity, Quantity, GPa, MPa, cm, m, mm, N
+from quantities import UnitQuantity, cm, m, mm, N
 
 from structure_scripts.aisc_360_10.beams import (
     BeamAnalysis,
@@ -16,12 +16,10 @@ from structure_scripts.aisc_360_10.channel import (
     ChannelAreaProperties,
 )
 from structure_scripts.aisc_360_10.helpers import ConstructionType
-from structure_scripts.shared.helpers import same_units_simplify
-from structure_scripts.shared.materials import (
-    IsotropicIsotropicMaterialUserDefined,
+from structure_scripts.materials import (
     steel355mpa,
 )
-from structure_scripts.shared.sections import DirectInputAreaProperties
+from structure_scripts.sections import DirectInputAreaProperties
 
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilo newton", 1000 * N, symbol="kN")

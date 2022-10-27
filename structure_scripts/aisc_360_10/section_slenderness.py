@@ -13,7 +13,7 @@ class Slenderness(str, Enum):
     NON_COMPACT = "NON_COMPACT"
 
 
-def flexural_slenderness_per_element(limit_slender: float, limit_compact: float, ratio: float) -> "Slenderness":
+def flexural_slenderness_per_element(limit_slender: float, limit_compact: float, ratio: float) -> Slenderness:
     if ratio < limit_compact:
         return Slenderness.COMPACT
     elif ratio < limit_slender:
@@ -54,18 +54,23 @@ class ElementSlenderness(ElementSlendernessDefinition, ElementSlendernessLimits,
     ...
 
 
-@dataclass
-class AxialSlendernessCompute(AxialSlenderness):
-    limit_ratio: float
-    slenderness_ratio: float
+def axial_slenderness(slenderness: float, limit: float):
+    if slenderness < limit:
+        return Slenderness.NON_SLENDER
+    return Slenderness.SLENDER
 
-    @cached_property
-    def value(self) -> Slenderness:
-        limit = self.limit_ratio
-        ratio = self.slenderness_ratio
-        if ratio < limit:
-            return Slenderness.NON_SLENDER
-        return Slenderness.SLENDER
+# @dataclass
+# class AxialSlendernessCompute(AxialSlenderness):
+#     limit_ratio: float
+#     slenderness_ratio: float
+#
+#     @cached_property
+#     def value(self) -> Slenderness:
+#         limit = self.limit_ratio
+#         ratio = self.slenderness_ratio
+#         if ratio < limit:
+#             return Slenderness.NON_SLENDER
+#         return Slenderness.SLENDER
 
 
 @dataclass
@@ -87,6 +92,11 @@ class WebSlenderness(Protocol):
     web: ElementSlenderness
 
 
-class FlangeWebSlenderness(Protocol):
-    flange: ElementSlenderness
-    web: ElementSlenderness
+# class FlangeWebSlenderness(Protocol):
+#     flange: ElementSlenderness
+#     web: ElementSlenderness
+
+
+@dataclass(frozen=True)
+class FlangeWebSlenderness:
+    pass

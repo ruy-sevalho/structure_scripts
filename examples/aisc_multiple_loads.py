@@ -1,10 +1,5 @@
 from functools import partial
-from typing import Collection, NamedTuple
-from pathlib import Path
-from typing import TextIO
-import re
-import os
-import numpy as np
+from typing import Collection
 import pandas as pd
 from quantities import Quantity, GPa, MPa, m, mm, cm, UnitQuantity, N
 from structure_scripts.aisc_360_10.elements import (
@@ -14,10 +9,10 @@ from structure_scripts.aisc_360_10.i_profile import (
     DoublySymmetricIDimensionsUserDefined,
     DoublySymmetricI,
 )
-from structure_scripts.shared.materials import (
+from structure_scripts.materials import (
     IsotropicIsotropicMaterialUserDefined,
 )
-from structure_scripts.shared.sections import DirectInputAreaProperties
+from structure_scripts.sections import DirectInputAreaProperties
 
 kN = UnitQuantity("kN", 1000 * N)
 

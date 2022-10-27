@@ -1,7 +1,6 @@
 from dataclasses import dataclass
-from typing import Protocol
 
-from quantities import Quantity, N, m
+from quantities import Quantity
 
 from structure_scripts.aisc_360_10.criteria import DesignType
 
@@ -10,9 +9,7 @@ from structure_scripts.aisc_360_10.criteria import DesignType
 #     # AllowableStrengthDesign,
 #     # CriteriaCollection,
 # )
-from structure_scripts.aisc_360_10.helpers import _member_slenderness_limit
 from structure_scripts.aisc_360_10.sections import Section
-from structure_scripts.shared.helpers import member_slenderness_ratio
 
 
 # class BeamInput(Protocol):

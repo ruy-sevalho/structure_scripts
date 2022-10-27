@@ -1,20 +1,13 @@
 from dataclasses import dataclass
-from typing import Protocol, TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Union
 
-import pandas as pd
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.compression import (
-    FLEXURAL_BUCKLING_MAJOR_AXIS_STRENGTH,
-    FLEXURAL_BUCKLING_MINOR_AXIS_STRENGTH,
-    FlexuralBuckling,
+from structure_scripts.aisc_360_10.criteria import (
+    DesignType,
+    StrengthType,
 )
-from structure_scripts.aisc_360_10.criteria import DesignStrength
 
-from structure_scripts.aisc_360_10.elements_latex import (
-    DoublySymmetricIDimensionsLatex,
-    DoublySymmetricIUserDefinedLatex,
-)
 from structure_scripts.aisc_360_10.helpers import (
     warping_constant,
     doubly_symmetric_i_torsional_constant,
@@ -23,29 +16,15 @@ from structure_scripts.aisc_360_10.helpers import (
     kc_coefficient,
     ConstructionType,
     limit_stress_built_up_sections,
-    _web_shear_coefficient_limit,
-    web_shear_coefficient_iii,
-    effective_radius_of_gyration,
-    limiting_length_lateral_torsional_buckling,
-    limiting_length_yield,
-    elastic_torsional_buckling_stress_doubly_symmetric_member,
-    critical_compression_stress_buckling_default,
 )
-from structure_scripts.aisc_360_10.shear import (
-    StandardShearMajorAxisCriteriaAdaptor,
-    StandardShearCriteriaAdaptor,
-    SHEAR_STRENGTH,
-)
+from structure_scripts.aisc_360_10.sections import LoadReturn
 from structure_scripts.aisc_360_10.section_slenderness import (
     ElementSlenderness,
     FlangeWebSlenderness,
     Slenderness,
-    flexural_slenderness_per_element,
-    AxialSlendernessCompute,
     FlexuralSlendernessCompute,
 )
-from structure_scripts.shared.data import extract_input_dataframe
-from structure_scripts.shared.helpers import (
+from structure_scripts.helpers import (
     section_modulus,
     radius_of_gyration,
     self_inertia,
@@ -53,446 +32,59 @@ from structure_scripts.shared.helpers import (
     rectangle_area,
     areas_centroid,
     ratio_simplify,
-    Axis,
 )
-from structure_scripts.shared.materials import IsotropicMaterial
-from structure_scripts.shared.sections import (
-    AreaProperties,
-    AxisBending,
-    AxisBendingData,
-    TorsionData,
-    Torsion,
+from structure_scripts.materials import IsotropicMaterial
+from structure_scripts.sections import (
+    SectionGeoProperties,
+    TwoAxisData,
+    ThreeAxisData,
 )
 
 if TYPE_CHECKING:
-    from structure_scripts.aisc_360_10.beams import Beam
+    pass
+
+
+# @dataclass
+# class DoublySymmetricIFlangeWebSlenderness(FlangeWebSlenderness):
+#     section: "DoublySymmetricI"
+#
+#     @property
+#     def flange(self):
+#         return DoublySymmetricIFlangeSlenderness(profile=self.section)
+#
+#     @property
+#     def web(self):
+#         return DoublySymmetricIWebSlenderness(profile=self.section)
+
+
+# class DoublySymmetricIDimensions(Protocol):
+#     flange_width: Quantity
+#     flange_thickness: Quantity
+#     web_height: Quantity
+#     web_thickness: Quantity
+#     total_height: Quantity
+#     distance_between_centroids: Quantity
+#     web_height_corrected: Quantity
+#     web_radii: Quantity
+#
+#     def table(self, filter_names: list[str] = None):
+#         return extract_input_dataframe(
+#             obj=self,
+#             extraction_type=DoublySymmetricIDimensions,
+#             filter_names=filter_names,
+#         )
+#
+#     @property
+#     def default_table(self):
+#         return self.table()
+#
+#     @property
+#     def latex(self):
+#         return DoublySymmetricIDimensionsLatex(self)
 
 
 @dataclass
-class DoublySymmetricIFlangeWebSlenderness(FlangeWebSlenderness):
-    section: "DoublySymmetricI"
-
-    @property
-    def flange(self):
-        return DoublySymmetricIFlangeSlenderness(profile=self.section)
-
-    @property
-    def web(self):
-        return DoublySymmetricIWebSlenderness(profile=self.section)
-
-
-class DoublySymmetricIDimensions(Protocol):
-    flange_width: Quantity
-    flange_thickness: Quantity
-    web_height: Quantity
-    web_thickness: Quantity
-    total_height: Quantity
-    distance_between_centroids: Quantity
-    web_height_corrected: Quantity
-    web_radii: Quantity
-
-    def table(self, filter_names: list[str] = None):
-        return extract_input_dataframe(
-            obj=self,
-            extraction_type=DoublySymmetricIDimensions,
-            filter_names=filter_names,
-        )
-
-    @property
-    def default_table(self):
-        return self.table()
-
-    @property
-    def latex(self):
-        return DoublySymmetricIDimensionsLatex(self)
-
-
-@dataclass
-class DoublySymmetricIAreaPropertiesCompute(AreaProperties):
-    dimensions: DoublySymmetricIDimensions
-
-    @property
-    def _flange_area(self):
-        return rectangle_area(
-            width=self.dimensions.flange_width,
-            height=self.dimensions.flange_thickness,
-        )
-
-    @property
-    def web_area(self):
-        return rectangle_area(
-            width=self.dimensions.web_thickness,
-            height=self.dimensions.web_height,
-        )
-
-    @property
-    def area(self) -> Quantity:
-        return self.web_area + 2 * self._flange_area
-
-    @property
-    def _flange_self_inertia_major_axis(self) -> Quantity:
-        return self_inertia(
-            width=self.dimensions.flange_width,
-            height=self.dimensions.flange_thickness,
-        )
-
-    @property
-    def _flange_self_inertia_minor_axis(self) -> Quantity:
-        return self_inertia(
-            width=self.dimensions.flange_thickness,
-            height=self.dimensions.flange_width,
-        )
-
-    @property
-    def _web_self_inertia_major_axis(self) -> Quantity:
-        return self_inertia(
-            width=self.dimensions.web_thickness,
-            height=self.dimensions.web_height,
-        )
-
-    @property
-    def _web_self_inertia_minor_axis(self) -> Quantity:
-        return self_inertia(
-            width=self.dimensions.web_height,
-            height=self.dimensions.web_thickness,
-        )
-
-    @property
-    def _flange_area_centroid_major_axis(self):
-        return self.dimensions.distance_between_centroids / 2
-
-    @property
-    def _flange_transfer_inertia_major_axis(self):
-        return transfer_inertia(
-            area=self._flange_area,
-            center_to_na_distance=self._flange_area_centroid_major_axis,
-        )
-
-    @property
-    def minor_axis_inertia(self):
-        return (
-            2 * self._flange_self_inertia_minor_axis + self._web_self_inertia_minor_axis
-        )
-
-    @property
-    def major_axis_inertia(self):
-        return (
-            2 * self._flange_transfer_inertia_major_axis
-            + 2 * self._flange_self_inertia_major_axis
-            + self._web_self_inertia_major_axis
-        )
-
-    @property
-    def major_axis_elastic_section_modulus(self) -> Quantity:
-        return section_modulus(
-            self.major_axis_inertia, self.dimensions.total_height / 2
-        )
-
-    @property
-    def minor_axis_elastic_section_modulus(self) -> Quantity:
-        return section_modulus(
-            self.minor_axis_inertia, self.dimensions.flange_width / 2
-        )
-
-    @property
-    def major_axis_radius_of_gyration(self) -> Quantity:
-        return radius_of_gyration(
-            moment_of_inertia=self.major_axis_inertia,
-            gross_section_area=self.area,
-        )
-
-    @property
-    def minor_axis_radius_of_gyration(self) -> Quantity:
-        return radius_of_gyration(
-            moment_of_inertia=self.minor_axis_inertia,
-            gross_section_area=self.area,
-        )
-
-    @property
-    def warping_constant(self):
-        return warping_constant(
-            moment_of_inertia=self.minor_axis_inertia,
-            distance_between_flanges_centroid=self.dimensions.distance_between_centroids,
-        )
-
-    @property
-    def torsional_constant(self) -> Quantity:
-        return doubly_symmetric_i_torsional_constant(
-            flange_width=self.dimensions.flange_width,
-            total_height=self.dimensions.total_height,
-            flange_thickness=self.dimensions.flange_thickness,
-            web_thickness=self.dimensions.web_thickness,
-        )
-
-    @property
-    def torsional_radius_of_gyration(self):
-        return radius_of_gyration(
-            moment_of_inertia=self.torsional_constant,
-            gross_section_area=self.area,
-        )
-
-    @property
-    def _major_axis_plastic_half_centroid(self) -> Quantity:
-        return areas_centroid(
-            (
-                (self._flange_area, self._flange_area_centroid_major_axis),
-                (self.web_area / 2, self.dimensions.web_height / 4),
-            )
-        )
-
-    @property
-    def _major_axis_plastic_half_area(self) -> Quantity:
-        return self._flange_area + self.web_area / 2
-
-    @property
-    def major_axis_plastic_section_modulus(self):
-        return (
-            2
-            * self._major_axis_plastic_half_centroid
-            * self._major_axis_plastic_half_area
-        )
-
-    @property
-    def _minor_axis_plastic_half_centroid(self) -> Quantity:
-        return areas_centroid(
-            (
-                (self._flange_area, self.dimensions.flange_width / 4),
-                (self.web_area / 2, self.dimensions.web_thickness / 4),
-            )
-        )
-
-    @property
-    def _minor_axis_plastic_half_area(self) -> Quantity:
-        return self._flange_area + self.web_area / 2
-
-    @property
-    def minor_axis_plastic_section_modulus(self):
-        return (
-            2
-            * self._minor_axis_plastic_half_area
-            * self._minor_axis_plastic_half_centroid
-        )
-
-    @property
-    def major_axis(self) -> AxisBending:
-        return AxisBendingData(
-            inertia=self.major_axis_inertia,
-            elastic_section_modulus=self.major_axis_elastic_section_modulus,
-            plastic_section_modulus=self.major_axis_elastic_section_modulus,
-            radius_of_gyration=self.major_axis_radius_of_gyration,
-        )
-
-    @property
-    def minor_axis(self) -> AxisBending:
-        return AxisBendingData(
-            inertia=self.major_axis_inertia,
-            elastic_section_modulus=self.major_axis_elastic_section_modulus,
-            plastic_section_modulus=self.major_axis_elastic_section_modulus,
-            radius_of_gyration=self.major_axis_radius_of_gyration,
-        )
-
-    @property
-    def torsion(self) -> Torsion:
-        return TorsionData(
-            inertia=self.torsional_constant,
-            radius_of_gyration=self.torsional_radius_of_gyration,
-        )
-
-
-@dataclass
-class DoublySymmetricIAreaPropertiesFromDimensions(AreaProperties):
-    dimensions: DoublySymmetricIDimensions
-
-    @property
-    def _flange_area(self):
-        return rectangle_area(
-            width=self.dimensions.flange_width,
-            height=self.dimensions.flange_thickness,
-        )
-
-    @property
-    def _web_area(self):
-        return rectangle_area(
-            width=self.dimensions.web_thickness,
-            height=self.dimensions.web_height,
-        )
-
-    @property
-    def area(self) -> Quantity:
-        return self._web_area + 2 * self._flange_area
-
-    @property
-    def _flange_self_inertia_major_axis(self) -> Quantity:
-        return self_inertia(
-            width=self.dimensions.flange_width,
-            height=self.dimensions.flange_thickness,
-        )
-
-    @property
-    def _flange_self_inertia_minor_axis(self) -> Quantity:
-        return self_inertia(
-            width=self.dimensions.flange_thickness,
-            height=self.dimensions.flange_width,
-        )
-
-    @property
-    def _web_self_inertia_major_axis(self) -> Quantity:
-        return self_inertia(
-            width=self.dimensions.web_thickness,
-            height=self.dimensions.web_height,
-        )
-
-    @property
-    def _web_self_inertia_minor_axis(self) -> Quantity:
-        return self_inertia(
-            width=self.dimensions.web_height,
-            height=self.dimensions.web_thickness,
-        )
-
-    @property
-    def _flange_area_centroid_major_axis(self):
-        return self.dimensions.distance_between_centroids / 2
-
-    @property
-    def _flange_transfer_inertia_major_axis(self):
-        return transfer_inertia(
-            area=self._flange_area,
-            center_to_na_distance=self._flange_area_centroid_major_axis,
-        )
-
-    @property
-    def _minor_axis_inertia(self):
-        return (
-            2 * self._flange_self_inertia_minor_axis + self._web_self_inertia_minor_axis
-        )
-
-    @property
-    def _major_axis_inertia(self):
-        return (
-            2 * self._flange_transfer_inertia_major_axis
-            + 2 * self._flange_self_inertia_major_axis
-            + self._web_self_inertia_major_axis
-        )
-
-    @property
-    def _major_axis_elastic_section_modulus(self) -> Quantity:
-        return section_modulus(
-            self._major_axis_inertia, self.dimensions.total_height / 2
-        )
-
-    @property
-    def _minor_axis_elastic_section_modulus(self) -> Quantity:
-        return section_modulus(
-            self._minor_axis_inertia, self.dimensions.flange_width / 2
-        )
-
-    @property
-    def _major_axis_radius_of_gyration(self) -> Quantity:
-        return radius_of_gyration(
-            moment_of_inertia=self._major_axis_inertia,
-            gross_section_area=self.area,
-        )
-
-    @property
-    def _minor_axis_radius_of_gyration(self) -> Quantity:
-        return radius_of_gyration(
-            moment_of_inertia=self._minor_axis_inertia,
-            gross_section_area=self.area,
-        )
-
-    @property
-    def _torsional_constant(self) -> Quantity:
-        return doubly_symmetric_i_torsional_constant(
-            flange_width=self.dimensions.flange_width,
-            total_height=self.dimensions.total_height,
-            flange_thickness=self.dimensions.flange_thickness,
-            web_thickness=self.dimensions.web_thickness,
-        )
-
-    @property
-    def _torsional_radius_of_gyration(self):
-        return radius_of_gyration(
-            moment_of_inertia=self._torsional_constant,
-            gross_section_area=self.area,
-        )
-
-    @property
-    def _major_axis_plastic_half_centroid(self) -> Quantity:
-        return areas_centroid(
-            (
-                (self._flange_area, self._flange_area_centroid_major_axis),
-                (self._web_area / 2, self.dimensions.web_height / 4),
-            )
-        )
-
-    @property
-    def _major_axis_plastic_half_area(self) -> Quantity:
-        return self._flange_area + self._web_area / 2
-
-    @property
-    def _major_axis_plastic_section_modulus(self):
-        return (
-            2
-            * self._major_axis_plastic_half_centroid
-            * self._major_axis_plastic_half_area
-        )
-
-    @property
-    def _minor_axis_plastic_half_centroid(self) -> Quantity:
-        return areas_centroid(
-            (
-                (self._flange_area, self.dimensions.flange_width / 4),
-                (self._web_area / 2, self.dimensions.web_thickness / 4),
-            )
-        )
-
-    @property
-    def _minor_axis_plastic_half_area(self) -> Quantity:
-        return self._flange_area + self._web_area / 2
-
-    @property
-    def _minor_axis_plastic_section_modulus(self):
-        return (
-            2
-            * self._minor_axis_plastic_half_area
-            * self._minor_axis_plastic_half_centroid
-        )
-
-    @property
-    def major_axis(self) -> AxisBending:
-        return AxisBendingData(
-            inertia=self._major_axis_inertia,
-            elastic_section_modulus=self._major_axis_elastic_section_modulus,
-            plastic_section_modulus=self._major_axis_plastic_section_modulus,
-            radius_of_gyration=self._major_axis_radius_of_gyration,
-        )
-
-    @property
-    def minor_axis(self) -> AxisBending:
-        return AxisBendingData(
-            inertia=self._minor_axis_inertia,
-            elastic_section_modulus=self._minor_axis_elastic_section_modulus,
-            plastic_section_modulus=self._minor_axis_plastic_section_modulus,
-            radius_of_gyration=self._minor_axis_radius_of_gyration,
-        )
-
-    @property
-    def torsion(self) -> Torsion:
-        return TorsionData(
-            inertia=self._torsional_constant,
-            radius_of_gyration=self._torsional_radius_of_gyration,
-        )
-
-    @property
-    def warping_constant(self):
-        return warping_constant(
-            moment_of_inertia=self._minor_axis_inertia,
-            distance_between_flanges_centroid=self.dimensions.distance_between_centroids,
-        )
-
-
-@dataclass
-class DoublySymmetricIDimensionsUserDefined(DoublySymmetricIDimensions):
+class DoublySymmetricIDimensions:
     flange_width: Quantity
     flange_thickness: Quantity
     web_thickness: Quantity
@@ -513,6 +105,311 @@ class DoublySymmetricIDimensionsUserDefined(DoublySymmetricIDimensions):
             return self.web_height - 2 * self.web_radii
         else:
             return self.web_height
+
+
+def doubly_symmetric_i_section_properties(
+    dimensions: DoublySymmetricIDimensions,
+):
+    flange_area = rectangle_area(
+        width=dimensions.flange_width,
+        height=dimensions.flange_thickness,
+    )
+    web_area = rectangle_area(
+        width=dimensions.web_thickness,
+        height=dimensions.web_height,
+    )
+    area = web_area + 2 * flange_area
+    flange_self_inertia_major_axis = self_inertia(
+        width=dimensions.flange_width,
+        height=dimensions.flange_thickness,
+    )
+    flange_self_inertia_minor_axis = self_inertia(
+        width=dimensions.flange_thickness,
+        height=dimensions.flange_width,
+    )
+    web_self_inertia_major_axis = self_inertia(
+        width=dimensions.web_thickness,
+        height=dimensions.web_height,
+    )
+    web_self_inertia_minor_axis = self_inertia(
+        width=dimensions.web_height,
+        height=dimensions.web_thickness,
+    )
+    flange_area_centroid_major_axis = dimensions.distance_between_centroids / 2
+    flange_transfer_inertia_major_axis = transfer_inertia(
+        area=flange_area,
+        center_to_na_distance=flange_area_centroid_major_axis,
+    )
+    minor_axis_inertia = (
+        2 * flange_self_inertia_minor_axis + web_self_inertia_minor_axis
+    )
+    major_axis_inertia = (
+        2 * flange_transfer_inertia_major_axis
+        + 2 * flange_self_inertia_major_axis
+        + web_self_inertia_major_axis
+    )
+    major_axis_elastic_section_modulus = section_modulus(
+        major_axis_inertia, dimensions.total_height / 2
+    )
+    minor_axis_elastic_section_modulus = section_modulus(
+        minor_axis_inertia, dimensions.flange_width / 2
+    )
+    major_axis_radius_of_gyration = radius_of_gyration(
+        moment_of_inertia=major_axis_inertia,
+        gross_section_area=area,
+    )
+    minor_axis_radius_of_gyration = radius_of_gyration(
+        moment_of_inertia=minor_axis_inertia,
+        gross_section_area=area,
+    )
+    polar_inertia = doubly_symmetric_i_torsional_constant(
+        flange_width=dimensions.flange_width,
+        total_height=dimensions.total_height,
+        flange_thickness=dimensions.flange_thickness,
+        web_thickness=dimensions.web_thickness,
+    )
+    torsional_radius_of_gyration = radius_of_gyration(
+        moment_of_inertia=polar_inertia,
+        gross_section_area=area,
+    )
+    major_axis_plastic_half_centroid = areas_centroid(
+        (
+            (flange_area, flange_area_centroid_major_axis),
+            (web_area / 2, dimensions.web_height / 4),
+        )
+    )
+    major_axis_plastic_half_area = flange_area + web_area / 2
+    major_axis_plastic_section_modulus = (
+        2 * major_axis_plastic_half_centroid * major_axis_plastic_half_area
+    )
+    minor_axis_plastic_half_centroid = areas_centroid(
+        (
+            (flange_area, dimensions.flange_width / 4),
+            (web_area / 2, dimensions.web_thickness / 4),
+        )
+    )
+    minor_axis_plastic_half_area = flange_area + web_area / 2
+    minor_axis_plastic_section_modulus = (
+        2 * minor_axis_plastic_half_area * minor_axis_plastic_half_centroid
+    )
+    return SectionGeoProperties(
+        area=area,
+        warping_constant=warping_constant(
+            moment_of_inertia=minor_axis_inertia,
+            distance_between_flanges_centroid=dimensions.distance_between_centroids,
+        ),
+        inertia=ThreeAxisData(
+            major_axis=major_axis_inertia,
+            minor_axis=minor_axis_inertia,
+            torsion=polar_inertia,
+        ),
+        elastic_section_modulus=TwoAxisData(
+            major_axis=major_axis_elastic_section_modulus,
+            minor_axis=minor_axis_elastic_section_modulus,
+        ),
+        plastic_section_modulus=TwoAxisData(
+            major_axis=major_axis_plastic_section_modulus,
+            minor_axis=minor_axis_plastic_section_modulus,
+        ),
+        radius_of_gyration=ThreeAxisData(
+            major_axis=major_axis_radius_of_gyration,
+            minor_axis=minor_axis_radius_of_gyration,
+            torsion=torsional_radius_of_gyration,
+        ),
+    )
+
+
+# @dataclass
+# class DoublySymmetricIAreaPropertiesFromDimensions:
+#     dimensions: DoublySymmetricIDimensions
+#
+#     @property
+#     def _flange_area(self):
+#         return rectangle_area(
+#             width=self.dimensions.flange_width,
+#             height=self.dimensions.flange_thickness,
+#         )
+#
+#     @property
+#     def _web_area(self):
+#         return rectangle_area(
+#             width=self.dimensions.web_thickness,
+#             height=self.dimensions.web_height,
+#         )
+#
+#     @property
+#     def area(self) -> Quantity:
+#         return self._web_area + 2 * self._flange_area
+#
+#     @property
+#     def _flange_self_inertia_major_axis(self) -> Quantity:
+#         return self_inertia(
+#             width=self.dimensions.flange_width,
+#             height=self.dimensions.flange_thickness,
+#         )
+#
+#     @property
+#     def _flange_self_inertia_minor_axis(self) -> Quantity:
+#         return self_inertia(
+#             width=self.dimensions.flange_thickness,
+#             height=self.dimensions.flange_width,
+#         )
+#
+#     @property
+#     def _web_self_inertia_major_axis(self) -> Quantity:
+#         return self_inertia(
+#             width=self.dimensions.web_thickness,
+#             height=self.dimensions.web_height,
+#         )
+#
+#     @property
+#     def _web_self_inertia_minor_axis(self) -> Quantity:
+#         return self_inertia(
+#             width=self.dimensions.web_height,
+#             height=self.dimensions.web_thickness,
+#         )
+#
+#     @property
+#     def _flange_area_centroid_major_axis(self):
+#         return self.dimensions.distance_between_centroids / 2
+#
+#     @property
+#     def _flange_transfer_inertia_major_axis(self):
+#         return transfer_inertia(
+#             area=self._flange_area,
+#             center_to_na_distance=self._flange_area_centroid_major_axis,
+#         )
+#
+#     @property
+#     def _minor_axis_inertia(self):
+#         return (
+#             2 * self._flange_self_inertia_minor_axis
+#             + self._web_self_inertia_minor_axis
+#         )
+#
+#     @property
+#     def _major_axis_inertia(self):
+#         return (
+#             2 * self._flange_transfer_inertia_major_axis
+#             + 2 * self._flange_self_inertia_major_axis
+#             + self._web_self_inertia_major_axis
+#         )
+#
+#     @property
+#     def _major_axis_elastic_section_modulus(self) -> Quantity:
+#         return section_modulus(
+#             self._major_axis_inertia, self.dimensions.total_height / 2
+#         )
+#
+#     @property
+#     def _minor_axis_elastic_section_modulus(self) -> Quantity:
+#         return section_modulus(
+#             self._minor_axis_inertia, self.dimensions.flange_width / 2
+#         )
+#
+#     @property
+#     def _major_axis_radius_of_gyration(self) -> Quantity:
+#         return radius_of_gyration(
+#             moment_of_inertia=self._major_axis_inertia,
+#             gross_section_area=self.area,
+#         )
+#
+#     @property
+#     def _minor_axis_radius_of_gyration(self) -> Quantity:
+#         return radius_of_gyration(
+#             moment_of_inertia=self._minor_axis_inertia,
+#             gross_section_area=self.area,
+#         )
+#
+#     @property
+#     def _torsional_constant(self) -> Quantity:
+#         return doubly_symmetric_i_torsional_constant(
+#             flange_width=self.dimensions.flange_width,
+#             total_height=self.dimensions.total_height,
+#             flange_thickness=self.dimensions.flange_thickness,
+#             web_thickness=self.dimensions.web_thickness,
+#         )
+#
+#     @property
+#     def _torsional_radius_of_gyration(self):
+#         return radius_of_gyration(
+#             moment_of_inertia=self._torsional_constant,
+#             gross_section_area=self.area,
+#         )
+#
+#     @property
+#     def _major_axis_plastic_half_centroid(self) -> Quantity:
+#         return areas_centroid(
+#             (
+#                 (self._flange_area, self._flange_area_centroid_major_axis),
+#                 (self._web_area / 2, self.dimensions.web_height / 4),
+#             )
+#         )
+#
+#     @property
+#     def _major_axis_plastic_half_area(self) -> Quantity:
+#         return self._flange_area + self._web_area / 2
+#
+#     @property
+#     def _major_axis_plastic_section_modulus(self):
+#         return (
+#             2
+#             * self._major_axis_plastic_half_centroid
+#             * self._major_axis_plastic_half_area
+#         )
+#
+#     @property
+#     def _minor_axis_plastic_half_centroid(self) -> Quantity:
+#         return areas_centroid(
+#             (
+#                 (self._flange_area, self.dimensions.flange_width / 4),
+#                 (self._web_area / 2, self.dimensions.web_thickness / 4),
+#             )
+#         )
+#
+#     @property
+#     def _minor_axis_plastic_half_area(self) -> Quantity:
+#         return self._flange_area + self._web_area / 2
+#
+#     @property
+#     def _minor_axis_plastic_section_modulus(self):
+#         return (
+#             2
+#             * self._minor_axis_plastic_half_area
+#             * self._minor_axis_plastic_half_centroid
+#         )
+#
+#     @property
+#     def major_axis(self) -> AxisBending:
+#         return AxisBendingData(
+#             _inertia=self._major_axis_inertia,
+#             _elastic_section_modulus=self._major_axis_elastic_section_modulus,
+#             _plastic_section_modulus=self._major_axis_plastic_section_modulus,
+#             _radius_of_gyration=self._major_axis_radius_of_gyration,
+#         )
+#
+#     @property
+#     def minor_axis(self) -> AxisBending:
+#         return AxisBendingData(
+#             _inertia=self._minor_axis_inertia,
+#             _elastic_section_modulus=self._minor_axis_elastic_section_modulus,
+#             _plastic_section_modulus=self._minor_axis_plastic_section_modulus,
+#             _radius_of_gyration=self._minor_axis_radius_of_gyration,
+#         )
+#
+#     @property
+#     def torsion(self) -> Torsion:
+#         return TorsionData(
+#             _inertia=self._torsional_constant,
+#             _radius_of_gyration=self._torsional_radius_of_gyration,
+#         )
+#
+#     @property
+#     def warping_constant(self):
+#         return warping_constant(
+#             moment_of_inertia=self._minor_axis_inertia,
+#             distance_between_flanges_centroid=self.dimensions.distance_between_centroids,
+#         )
 
 
 @dataclass
@@ -576,9 +473,12 @@ class DoublySymmetricIWebSlenderness(ElementSlenderness):
     @property
     def shear_area(self) -> Quantity:
         return (
-            self.profile.dimensions.web_height * self.profile.dimensions.web_thickness
+            self.profile.dimensions.web_height
+            * self.profile.dimensions.web_thickness
         )
 
+def doubly_symmetric_i_flange_slenderness():
+    return
 
 @dataclass
 class DoublySymmetricIFlangeSlenderness(ElementSlenderness):
@@ -713,15 +613,21 @@ class DoublySymmetricIFlangeSlenderness(ElementSlenderness):
 class DoublySymmetricI:
     dimensions: DoublySymmetricIDimensions
     material: IsotropicMaterial
-    area_properties: AreaProperties = None
+    geo_properties: SectionGeoProperties = None
     construction: ConstructionType = ConstructionType.ROLLED
     # coefficient_c: float = 1.0
 
-    def __post_init__(self):
-        if not self.area_properties:
-            self.area_properties = DoublySymmetricIAreaPropertiesFromDimensions(
-                self.dimensions
-            )
+    @property
+    def geo_properties(self) -> SectionGeoProperties:
+        return (
+            self._geo_properties
+            or doubly_symmetric_i_section_properties(self.dimensions)
+        )
+
+    @geo_properties.setter
+    def geo_properties(self, value: Union[SectionGeoProperties, None]) -> None:
+        self._geo_properties = value
+
 
     # @property
     # def default_table(self):
@@ -863,33 +769,79 @@ class DoublySymmetricI:
     #         ),
     #     )
 
-    def compression(self, beam: "Beam") -> DesignStrength:
-        return DesignStrength(
-            strengths={
-                FLEXURAL_BUCKLING_MAJOR_AXIS_STRENGTH: FlexuralBuckling(
-                    section=self,
-                    beam=beam,
-                    axis=Axis.MAJOR,
-                ),
-                FLEXURAL_BUCKLING_MINOR_AXIS_STRENGTH: FlexuralBuckling(
-                    section=self,
-                    beam=beam,
-                    axis=Axis.MINOR,
-                ),
-            }
-        )
-        # return {
-        #     f"{FLEXURAL_BUCKLING}_major": create_compression_flexural_buckling_criteria(
-        #         beam_param=beam_param, section=self, axis="major"
-        #     ),
-        #     f"{FLEXURAL_BUCKLING}_minor": create_compression_flexural_buckling_criteria(
-        #         beam_param=beam_param, section=self, axis="minor"
-        #     ),
-        # }
+    def compression_design_strength(
+        self,
+        length_major_axis: Quantity,
+        factor_k_major_axis: float = 1.0,
+        length_minor_axis: Quantity = None,
+        factor_k_minor_axis: float = 1.0,
+        length_torsion: Quantity = None,
+        factor_k_torsion: float = 1.0,
+        design_type: DesignType = DesignType.ASD,
+    ) -> tuple[Quantity, StrengthType]:
+        ...
 
-    def shear_major_axis(self, beam: "Beam") -> DesignStrength:
-        return {
-            SHEAR_STRENGTH: StandardShearCriteriaAdaptor(
-                beam=beam, section=self, axis=Axis.MAJOR
-            ),
-        }
+    def compression_nominal_strengths(
+        self,
+        length_major_axis: Quantity,
+        factor_k_major_axis: float = 1.0,
+        length_minor_axis: Quantity = None,
+        factor_k_minor_axis: float = 1.0,
+        length_torsion: Quantity = None,
+        factor_k_torsion: float = 1.0,
+        detailed_results: bool = False,
+        # design_type: DesignType = DesignType.ASD,
+    ) -> LoadReturn:
+        ...
+
+    def shear_major_axis_design_strength(
+        self, design_type: DesignType = DesignType.ASD
+    ) -> tuple[Quantity, StrengthType]:
+        ...
+
+    def shear_major_axis_nominal_strengths(
+        self, detailed_results: bool = False
+    ) -> LoadReturn:
+        ...
+
+    def shear_minor_axis_design_strength(
+        self, design_type: DesignType = DesignType.ASD
+    ) -> tuple[Quantity, StrengthType]:
+        ...
+
+    def shear_minor_axis_nominal_strengths(
+        self, detailed_results: bool = False
+    ) -> LoadReturn:
+        ...
+
+    def flexure_major_axis_design_strength(
+        self,
+        length: Quantity,
+        lateral_torsional_buckling_modification_factor: float = 1.0,
+        design_type: DesignType = DesignType.ASD,
+    ) -> Quantity:
+        ...
+
+    def flexure_major_axis_nominal_strengths(
+        self,
+        length: Quantity,
+        lateral_torsional_buckling_modification_factor: float = 1.0,
+        detailed_results: bool = False,
+    ) -> Quantity:
+        ...
+
+    def flexure_minor_axis_design_strength(
+        self,
+        length: Quantity,
+        lateral_torsional_buckling_modification_factor: float = 1.0,
+        design_type: DesignType = DesignType.ASD,
+    ) -> Quantity:
+        ...
+
+    def flexure_minor_axis_nominal_strengths(
+        self,
+        length: Quantity,
+        lateral_torsional_buckling_modification_factor: float = 1.0,
+        detailed_results: bool = False,
+    ) -> Quantity:
+        ...

@@ -1,35 +1,27 @@
 import abc
-from ast import Call
 from dataclasses import dataclass
-from functools import partial
-from typing import Callable, Literal, Protocol, TYPE_CHECKING
+from typing import Protocol, TYPE_CHECKING
 
 from quantities import Quantity
 
 from structure_scripts.aisc_360_10.criteria import (
-    DesignStrength,
     # SafetyFactor,
     # AllowableStrengthDesign,
     # CriteriaAdaptor,
-    Strength,
     NOMINAL_STRENGTH,
 )
 from structure_scripts.aisc_360_10.beams import (
-    BucklingParam,
-    BeamAnalysis,
     Beam,
 )
 from structure_scripts.aisc_360_10.helpers import (
     elastic_flexural_buckling_stress,
-    _member_slenderness_limit,
     critical_compression_stress_buckling_default,
     _nominal_compressive_strength,
     elastic_torsional_buckling_stress_doubly_symmetric_member,
 )
 
 from structure_scripts.aisc_360_10.sections import Section
-from structure_scripts.shared.helpers import member_slenderness_ratio, Axis
-from structure_scripts.shared.materials import IsotropicMaterial
+from structure_scripts.helpers import member_slenderness_ratio, Axis
 
 if TYPE_CHECKING:
     from structure_scripts.aisc_360_10.i_profile import DoublySymmetricI
@@ -137,7 +129,6 @@ class BucklingStrength:
 class BucklingMixin(abc.ABC):
     section: Section
 
-    @property
     @property
     def buckling_strength_model(self) -> BucklingStrength:
         return BucklingStrength(
