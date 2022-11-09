@@ -7,7 +7,7 @@ from structure_scripts.aisc_360_10.elements import (
 )
 from structure_scripts.aisc_360_10.i_profile import (
     DoublySymmetricIDimensionsUserDefined,
-    DoublySymmetricI,
+    DoublySymmetricIAISC36010,
 )
 from structure_scripts.materials import (
     IsotropicIsotropicMaterialUserDefined,
@@ -18,7 +18,7 @@ kN = UnitQuantity("kN", 1000 * N)
 
 
 def several_loads_results(
-    profile: DoublySymmetricI,
+    profile: DoublySymmetricIAISC36010,
     unbraced_length: Quantity,
     loads: Collection[tuple[Quantity, Quantity, Quantity]],
     factor_k_minor_axis: float = 1.0,
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         web_thickness=8.6 * mm,
         total_height=254 * mm,
     )
-    profile_wx250x250x73 = DoublySymmetricI(
+    profile_wx250x250x73 = DoublySymmetricIAISC36010(
         area_properties=area_properties_wx250x250x73,
         dimensions=dimensions_wx250x250x73,
         material=steel,

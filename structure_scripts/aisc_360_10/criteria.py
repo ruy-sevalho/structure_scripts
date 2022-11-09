@@ -1,7 +1,8 @@
 from abc import abstractmethod, ABC
 from dataclasses import dataclass
 from enum import Enum
-from typing import Protocol, Callable
+from functools import cached_property
+from typing import Protocol, Callable, Optional, Union
 
 from quantities import Quantity
 
@@ -23,6 +24,27 @@ class StrengthType(str, Enum):
     COMPRESSION_FLANGE_LOCAL_BUCKLING = "compression_flange_local_buckling"
     COMPRESSION_FLANGE_YIELDING = "compression_flange_yielding"
     TENSION_FLANGE_YIELDING = "tension_flange_yielding"
+
+
+@dataclass
+class LoadingStrength:
+    design_strength: Quantity
+    design_strength_type: str
+    nominal_strengths: Optional[
+        dict[StrengthType, dict[str, Optional[Union[Quantity, float]]]]
+    ]
+
+    @classmethod
+    def from_dict_of_strengths(
+        cls,
+        dict_of_strengths: dict[
+            StrengthType, dict[str, Optional[Union[Quantity, float]]]
+        ],
+    ):
+
+        return cls()
+
+    # helper method to flatten output in order to be able to use pytest.approx
 
 
 # class SafetyFactor(Protocol):
@@ -81,52 +103,62 @@ class Criteria:
         return function(nominal_strength, factor)
 
 
-class DesignStrength(Protocol):
-    @property
-    @abstractmethod
-    def nominal_strength(self) -> Quantity:
-        pass
-
-    @property
-    @abstractmethod
-    def design_strength(self) -> Quantity:
-        pass
-
-    @property
-    @abstractmethod
-    def strength_type(self) -> StrengthType:
-        pass
-
-
-# class StrengthCollection(Protocol):
+# # class DesignStrength(Protocol):
+# #     @property
+# #     @abstractmethod
+# #     def nominal_strength(self) -> Quantity:
+# #         pass
+# #
+# #     @property
+# #     @abstractmethod
+# #     def design_strength(self) -> Quantity:
+# #         pass
+# #
+# #     @property
+# #     @abstractmethod
+# #     def strength_type(self) -> StrengthType:
+# #         pass
+#
+#
+# # class StrengthCollection(Protocol):
+# #     @property
+# #     @abc.abstractmethod
+# #     def values(self) -> dict[str, Quantity]:
+# #         ...
+#
+#
+# class DesignStrengthMixin(ABC):
+#     criteria: Criteria = Criteria()
+#     design_type: DesignType = DesignType.ASD
+#
 #     @property
-#     @abc.abstractmethod
-#     def values(self) -> dict[str, Quantity]:
-#         ...
+#     @abstractmethod
+#     def strengths(self) -> dict[str, Quantity]:
+#         pass
+#
+#     @property
+#     def design_strength(self) -> tuple[Quantity, str]:
+#         return min(
+#             (
+#                 (
+#                     self.criteria.design_strength(item[1], self.design_type),
+#                     item[0],
+#                 )
+#                 for item in self.strengths.items()
+#                 if item[1]
+#             ),
+#             key=lambda x: x[1],
+#         )
 
 
-class DesignStrengthMixin(ABC):
-    criteria: Criteria = Criteria()
-    design_type: DesignType = DesignType.ASD
-
-    @property
-    @abstractmethod
-    def strengths(self) -> dict[str, Quantity]:
-        pass
-
-    @property
-    def design_strength(self) -> tuple[Quantity, str]:
-        return min(
-            (
-                (
-                    self.criteria.design_strength(item[1], self.design_type),
-                    item[0],
-                )
-                for item in self.strengths.items()
-                if item[1]
-            ),
-            key=lambda x: x[1],
-        )
+def nominal_strength(
+    nominal_strengths: dict[StrengthType, Optional[Quantity]],
+) -> tuple[Quantity, StrengthType]:
+    strength_type, strength = min(
+        filter(lambda item: item[1], nominal_strengths.items()),
+        key=lambda item: item[1],
+    )
+    return strength, strength_type
 
 
 # class Criteria(Protocol):
@@ -265,3 +297,50 @@ class DesignStrengthMixin(ABC):
 #             "textcolor", arguments="red", extra_arguments=print_ratio
 #         )
 #     return print_ratio
+
+
+class Strength(Protocol):
+    @property
+    @abstractmethod
+    def nominal_strength(self) -> Quantity:
+        pass
+
+    @property
+    @abstractmethod
+    def detailed_results(self) -> dict[str, Union[Quantity, float, None]]:
+        pass
+
+
+@dataclass(frozen=True)
+class DesignStrength:
+    nominal_strengths: dict[StrengthType, Strength]
+    criteria: Criteria = Criteria()
+
+    @cached_property
+    def nominal_strength_tuple(self):
+        return nominal_strength(
+            {
+                key: value.nominal_strength
+                for key, value in self.nominal_strengths.items()
+            }
+        )
+
+    @cached_property
+    def nominal_strength(self):
+        return self.nominal_strength_tuple[0]
+
+    @cached_property
+    def nominal_strength_type(self):
+        return self.nominal_strength_tuple[1]
+
+    @cached_property
+    def design_strength_asd(self):
+        return self.criteria.design_strength(
+            nominal_strength=self.nominal_strength, design_type=DesignType.ASD
+        )
+
+    @cached_property
+    def design_strength_lrfd(self):
+        return self.criteria.design_strength(
+            nominal_strength=self.nominal_strength, design_type=DesignType.LRFD
+        )

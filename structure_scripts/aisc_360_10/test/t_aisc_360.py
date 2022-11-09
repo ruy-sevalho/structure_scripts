@@ -3,18 +3,17 @@ from pytest import approx, mark, raises
 from quantities import UnitQuantity, Quantity, cm, m, mm, N
 
 from structure_scripts.sections import (
-    AreaProperties,
     DirectInputAreaProperties,
+    ChannelDimensions,
 )
+from structure_scripts.section_properties import AreaProperties, ConstructionType
 from structure_scripts.aisc_360_10.i_profile import (
     DoublySymmetricIDimensionsUserDefined,
-    DoublySymmetricI,
+    DoublySymmetricIAISC36010,
 )
 from structure_scripts.aisc_360_10.channel import (
-    ChannelDimensions,
     ChannelAreaProperties,
 )
-from structure_scripts.aisc_360_10.helpers import ConstructionType
 from structure_scripts.materials import (
     steel355mpa,
 )
@@ -47,15 +46,15 @@ dimensions_200x10_200x10 = DoublySymmetricIDimensionsUserDefined(
     web_thickness=10 * mm,
     total_height=220 * mm,
 )
-profile_127x76x13_rolled = DoublySymmetricI(
+profile_127x76x13_rolled = DoublySymmetricIAISC36010(
     area_properties=area_properties_127x76x13,
     dimensions=dimensions_127x76x13,
     material=steel355mpa,
 )
-profile_200x10_200x10 = DoublySymmetricI(
+profile_200x10_200x10 = DoublySymmetricIAISC36010(
     dimensions=dimensions_200x10_200x10, material=steel355mpa
 )
-profile_built_up = DoublySymmetricI(
+profile_built_up = DoublySymmetricIAISC36010(
     area_properties=area_properties_127x76x13,
     dimensions=dimensions_127x76x13,
     material=steel355mpa,
@@ -72,6 +71,7 @@ channel_1_dimensions = ChannelDimensions(
 channel_1_area_properties = ChannelAreaProperties(
     dimensions=channel_1_dimensions
 )
+
 
 # beam analysis
 # beam_200x10_analysis = BeamAnalysis(
@@ -136,12 +136,12 @@ channel_1_area_properties = ChannelAreaProperties(
 
 
 # brittle test
-@mark.parametrize("profile, kc_coefficient", [(profile_built_up, 0.76)])
-def test_doubly_symmetric_i_kc_coefficient(
-    profile: DoublySymmetricI, kc_coefficient: float
-):
-    assert profile.slenderness.flange.kc_coefficient == approx(kc_coefficient)
-
+# @mark.parametrize("profile, kc_coefficient", [(profile_built_up, 0.76)])
+# def test_doubly_symmetric_i_kc_coefficient(
+#     profile: DoublySymmetricI, kc_coefficient: float
+# ):
+#     assert profile.slenderness.flange.kc_coefficient == approx(kc_coefficient)
+#
 
 # @mark.parametrize(
 #     "profile",
@@ -193,31 +193,29 @@ def test_doubly_symmetric_i_kc_coefficient(
     [(profile_127x76x13_rolled, 13.29195457), (profile_built_up, 13.24303697)],
 )
 def test_doubly_symmetric_i_flange_axial_slenderness_limit(
-    profile: tuple[DoublySymmetricI, float]
+    profile: tuple[DoublySymmetricIAISC36010, float]
 ):
-    assert profile[
-        0
-    ].slenderness.flange.axial_compression.limit_ratio == approx(profile[1])
+    assert profile[0].slenderness.flange.axial.limit_ratio == approx(
+        profile[1]
+    )
 
 
 def test_doubly_symmetric_i_web_axial_slenderness_limit():
     assert (
-        profile_127x76x13_rolled.slenderness.web.axial_compression.limit_ratio
+        profile_127x76x13_rolled.slenderness.web.axial.limit_ratio
         == approx(35.36609341)
     )
 
 
 def test_doubly_symmetric_i_flange_flexural_slenderness_limit():
-    assert (
-        profile_127x76x13_rolled.slenderness.flange.axial_limit_ratio
-        == approx(13.29195457)
+    assert profile_127x76x13_rolled.slenderness.flange.axial_limit == approx(
+        13.29195457
     )
 
 
 def test_doubly_symmetric_i_web_flexural_limit():
-    assert (
-        profile_127x76x13_rolled.slenderness.web.axial_compression_limit_ratio
-        == approx(35.36609341)
+    assert profile_127x76x13_rolled.slenderness.web.axial_limit == approx(
+        35.36609341
     )
 
 

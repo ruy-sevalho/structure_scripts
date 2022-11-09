@@ -9,17 +9,19 @@ from structure_scripts.aisc_360_10.beams import (
 )
 from structure_scripts.aisc_360_10.i_profile import (
     DoublySymmetricIDimensionsUserDefined,
-    DoublySymmetricI,
+    DoublySymmetricIAISC36010,
 )
 from structure_scripts.aisc_360_10.channel import (
-    ChannelDimensions,
     ChannelAreaProperties,
 )
-from structure_scripts.aisc_360_10.helpers import ConstructionType
 from structure_scripts.materials import (
     steel355mpa,
 )
-from structure_scripts.sections import DirectInputAreaProperties
+from structure_scripts.sections import (
+    DirectInputAreaProperties,
+    ChannelDimensions,
+)
+from structure_scripts.section_properties import ConstructionType
 
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilo newton", 1000 * N, symbol="kN")
@@ -49,15 +51,15 @@ dimensions_200x10_200x10 = DoublySymmetricIDimensionsUserDefined(
     web_thickness=10 * mm,
     total_height=220 * mm,
 )
-profile_127x76x13_rolled = DoublySymmetricI(
+profile_127x76x13_rolled = DoublySymmetricIAISC36010(
     area_properties=area_properties_127x76x13,
     dimensions=dimensions_127x76x13,
     material=steel355mpa,
 )
-profile_200x10_200x10 = DoublySymmetricI(
+profile_200x10_200x10 = DoublySymmetricIAISC36010(
     dimensions=dimensions_200x10_200x10, material=steel355mpa
 )
-profile_built_up = DoublySymmetricI(
+profile_built_up = DoublySymmetricIAISC36010(
     area_properties=area_properties_127x76x13,
     dimensions=dimensions_127x76x13,
     material=steel355mpa,

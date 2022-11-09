@@ -42,22 +42,14 @@ def circular_section_polar_moment_of_inertia(
     return math.pi * (outer_diameter**4 - inner_diameter**4) / 32
 
 
-def same_units_simplify(q1: Quantity, q2: Quantity):
+def same_units_simplify(q1: Quantity, q2: Quantity, strip_units: bool = False):
     q1 = q1.simplified
     q2 = q2.simplified
     if not q1.units == q2.units:
         raise ValueError("q1 and q2 don't have the same units")
+    if strip_units:
+        return q1.magnitude.item(), q2.magnitude.item()
     return q1, q2
-
-
-def same_units_dictionary_simplify(
-    d1: dict[str, Quantity | float], d2: dict[str, Quantity | float]
-) -> tuple[dict[str, Quantity | float], dict[str, Quantity | float]]:
-    if not d1.keys() == d2.keys():
-        raise ValueError("d1 and d2 don't have the same keys")
-    for key in d1:
-        d1[key], d2[key] = same_units_simplify(d1[key], d2[key])
-    return d1, d2
 
 
 def section_modulus(
@@ -66,7 +58,9 @@ def section_modulus(
     return inertia / max_distance_to_neutral_axis
 
 
-def radius_of_gyration(moment_of_inertia: Quantity, gross_section_area: Quantity):
+def radius_of_gyration(
+    moment_of_inertia: Quantity, gross_section_area: Quantity
+):
     return (moment_of_inertia / gross_section_area) ** 0.5
 
 
@@ -74,7 +68,9 @@ def self_inertia(width: Quantity, height: Quantity) -> Quantity:
     return width * height**3 / 12
 
 
-def transfer_inertia(area: Quantity, center_to_na_distance: Quantity) -> Quantity:
+def transfer_inertia(
+    area: Quantity, center_to_na_distance: Quantity
+) -> Quantity:
     return area * center_to_na_distance**2
 
 

@@ -30,7 +30,7 @@
 # from structure_scripts.aisc_360_10.sections import Section, SectionWithWebAndFlange
 # from structure_scripts.shared.helpers import ratio_simplify, member_slenderness_ratio
 # from structure_scripts.shared.report_config import config_dict
-# from structure_scripts.shared.data import extract_input_dataframe
+# from structure_scripts.shared.data.py import extract_input_dataframe
 #
 # if TYPE_CHECKING:
 #     from structure_scripts.aisc_360_10.i_profile import DoublySymmetricI

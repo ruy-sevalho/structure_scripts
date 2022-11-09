@@ -1,14 +1,16 @@
 from abc import abstractmethod
-from typing import Protocol, TYPE_CHECKING, Union
+from typing import Protocol, TYPE_CHECKING, Union, TypeVar
 from quantities import Quantity
 
 from structure_scripts.aisc_360_10.criteria import (
     DesignType,
     StrengthType,
+    LoadingStrength,
 )
-from structure_scripts.aisc_360_10.section_slenderness import (
-    FlangeWebSlenderness,
-)
+
+# from structure_scripts.aisc_360_10.section_slenderness import (
+#     FlangeWebSlenderness,
+# )
 
 if TYPE_CHECKING:
     pass
@@ -52,19 +54,22 @@ if TYPE_CHECKING:
 #
 #     @cached_property
 #     def latex(self):
-#         return AreaPropertiesLatex(data=self)
+#         return AreaPropertiesLatex(data.py=self)
 
 
 # class AreaPropertiesWithWeb(AreaProperties, WebArea):
 #     ...
 
-LoadReturn = Union[
+LoadReturn = TypeVar(
+    "LoadReturn",
     dict[StrengthType, Quantity],
-    dict[StrengthType, dict[str, Union[Quantity, float, None]]],
-]
+    dict[
+        StrengthType, tuple[Quantity, dict[str, Union[Quantity, float, bool]]]
+    ],
+)
 
 
-class Section(Protocol):
+class AISC_360_10RuleCheck(Protocol):
     # material: IsotropicMaterial
     # construction: ConstructionType
     #
@@ -73,7 +78,7 @@ class Section(Protocol):
     # def area_properties(self) -> AreaProperties:
     #     pass
 
-    def compression_design_strength(
+    def compression(
         self,
         length_major_axis: Quantity,
         factor_k_major_axis: float = 1.0,
@@ -82,7 +87,7 @@ class Section(Protocol):
         length_torsion: Quantity = None,
         factor_k_torsion: float = 1.0,
         design_type: DesignType = DesignType.ASD,
-    ) -> tuple[Quantity, StrengthType]:
+    ) -> LoadingStrength:
         ...
 
     def compression_nominal_strengths(
@@ -151,15 +156,15 @@ class Section(Protocol):
         ...
 
 
-class HasWebFlange(Protocol):
-    @property
-    @abstractmethod
-    def slenderness(self) -> FlangeWebSlenderness:
-        pass
+# class HasWebFlange(Protocol):
+#     @property
+#     @abstractmethod
+#     def slenderness(self) -> FlangeWebSlenderness:
+#         pass
 
 
-class SectionWithWebFlange(Section, HasWebFlange, Protocol):
-    pass
+# class SectionWithWebFlange(Section, HasWebFlange, Protocol):
+#     pass
 
 
 #

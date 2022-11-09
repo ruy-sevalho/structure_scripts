@@ -7,9 +7,8 @@ from structure_scripts.aisc_360_10.helpers import (
     _web_shear_coefficient_limit,
     web_shear_coefficient_iii,
     _nominal_shear_strength,
-    ConstructionType,
 )
-
+from structure_scripts.section_properties import ConstructionType
 
 from structure_scripts.aisc_360_10.section_slenderness import (
     ElementSlendernessDefinition,

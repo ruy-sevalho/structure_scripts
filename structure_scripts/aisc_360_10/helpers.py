@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import Collection
 
 import numpy as np
@@ -10,11 +9,6 @@ from structure_scripts.helpers import (
     ratio_simplify,
     same_units_simplify,
 )
-
-
-class ConstructionType(str, Enum):
-    ROLLED = "ROLLED"
-    BUILT_UP = "BUILT_UP"
 
 
 # E3. FLEXURAL BUCKLING OF MEMBERS WITHOUT SLENDER ELEMENTS (E3-1)
@@ -77,7 +71,7 @@ def elastic_torsional_buckling_stress_doubly_symmetric_member(
 
 
 # Note of page Sect. E4.] TORSIONAL AND FLEXURAL-TORSIONAL BUCKLING OF MEMBERS
-def warping_constant(
+def doubly_symmetric_i_warping_constant(
     moment_of_inertia: Quantity, distance_between_flanges_centroid: Quantity
 ):
     return moment_of_inertia * distance_between_flanges_centroid**2 / 4
@@ -140,7 +134,7 @@ def flexural_major_axis_yield_strength(
     return yield_stress * section_modulus
 
 
-def _flexural_minor_axis_yield_strength(
+def flexural_minor_axis_yield_strength(
     yield_stress: Quantity,
     plastic_section_modulus: Quantity,
     elastic_section_modulus: Quantity,
@@ -151,7 +145,7 @@ def _flexural_minor_axis_yield_strength(
     )
 
 
-def _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_b(
+def flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_b(
     mod_factor: float,
     plastic_moment: Quantity,
     yield_stress: Quantity,
@@ -171,7 +165,7 @@ def _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_
     return min(momt_calc, momt_plastic)
 
 
-def _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_c(
+def flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_c(
     plastic_moment: Quantity,
     section_modulus: Quantity,
     critical_stress: Quantity,
@@ -179,7 +173,7 @@ def _flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_
     return critical_stress * section_modulus
 
 
-def _flexural_lateral_torsional_buckling_strength(
+def flexural_lateral_torsional_buckling_strength(
     case_b: Quantity | str,
     case_c: Quantity | str,
     length_between_braces: Quantity,
@@ -193,7 +187,7 @@ def _flexural_lateral_torsional_buckling_strength(
     return case_c
 
 
-def _flexural_lateral_torsional_buckling_critical_stress_compact_doubly_symmetric(
+def flexural_lateral_torsional_buckling_critical_stress_compact_doubly_symmetric(
     mod_factor: float,
     length_between_braces: Quantity,
     modulus: Quantity,
@@ -420,7 +414,7 @@ def web_shear_coefficient_iii(
     )
 
 
-def web_height(total_height: Quantity, flange_thickness: Quantity):
+def web_height_from_total(total_height: Quantity, flange_thickness: Quantity):
     return total_height - 2 * flange_thickness
 
 
