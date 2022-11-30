@@ -6,7 +6,6 @@ from pytest import approx
 from quantities import Quantity
 
 from structure_scripts.aisc_360_10.criteria import (
-    LoadingStrength,
     StrengthType,
     DesignStrength,
     NOMINAL_STRENGTH,
@@ -14,7 +13,7 @@ from structure_scripts.aisc_360_10.criteria import (
 from structure_scripts.helpers import same_units_simplify
 
 
-def same_units_dictionary_simplify(
+def same_units_dictionary_simplify_for_test_assert(
     d1: dict[str, Quantity | float | StrengthType | str],
     d2: dict[str, Quantity | float | StrengthType | str],
     rel: float = None,
@@ -30,9 +29,12 @@ def same_units_dictionary_simplify(
                 f"d1[{key}] = {d1[key]} and d2[{key}] = {d2[key]} are not of the same type"
             )
         if isinstance(d1[key], Quantity):
-            d1[key], d2[key] = same_units_simplify(
-                d1[key], d2[key], strip_units=strip_units
-            )
+            try:
+                d1[key], d2[key] = same_units_simplify(
+                    d1[key], d2[key], strip_units=strip_units
+                )
+            except ValueError as e:
+                raise ValueError(f"key={key} \n {e}")
         if isinstance(d1[key], float):
             partial_approx = partial(approx, rel=rel, abs=abs, nan_ok=nan_ok)
             d2[key] = partial_approx(d2[key])
@@ -94,7 +96,10 @@ def compare_loading_strengths(
 ):
     flattened_calculated = convert_loading_strength(calculated)
     flattened_expected = _flatten_expected_design_strength(expected)
-    processed_calculated, processed_expected = same_units_dictionary_simplify(
+    (
+        processed_calculated,
+        processed_expected,
+    ) = same_units_dictionary_simplify_for_test_assert(
         flattened_calculated,
         flattened_expected,
         abs=abs,

@@ -5,11 +5,7 @@ from functools import cached_property
 from quantities import Quantity
 
 from structure_scripts.aisc_360_10.criteria import (
-    # SafetyFactor,
-    # AllowableStrengthDesign,
-    # CriteriaAdaptor,
     NOMINAL_STRENGTH,
-    DesignType,
 )
 from structure_scripts.aisc_360_10.helpers import (
     elastic_flexural_buckling_stress,
@@ -29,78 +25,6 @@ TORSIONAL_BUCKLING_STRENGTH = "torsional_buckling_strength"
 ELASTIC_BUCKLING_STRESS = "elastic_buckling_stress"
 BUCKLING_CRITICAL_STRESS = "buckling_critical_stress"
 
-# @dataclass
-# class CompressionFlexuralBucklingCompact(Criteria):
-#     slenderness: float
-#     section_area: Quantity
-#     material: IsotropicMaterial
-#     member_slenderness_limit: float
-#     safety_factor: SafetyFactor = AllowableStrengthDesign()
-
-#     @cached_property
-#     def elastic_flexural_buckling_stress(self):
-#         return elastic_flexural_buckling_stress(
-#             modulus_linear=self.material.modulus_linear,
-#             member_slenderness_ratio=self.slenderness,
-#         )
-
-#     @cached_property
-#     def flexural_buckling_critical_stress(self):
-#         return critical_compression_stress_buckling_default(
-#             member_slenderness=self.slenderness,
-#             elastic_buckling_stress=self.elastic_flexural_buckling_stress,
-#             member_slenderness_limit=self.member_slenderness_limit,
-#             yield_stress=self.material.yield_stress,
-#         )
-
-#     @cached_property
-#     def nominal_strength(self) -> Quantity:
-#         return _nominal_compressive_strength(
-#             self.flexural_buckling_critical_stress, sectional_area=self.section_area
-#         )
-
-
-# @dataclass
-# class CompressionTorsionalBuckling(Criteria):
-#     slenderness: float
-#     section_area: Quantity
-#     modulus_linear: Quantity
-#     yield_stress: Quantity
-#     member_slenderness_limit: float
-#     safety_factor: SafetyFactor = AllowableStrengthDesign()
-
-#     @cached_property
-#     def elastic_flexural_buckling_stress(self):
-#         return elastic_flexural_buckling_stress(
-#             modulus_linear=self.modulus_linear,
-#             member_slenderness_ratio=self.slenderness,
-#         )
-
-#     @cached_property
-#     def flexural_buckling_critical_stress(self):
-#         return critical_compression_stress_buckling_default(
-#             member_slenderness=self.slenderness,
-#             elastic_buckling_stress=self.elastic_flexural_buckling_stress,
-#             member_slenderness_limit=self.member_slenderness_limit,
-#             yield_stress=self.yield_stress,
-#         )
-
-#     @cached_property
-#     def nominal_strength(self) -> Quantity:
-#         return _nominal_compressive_strength(
-#             self.flexural_buckling_critical_stress, sectional_area=self.section_area
-#         )
-
-#
-# class BucklingStrengthGeneralCalculation(Strength, Protocol):
-#     critical_stress: Quantity
-#
-#
-# class BucklingStrengthEulerCalculation(
-#     BucklingStrengthGeneralCalculation, Protocol
-# ):
-#     elastic_buckling_stress: Quantity
-
 
 @dataclass
 class BeamCompression:
@@ -110,7 +34,6 @@ class BeamCompression:
     factor_k_minor_axis: float = 1.0
     length_torsion: Quantity = None
     factor_k_torsion: float = 1.0
-    design_type: DesignType = DesignType.ASD
 
 
 @dataclass(frozen=True)

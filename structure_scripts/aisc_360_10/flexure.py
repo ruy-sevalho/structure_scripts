@@ -10,7 +10,9 @@ from structure_scripts.aisc_360_10.helpers import (
     flexural_major_axis_yield_strength,
     flexural_minor_axis_yield_strength,
     effective_radius_of_gyration,
-    limiting_length_lateral_torsional_buckling, limiting_length_yield, flexural_lateral_torsional_buckling_strength,
+    limiting_length_lateral_torsional_buckling,
+    limiting_length_yield,
+    flexural_lateral_torsional_buckling_strength,
     flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_c,
     flexural_lateral_torsional_buckling_critical_stress_compact_doubly_symmetric,
     flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_b,
@@ -19,9 +21,18 @@ from structure_scripts.section_properties import Section
 
 if TYPE_CHECKING:
     from structure_scripts.sections import DoublySymmetricI
+    from structure_scripts.aisc_360_10.i_profile import (
+        DoublySymmetricIAISC36010,
+    )
 
 
-@dataclass
+@dataclass(frozen=True)
+class BeamFlexure:
+    length: Quantity
+    lateral_torsional_buckling_modification_factor: float = 1
+
+
+@dataclass(frozen=True)
 class MajorAxisFlexurePlasticYielding:
     """F2.1 see page 103"""
 
@@ -58,13 +69,13 @@ class MinorAxisFlexurePlasticYielding:
         return {NOMINAL_STRENGTH: self.nominal_strength}
 
 
-@dataclass
+@dataclass(frozen=True)
 class LateralTorsionalBuckling(ABC):
-    """F2.2 see page 193"""
+    """F2 page 103"""
 
-    section: Union["DoublySymmetricI", ]
+    section: Union["DoublySymmetricI", "DoublySymmetricIAISC36010"]
     modification_factor: float
-    length_major_axis: Quantity
+    length: Quantity
 
     @property
     @abstractmethod
@@ -86,7 +97,7 @@ class LateralTorsionalBuckling(ABC):
             modulus=self.section.material.modulus_linear,
             yield_stress=self.section.material.yield_stress,
             section_modulus=self.section.area_properties.major_axis_elastic_section_modulus,
-            torsional_constant=self.section.area_properties.polar_inertia,
+            torsional_constant=self.section.area_properties.torsional_constant,
             effective_radius_of_gyration=self.effective_radius_of_gyration,
             distance_between_centroids=self.section.dimensions.distance_between_centroids,
             coefficient_c=self.coefficient_c,
@@ -102,27 +113,29 @@ class LateralTorsionalBuckling(ABC):
 
     @cached_property
     def strength_lateral_torsion_compact_case_b(self) -> Quantity:
+        """F2-1 page 103"""
         return flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_b(
-            length_between_braces=self.length_major_axis,
+            length_between_braces=self.length,
             limiting_length_torsional_buckling=self.limit_length_torsional_buckling,
             limiting_length_yield=self.limit_length_yield,
             mod_factor=self.modification_factor,
-            plastic_moment=self.section.area_properties.major_axis_plastic_section_modulus,
+            plastic_moment=self.section.area_properties.major_axis_plastic_section_modulus
+            * self.section.material.yield_stress,
             section_modulus=self.section.area_properties.major_axis_elastic_section_modulus,
-            yield_stress=self.section.material.yield_stress
+            yield_stress=self.section.material.yield_stress,
         )
 
     @cached_property
     def critical_stress_lateral_torsional_buckling(self) -> Quantity:
         return flexural_lateral_torsional_buckling_critical_stress_compact_doubly_symmetric(
             mod_factor=self.modification_factor,
-            length_between_braces=self.length_major_axis,
+            length_between_braces=self.length,
             modulus=self.section.material.modulus_linear,
             coefficient_c=self.coefficient_c,
             distance_between_flange_centroids=self.section.dimensions.distance_between_centroids,
             effective_radius_of_gyration=self.effective_radius_of_gyration,
             section_modulus=self.section.area_properties.major_axis_elastic_section_modulus,
-            torsional_constant=self.section.area_properties.polar_inertia
+            torsional_constant=self.section.area_properties.torsional_constant,
         )
 
     @cached_property
@@ -138,7 +151,7 @@ class LateralTorsionalBuckling(ABC):
         return flexural_lateral_torsional_buckling_strength(
             case_b=self.strength_lateral_torsion_compact_case_b,
             case_c=self.strength_lateral_torsion_compact_case_c,
-            length_between_braces=self.length_major_axis,
+            length_between_braces=self.length,
             limiting_length_yield=self.limit_length_yield,
             limiting_length_torsional_buckling=self.limit_length_torsional_buckling,
         )

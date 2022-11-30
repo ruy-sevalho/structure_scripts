@@ -1,3 +1,4 @@
+from math import pi
 from typing import Collection
 
 import numpy as np
@@ -352,18 +353,6 @@ def _minimum_allowed_strength(strengths: Collection[Quantity]):
     return min(strengths)
 
 
-def doubly_symmetric_i_torsional_constant(
-    flange_width: Quantity,
-    total_height: Quantity,
-    flange_thickness: Quantity,
-    web_thickness: Quantity,
-) -> Quantity:
-    return (
-        2 * flange_width * flange_thickness**3
-        + (total_height - flange_thickness) * web_thickness**3
-    ) / 3
-
-
 def _nominal_shear_strength(
     yield_stress: Quantity,
     web_area: Quantity,
@@ -414,18 +403,49 @@ def web_shear_coefficient_iii(
     )
 
 
-def web_height_from_total(total_height: Quantity, flange_thickness: Quantity):
-    return total_height - 2 * flange_thickness
+def elastic_buckling_stress_polar(
+    modulus_linear: Quantity,
+    modulus_shear: Quantity,
+    warping_constant: Quantity,
+    factor_k: float,
+    length: Quantity,
+    area: Quantity,
+    polar_radius_of_gyration: Quantity,
+    torsional_constant: Quantity,
+) -> Quantity:
+    """E4-9 pg 91"""
+    return (
+        (
+            pi**2
+            * modulus_linear
+            * warping_constant
+            / (factor_k * length) ** 2
+            + modulus_shear * torsional_constant
+        )
+        / area
+        * polar_radius_of_gyration**2
+    )
 
 
-def _total_height(web_height: Quantity, flange_thickness: Quantity):
-    return web_height + 2 * flange_thickness
-
-
-def _channel_area(
-    web_height: Quantity,
-    web_thickness: Quantity,
-    flange_width: Quantity,
-    flange_thickness: Quantity,
+def elastic_bucking_stress_singly_symmetric(
+    elastic_buckling_stress_y: Quantity,
+    elastic_buckling_stress_z: Quantity,
+    factor_h: float,
 ):
-    return web_height * web_thickness + 2 * flange_thickness * flange_width
+    """E4-5 pg 91"""
+
+    return (
+        (elastic_buckling_stress_y + elastic_buckling_stress_z)
+        / (2 * factor_h)
+        * (
+            1
+            - (
+                1
+                - 4
+                * elastic_buckling_stress_z
+                * elastic_buckling_stress_y
+                * factor_h
+                / (elastic_buckling_stress_y + elastic_buckling_stress_z) ** 2
+            )
+        )
+    )

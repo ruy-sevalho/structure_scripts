@@ -2,34 +2,26 @@ from dataclasses import asdict
 
 from pytest import mark
 
-
+from structure_scripts.aisc_360_10.compression import BeamCompression
 from structure_scripts.aisc_360_10.criteria import (
-    LoadingStrength,
     StrengthType,
 )
-from structure_scripts.aisc_360_10.sections import AISC_360_10RuleCheck
-from structure_scripts.aisc_360_10.i_profile import (
-    DoublySymmetricIAISC36010,
-)
+from structure_scripts.aisc_360_10.sections import AISC_360_10_Rule_Check
+
 from test.data import (
-    section_properties_wrong,
-    wrong_section,
-    section_properties_127x76x13,
-    dimensions_127x76x13,
-    w_127x127x73x13,
     sections,
-    beam_params,
 )
 from test.helpers import (
     compare_loading_strengths,
     ExpectedDesignStrength,
 )
-from structure_scripts.sections import (
-    DoublySymmetricIDimensions,
-)
-from structure_scripts.section_properties import AreaProperties
-from structure_scripts.materials import steel355mpa, IsotropicMaterial
-from quantities import Quantity, cm, N, MPa
+from quantities import Quantity, cm, N, MPa, m
+
+beam_params = {
+    "beam_01": BeamCompression(length_major_axis=1 * m),
+    "beam_02": BeamCompression(length_major_axis=2 * m),
+    "beam_04": BeamCompression(length_major_axis=4 * m),
+}
 
 compression = {
     "w_127x127x73x13": {
@@ -116,9 +108,9 @@ compression_test_inputs = [
     compression_test_inputs,
 )
 def test_compression(
-    section: AISC_360_10RuleCheck,
+    section: AISC_360_10_Rule_Check,
     beam_param: dict[str, Quantity | float],
-    expected: LoadingStrength,
+    expected: ExpectedDesignStrength,
 ):
     compression = section.compression(**beam_param)
     calc, exp = compare_loading_strengths(compression, expected)

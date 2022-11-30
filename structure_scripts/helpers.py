@@ -46,7 +46,9 @@ def same_units_simplify(q1: Quantity, q2: Quantity, strip_units: bool = False):
     q1 = q1.simplified
     q2 = q2.simplified
     if not q1.units == q2.units:
-        raise ValueError("q1 and q2 don't have the same units")
+        raise ValueError(
+            f"q1 has {q1.units} units and q2 has {q2.units} units"
+        )
     if strip_units:
         return q1.magnitude.item(), q2.magnitude.item()
     return q1, q2
@@ -85,3 +87,107 @@ def areas_centroid(areas: Collection[tuple[Quantity, Quantity]]) -> Quantity:
         summation_weighted_areas = summation_weighted_areas + area[0] * area[1]
         summation_areas = summation_areas + area[0]
     return summation_weighted_areas / summation_areas
+
+
+def channel_warping_constant(
+    web_height_corrected: Quantity,
+    web_thickness: Quantity,
+    flange_width_corrected: Quantity,
+    flange_thickness: Quantity,
+    alpha: float,
+):
+    """pg 7 TORSIONAL SECTION PROPERTIES OF STEEL SHAPES Canadian Institute of Steel Construction, 2002"""
+    return (
+        web_height_corrected**2
+        * flange_width_corrected**3
+        * flange_thickness
+        * (
+            (1 - 3 * alpha) / 6
+            + alpha**2
+            / 2
+            * (
+                1
+                + (web_height_corrected * web_thickness)
+                / (6 * flange_width_corrected * flange_thickness)
+            )
+        )
+    )
+
+
+def alpha(
+    flange_thickness: Quantity,
+    flange_width_corrected: Quantity,
+    web_height: Quantity,
+    web_thickness: Quantity,
+) -> float:
+    alpha = 1 / (
+        2
+        + web_height
+        * web_thickness
+        / (3 * flange_width_corrected * flange_thickness)
+    )
+    return alpha.simplified.magnitude
+
+
+def channel_corrected_dimensions(
+    flange_thickness, flange_width, web_height, web_thickness
+):
+    web_height_corrected = web_height - flange_thickness
+    flange_width_corrected = flange_width - web_thickness / 2
+    return flange_width_corrected, web_height_corrected
+
+
+def channel_torsional_constant(
+    web_height_corrected: Quantity,
+    web_thickness: Quantity,
+    flange_width_corrected: Quantity,
+    flange_thickness: Quantity,
+):
+    """TORSIONAL SECTION PROPERTIES OF STEEL SHAPES
+    Canadian Institute of Steel Construction, 2002
+    [9]  (SSRC 1998)
+    """
+    return (
+        2 * flange_width_corrected * flange_thickness**3
+        + web_height_corrected * web_thickness**3
+    ) / 3
+
+
+def polar_radius_of_gyration(
+    major_axis_shear_centroid: Quantity,
+    minor_axis_shear_centroid: Quantity,
+    major_axis_inertia: Quantity,
+    minor_axis_inertia: Quantity,
+    area: Quantity,
+) -> Quantity:
+    return (
+        major_axis_shear_centroid**2
+        + minor_axis_shear_centroid**2
+        + (minor_axis_inertia + major_axis_inertia) / area
+    ) ** 0.5
+
+
+def minor_axis_plastic_section_modulus_i_channel(
+    area: Quantity,
+    flange_width: Quantity,
+    flange_thickness: Quantity,
+    depth: Quantity,
+    web_thickness: Quantity,
+    web_height: Quantity,
+):
+    width = flange_width - web_thickness
+    sm_a_first_term = flange_thickness * width**2 / 2
+    sm_a_second_term = flange_width * depth * web_thickness / 2
+    sm_a_third_term = - depth**2 * web_thickness**2 / (8 * flange_thickness)
+    sm_a = sm_a_first_term + sm_a_second_term + sm_a_third_term
+    sm_b_factor = 1 / (4*depth)
+    sm_b_first_term = 4*flange_thickness*flange_width**2*(depth-flange_thickness)
+    sm_b_second_term = web_thickness**2*(depth**2-4*flange_thickness**2)
+    sm_b_third_term = -4*flange_width*flange_thickness*web_height*web_thickness
+    sm_b = sm_b_factor*(sm_b_first_term+sm_b_second_term+sm_b_third_term)
+    return sm_a if web_thickness <= area/(2*depth) else sm_b
+
+
+# def channel_minor_axis_shear_location(
+#
+# )

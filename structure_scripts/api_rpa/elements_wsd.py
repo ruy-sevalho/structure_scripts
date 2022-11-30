@@ -153,7 +153,7 @@ class Torsion(Analysis):
         return max_torsional_shear_stress(
             outer_diameter=self.profile.geometry.outer_diameter,
             torsional_moment=load,
-            polar_inertia=self.profile.geometry.polar_moment_of_inertia,
+            torsional_constant=self.profile.geometry.torsional_constant,
         )
 
     @cached_property

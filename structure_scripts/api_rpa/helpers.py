@@ -90,10 +90,10 @@ def allowable_shear_stress(yield_stress: Quantity):
 
 def max_torsional_shear_stress(
     torsional_moment: Quantity,
-    polar_inertia: Quantity,
+    torsional_constant: Quantity,
     outer_diameter: Quantity,
 ):
-    return torsional_moment * outer_diameter / (2 * polar_inertia)
+    return torsional_moment * outer_diameter / (2 * torsional_constant)
 
 
 def combined_bending_compression_criteria_a(

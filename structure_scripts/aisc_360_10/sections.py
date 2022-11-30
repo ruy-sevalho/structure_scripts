@@ -5,7 +5,7 @@ from quantities import Quantity
 from structure_scripts.aisc_360_10.criteria import (
     DesignType,
     StrengthType,
-    LoadingStrength,
+    DesignStrength,
 )
 
 # from structure_scripts.aisc_360_10.section_slenderness import (
@@ -69,15 +69,7 @@ LoadReturn = TypeVar(
 )
 
 
-class AISC_360_10RuleCheck(Protocol):
-    # material: IsotropicMaterial
-    # construction: ConstructionType
-    #
-    # @property
-    # @abstractmethod
-    # def area_properties(self) -> AreaProperties:
-    #     pass
-
+class AISC_360_10_Rule_Check(Protocol):
     def compression(
         self,
         length_major_axis: Quantity,
@@ -86,153 +78,27 @@ class AISC_360_10RuleCheck(Protocol):
         factor_k_minor_axis: float = 1.0,
         length_torsion: Quantity = None,
         factor_k_torsion: float = 1.0,
-        design_type: DesignType = DesignType.ASD,
-    ) -> LoadingStrength:
+    ) -> DesignStrength:
         ...
 
-    def compression_nominal_strengths(
-        self,
-        length_major_axis: Quantity,
-        factor_k_major_axis: float = 1.0,
-        length_minor_axis: Quantity = None,
-        factor_k_minor_axis: float = 1.0,
-        length_torsion: Quantity = None,
-        factor_k_torsion: float = 1.0,
-        detailed_results: bool = False,
-        # design_type: DesignType = DesignType.ASD,
-    ) -> LoadReturn:
-        ...
-
-    def shear_major_axis_design_strength(
-        self, design_type: DesignType = DesignType.ASD
-    ) -> tuple[Quantity, StrengthType]:
-        ...
-
-    def shear_major_axis_nominal_strengths(
-        self, detailed_results: bool = False
-    ) -> LoadReturn:
-        ...
-
-    def shear_minor_axis_design_strength(
-        self, design_type: DesignType = DesignType.ASD
-    ) -> tuple[Quantity, StrengthType]:
-        ...
-
-    def shear_minor_axis_nominal_strengths(
-        self, detailed_results: bool = False
-    ) -> LoadReturn:
-        ...
-
-    def flexure_major_axis_design_strength(
+    def flexure_major_axis(
         self,
         length: Quantity,
         lateral_torsional_buckling_modification_factor: float = 1.0,
         design_type: DesignType = DesignType.ASD,
-    ) -> Quantity:
+    ) -> DesignStrength:
         ...
 
-    def flexure_major_axis_nominal_strengths(
+    def flexure_minor_axis(
         self,
         length: Quantity,
-        lateral_torsional_buckling_modification_factor: float = 1.0,
-        detailed_results: bool = False,
-    ) -> Quantity:
-        ...
-
-    def flexure_minor_axis_design_strength(
-        self,
-        length: Quantity,
-        lateral_torsional_buckling_modification_factor: float = 1.0,
+        # lateral_torsional_buckling_modification_factor: float = 1.0,
         design_type: DesignType = DesignType.ASD,
-    ) -> Quantity:
+    ) -> DesignStrength:
         ...
 
-    def flexure_minor_axis_nominal_strengths(
-        self,
-        length: Quantity,
-        lateral_torsional_buckling_modification_factor: float = 1.0,
-        detailed_results: bool = False,
-    ) -> Quantity:
+    def shear_major_axis(self) -> DesignStrength:
         ...
 
-
-# class HasWebFlange(Protocol):
-#     @property
-#     @abstractmethod
-#     def slenderness(self) -> FlangeWebSlenderness:
-#         pass
-
-
-# class SectionWithWebFlange(Section, HasWebFlange, Protocol):
-#     pass
-
-
-#
-# class WithTorsionalBuckling(Protocol):
-#     def torsional_buckling_critical_stress_effective_length(
-#         self, beam: "BeamAnalysis"
-#     ) -> Quantity:
-#         ...
-#
-#
-# class WithLateralTorsionalBuckling(Protocol):
-#     effective_radius_of_gyration: Quantity
-#     limit_length_torsional_buckling: Quantity
-#
-#
-# class SectionWithWebAndFlange(Section, Protocol):
-#     web_shear_coefficient: float
-#     web_shear_buckling_coefficient: float
-#     web_shear_coefficient_limit_0: float
-#     web_plate_shear_buckling_coefficient: float
-#     slenderness: FlangeWebSlenderness
-#
-#
-# class SectionProfileWebFlangeTorsBuck(
-#     SectionWithWebAndFlange, WithTorsionalBuckling, Protocol
-# ):
-#     ...
-#
-#
-# class SectionWebFlangeTorsAndLatTorsBuck(
-#     SectionProfileWebFlangeTorsBuck, WithLateralTorsionalBuckling, Protocol
-# ):
-#     ...
-#
-#
-# @dataclass
-# class GenericAreaProperties:
-#     area: Quantity
-#     major_axis_inertia: Quantity
-#     major_axis_elastic_section_modulus: Quantity
-#     minor_axis_inertia: Quantity
-#     minor_axis_elastic_section_modulus: Quantity
-#     torsional_constant: Quantity
-#     warping_constant: Quantity | None = None
-#     major_axis_plastic_section_modulus: Quantity | None = None
-#     minor_axis_plastic_section_modulus: Quantity | None = None
-#     major_axis_radius_of_gyration: Quantity | None = None
-#     minor_axis_radius_of_gyration: Quantity | None = None
-#     torsional_radius_of_gyration: Quantity | None = None
-#
-#     def __post_init__(self):
-#         if not self.major_axis_plastic_section_modulus:
-#             self.major_axis_plastic_section_modulus = (
-#                 self.major_axis_elastic_section_modulus
-#             )
-#         if not self.minor_axis_plastic_section_modulus:
-#             self.minor_axis_plastic_section_modulus = (
-#                 self.minor_axis_elastic_section_modulus
-#             )
-#         if not self.minor_axis_radius_of_gyration:
-#             self.minor_axis_radius_of_gyration = radius_of_gyration(
-#                 self.minor_axis_inertia, self.area
-#             )
-#         if not self.major_axis_radius_of_gyration:
-#             self.major_axis_radius_of_gyration = radius_of_gyration(
-#                 self.major_axis_inertia, self.area
-#             )
-#         if not self.torsional_radius_of_gyration:
-#             self.torsional_radius_of_gyration = radius_of_gyration(
-#                 self.torsional_constant, self.area
-#             )
+    def shear_minor_axis(self) -> DesignStrength:
+        ...

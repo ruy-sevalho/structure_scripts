@@ -6,7 +6,10 @@ from structure_scripts.sections import (
     DirectInputAreaProperties,
     ChannelDimensions,
 )
-from structure_scripts.section_properties import AreaProperties, ConstructionType
+from structure_scripts.section_properties import (
+    AreaProperties,
+    ConstructionType,
+)
 from structure_scripts.aisc_360_10.i_profile import (
     DoublySymmetricIDimensionsUserDefined,
     DoublySymmetricIAISC36010,
@@ -405,7 +408,7 @@ def test_channel_dimensions_does_not_accept_total_and_web_height():
         ChannelDimensions(
             flange_width=100 * mm,
             flange_thickness=10 * mm,
-            web_height=100 * mm,
+            depth=100 * mm,
             web_thickness=10 * mm,
             total_height=100 * mm,
         )
@@ -432,7 +435,7 @@ def test_channel_dimensions_calculates_correct_total_height(
     expected_total_height: Quantity,
 ):
     channel = ChannelDimensions(
-        web_height=web_height,
+        depth=web_height,
         flange_thickness=flange_thickness,
         web_thickness=1 * mm,
         flange_width=10 * mm,
@@ -457,7 +460,7 @@ def test_channel_dimensions_calculates_correct_web_height(
         web_thickness=1 * mm,
         flange_width=10 * mm,
     )
-    assert channel.web_height == expected_web_height
+    assert channel.depth == expected_web_height
 
 
 @mark.parametrize(

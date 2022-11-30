@@ -41,7 +41,7 @@ class CircularSectionGeometry:
         )
 
     @cached_property
-    def polar_moment_of_inertia(self):
+    def torsional_constant(self):
         return circular_section_polar_moment_of_inertia(
             outer_diameter=self.outer_diameter,
             inner_diameter=self.inner_diameter,

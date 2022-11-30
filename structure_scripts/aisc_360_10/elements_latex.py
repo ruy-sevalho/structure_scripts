@@ -4,6 +4,7 @@ from functools import cached_property
 from pylatex import NoEscape, Section, Subsection, Subsubsection
 from quantities import Quantity
 
+import structure_scripts.sections
 from structure_scripts.shared.latex_helpers import (
     _slenderness_default_limit_ratio_latex,
     _member_slenderness_minor_axis_flexural_bucking_latex,
@@ -188,8 +189,8 @@ class DoublySymmetricIDimensionsLatex:
     @cached_property
     def web_height(self):
         return _process_quantity_entry_config(
-            entry=self.model.web_height_from_total,
-            print_config=config_dict.web_height_from_total,
+            entry=structure_scripts.sections.web_height_from_total,
+            print_config=structure_scripts.sections.web_height_from_total,
         )
 
 
@@ -651,8 +652,10 @@ class DoublySymmetricISlendernessLatex:
     @cached_property
     def web_slenderness_equation(self):
         return _ratio_equation(
-            numerator_symbol=config_dict.web_height_from_total.label[1:-1],
-            numerator_value=self.model.section.dimensions.latex.web_height_from_total,
+            numerator_symbol=structure_scripts.sections.web_height_from_total.label[
+                1:-1
+            ],
+            numerator_value=structure_scripts.sections.web_height_from_total,
             denominator_symbol=config_dict.web_thickness.label[1:-1],
             denominator_value=self.model.section.dimensions.latex.web_thickness,
             ratio_symbol=config_dict.web_slenderness.label[1:-1],
@@ -1354,7 +1357,7 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLengthLatex:
         self.model.section.latex.resume()
         save_single_entry(content=self.data_table, file_name="beam_param.tex")
         self.model.compression.latex.resume()
-        self.model.flexure.latex.resume()
+        self.model.flexure_major_axis.latex.resume()
 
     @cached_property
     def resume_latex(self):
@@ -1362,8 +1365,12 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLengthLatex:
         profile = self.model.section.latex.resume_latex
         beam_data = Section(title="Viga", data=self.data_table_latex)
         compression = self.model.compression.latex.resume_latex
-        flexure_major = self.model.flexure.latex.major_axis.resume_latex
-        flexure_minor = self.model.flexure.latex.minor_axis.resume_latex
+        flexure_major = (
+            self.model.flexure_major_axis.latex.major_axis.resume_latex
+        )
+        flexure_minor = (
+            self.model.flexure_major_axis.latex.minor_axis.resume_latex
+        )
         sections = insert_between(
             [
                 material.dumps(),
@@ -1395,8 +1402,12 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLengthLatex:
         )
         title_profile = r"\section{Propriedades da Se\c{c}\~ao}"
         compression = self.model.compression.latex.resume
-        flexure_major_axis = self.model.flexure.latex.major_axis.resume
-        flexure_minor_axis = self.model.flexure.latex.minor_axis.resume
+        flexure_major_axis = (
+            self.model.flexure_major_axis.latex.major_axis.resume
+        )
+        flexure_minor_axis = (
+            self.model.flexure_major_axis.latex.minor_axis.resume
+        )
         title_combined_criteria = r"\section{Crit\'erio combinado}"
         beam = self.data_table
         title_beam = r"\section{Dados da viga e cargas aplicadas}"
@@ -1446,9 +1457,9 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLengthLatex:
             axial_strength_ratio=axial_strength_ratio,
             required_axial_strength=self.model.compression.latex.required_strength_major_axis,
             design_axial_strength=self.model.compression.latex.nominal_strength,
-            required_flexural_major_axis_strength=self.model.flexure.latex.major_axis.required_strength_major_axis,
-            design_strength_flexural_major_axis=self.model.flexure.latex.major_axis.nominal_strength,
-            required_flexural_minor_axis_strength=self.model.flexure.latex.minor_axis.required_strength_major_axis,
-            design_strength_flexural_minor_axis=self.model.flexure.latex.minor_axis.nominal_strength,
+            required_flexural_major_axis_strength=self.model.flexure_major_axis.latex.major_axis.required_strength_major_axis,
+            design_strength_flexural_major_axis=self.model.flexure_major_axis.latex.major_axis.nominal_strength,
+            required_flexural_minor_axis_strength=self.model.flexure_major_axis.latex.minor_axis.required_strength_major_axis,
+            design_strength_flexural_minor_axis=self.model.flexure_major_axis.latex.minor_axis.nominal_strength,
             criteria=self.flexure_compression_h1_criteria,
         )
