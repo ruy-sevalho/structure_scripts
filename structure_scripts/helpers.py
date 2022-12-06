@@ -1,8 +1,11 @@
 import math
 from enum import Enum
-from typing import Collection
+from typing import Collection, TYPE_CHECKING
 
 from quantities import Quantity, dimensionless
+
+if TYPE_CHECKING:
+    from structure_scripts.sections import ChannelDimensions
 
 
 class Axis(str, Enum):
@@ -45,9 +48,9 @@ def circular_section_polar_moment_of_inertia(
 def same_units_simplify(q1: Quantity, q2: Quantity, strip_units: bool = False):
     q1 = q1.simplified
     q2 = q2.simplified
-    if not q1.units == q2.units:
+    if not q1.UNITS == q2.UNITS:
         raise ValueError(
-            f"q1 has {q1.units} units and q2 has {q2.units} units"
+            f"q1 has {q1.UNITS} units and q2 has {q2.UNITS} units"
         )
     if strip_units:
         return q1.magnitude.item(), q2.magnitude.item()
@@ -178,16 +181,109 @@ def minor_axis_plastic_section_modulus_i_channel(
     width = flange_width - web_thickness
     sm_a_first_term = flange_thickness * width**2 / 2
     sm_a_second_term = flange_width * depth * web_thickness / 2
-    sm_a_third_term = - depth**2 * web_thickness**2 / (8 * flange_thickness)
+    sm_a_third_term = (
+        -(depth**2) * web_thickness**2 / (8 * flange_thickness)
+    )
     sm_a = sm_a_first_term + sm_a_second_term + sm_a_third_term
-    sm_b_factor = 1 / (4*depth)
-    sm_b_first_term = 4*flange_thickness*flange_width**2*(depth-flange_thickness)
-    sm_b_second_term = web_thickness**2*(depth**2-4*flange_thickness**2)
-    sm_b_third_term = -4*flange_width*flange_thickness*web_height*web_thickness
-    sm_b = sm_b_factor*(sm_b_first_term+sm_b_second_term+sm_b_third_term)
-    return sm_a if web_thickness <= area/(2*depth) else sm_b
+    sm_b_factor = 1 / (4 * depth)
+    sm_b_first_term = (
+        4 * flange_thickness * flange_width**2 * (depth - flange_thickness)
+    )
+    sm_b_second_term = web_thickness**2 * (
+        depth**2 - 4 * flange_thickness**2
+    )
+    sm_b_third_term = (
+        -4 * flange_width * flange_thickness * web_height * web_thickness
+    )
+    sm_b = sm_b_factor * (sm_b_first_term + sm_b_second_term + sm_b_third_term)
+    return sm_a if web_thickness <= area / (2 * depth) else sm_b
 
 
 # def channel_minor_axis_shear_location(
 #
 # )
+def channel_minor_axis_inertia(
+    dimensions: "ChannelDimensions",
+) -> tuple[Quantity, Quantity]:
+    web_area = dimensions.web_thickness * dimensions.web_height
+    web_base_centroid = dimensions.web_thickness / 2
+    flange_area = dimensions.flange_width * dimensions.flange_thickness
+    flange_base_centroid = dimensions.flange_width / 2
+    y_neutral_axis = (
+        web_area * web_base_centroid + 2 * flange_area * flange_base_centroid
+    ) / (web_area + 2 * flange_area)
+    web_self_inertia = self_inertia(
+        width=dimensions.web_height, height=dimensions.web_thickness
+    )
+    web_transfer_inertia = web_area * (y_neutral_axis - web_base_centroid) ** 2
+    flange_self_inertia = self_inertia(
+        width=dimensions.flange_thickness, height=dimensions.flange_width
+    )
+    flange_transfer_inertia = (
+        flange_area * (y_neutral_axis - flange_base_centroid) ** 2
+    )
+    return (
+        web_transfer_inertia
+        + web_self_inertia
+        + (flange_self_inertia + flange_transfer_inertia) * 2,
+        y_neutral_axis,
+    )
+
+
+def channel_shear_center_delta(
+    flange_width_corrected: Quantity,
+    alpha: float,
+    web_thickness: Quantity,
+) -> Quantity:
+    """TORSIONAL SECTION PROPERTIES OF STEEL SHAPES
+    Canadian Institute of Steel Construction, 2002
+
+    [13] (Galambos 1968, SSRC 1998).
+    """
+    return flange_width_corrected * alpha - web_thickness / 2
+
+
+def doubly_symmetric_i_torsional_constant(
+    flange_width: Quantity,
+    total_height: Quantity,
+    flange_thickness: Quantity,
+    web_thickness: Quantity,
+) -> Quantity:
+    return (
+        2 * flange_width * flange_thickness**3
+        + (total_height - flange_thickness) * web_thickness**3
+    ) / 3
+
+
+def web_height_from_total(
+    depth: Quantity, flange_thickness: Quantity
+) -> Quantity:
+    return depth - 2 * flange_thickness
+
+
+def _total_height(
+    web_height: Quantity, flange_thickness: Quantity
+) -> Quantity:
+    return web_height + 2 * flange_thickness
+
+
+def _channel_area(
+    web_height: Quantity,
+    web_thickness: Quantity,
+    flange_width: Quantity,
+    flange_thickness: Quantity,
+):
+    return web_height * web_thickness + 2 * flange_thickness * flange_width
+
+
+def factor_h(
+    major_axis_shear_centroid: Quantity,
+    minor_axis_shear_centroid: Quantity,
+    polar_radius_of_gyration: Quantity,
+) -> float:
+    """E4-10"""
+
+    return 1 - ratio_simplify(
+        (major_axis_shear_centroid**2 + minor_axis_shear_centroid**2),
+        polar_radius_of_gyration**2,
+    )

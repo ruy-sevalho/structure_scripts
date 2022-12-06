@@ -27,8 +27,8 @@ from structure_scripts.helpers import (
     channel_torsional_constant,
     channel_warping_constant,
     polar_radius_of_gyration,
-    ratio_simplify,
-    minor_axis_plastic_section_modulus_i_channel,
+    minor_axis_plastic_section_modulus_i_channel, channel_minor_axis_inertia, channel_shear_center_delta,
+    doubly_symmetric_i_torsional_constant, web_height_from_total,
 )
 from structure_scripts.materials import IsotropicMaterial
 
@@ -59,6 +59,7 @@ class DoublySymmetricIDimensions:
 
 def new_doubly_symmetric_i_dimensions():
     # TODO implement dsi constructor here, removing initialization logic from dataclass
+    # Should I really?
     pass
 
 
@@ -70,6 +71,7 @@ class ChannelDimensions:
     flange_thickness: Quantity
     web_thickness: Quantity
     depth: Quantity
+    web_radii: Quantity | None = None
 
     @cached_property
     def distance_between_centroids(self):
@@ -78,6 +80,13 @@ class ChannelDimensions:
     @cached_property
     def web_height(self):
         return web_height_from_total(self.depth, self.flange_thickness)
+
+    @cached_property
+    def web_height_corrected(self):
+        if self.web_radii:
+            return self.web_height - 2 * self.web_radii
+        else:
+            return self.web_height
 
 
 def new_channel_dimensions(
@@ -157,13 +166,6 @@ class _DoublySymmetricIandChannelBaseAreaProperties:
             center_to_na_distance=self.flange_area_centroid_major_axis,
         )
 
-    # @cached_property
-    # def minor_axis_inertia(self):
-    #     return (
-    #         2 * self.flange_self_inertia_minor_axis
-    #         + self.web_self_inertia_minor_axis
-    #     )
-
     @cached_property
     def major_axis_inertia(self):
         return (
@@ -178,25 +180,12 @@ class _DoublySymmetricIandChannelBaseAreaProperties:
             self.major_axis_inertia, self.dimensions.depth / 2
         )
 
-    # @cached_property
-    # def minor_axis_elastic_section_modulus(self):
-    #     return section_modulus(
-    #         self.minor_axis_inertia, self.dimensions.flange_width / 2
-    #     )
-
     @cached_property
     def major_axis_radius_of_gyration(self):
         return radius_of_gyration(
             moment_of_inertia=self.major_axis_inertia,
             gross_section_area=self.area,
         )
-
-    # @cached_property
-    # def minor_axis_radius_of_gyration(self):
-    #     return radius_of_gyration(
-    #         moment_of_inertia=self.minor_axis_inertia,
-    #         gross_section_area=self.area,
-    #     )
 
     @cached_property
     def major_axis_plastic_half_centroid(self):
@@ -258,47 +247,6 @@ def _partial_area_prop_dsi_channel(
     )
 
 
-def channel_minor_axis_inertia(
-    dimensions: ChannelDimensions,
-) -> tuple[Quantity, Quantity]:
-    web_area = dimensions.web_thickness * dimensions.web_height
-    web_base_centroid = dimensions.web_thickness / 2
-    flange_area = dimensions.flange_width * dimensions.flange_thickness
-    flange_base_centroid = dimensions.flange_width / 2
-    y_neutral_axis = (
-        web_area * web_base_centroid + 2 * flange_area * flange_base_centroid
-    ) / (web_area + 2 * flange_area)
-    web_self_inertia = self_inertia(
-        width=dimensions.web_height, height=dimensions.web_thickness
-    )
-    web_transfer_inertia = web_area * (y_neutral_axis - web_base_centroid) ** 2
-    flange_self_inertia = self_inertia(
-        width=dimensions.flange_thickness, height=dimensions.flange_width
-    )
-    flange_transfer_inertia = (
-        flange_area * (y_neutral_axis - flange_base_centroid) ** 2
-    )
-    return (
-        web_transfer_inertia
-        + web_self_inertia
-        + (flange_self_inertia + flange_transfer_inertia) * 2,
-        y_neutral_axis,
-    )
-
-
-def channel_shear_center_delta(
-    flange_width_corrected: Quantity,
-    alpha: float,
-    web_thickness: Quantity,
-) -> Quantity:
-    """TORSIONAL SECTION PROPERTIES OF STEEL SHAPES
-    Canadian Institute of Steel Construction, 2002
-
-    [13] (Galambos 1968, SSRC 1998).
-    """
-    return flange_width_corrected * alpha - web_thickness / 2
-
-
 def channel_area_properties(dimensions: ChannelDimensions):
     base_area_prop = _DoublySymmetricIandChannelBaseAreaProperties(dimensions)
     (
@@ -332,12 +280,12 @@ def channel_area_properties(dimensions: ChannelDimensions):
     minor_axis_inertia, y_neutral_axis = channel_minor_axis_inertia(dimensions)
     major_axis_shear_centroid = 0 * m
     minor_axis_shear_centroid: Quantity = (
-        channel_shear_center_delta(
+            channel_shear_center_delta(
             flange_width_corrected=flange_width_corrected,
             alpha=alpha_,
             web_thickness=dimensions.web_thickness,
         )
-        + y_neutral_axis
+            + y_neutral_axis
     )
     minor_axis_plastic_section_modulus = (
         minor_axis_plastic_section_modulus_i_channel(
@@ -511,47 +459,3 @@ def create_channel(
     )
 
 
-def doubly_symmetric_i_torsional_constant(
-    flange_width: Quantity,
-    total_height: Quantity,
-    flange_thickness: Quantity,
-    web_thickness: Quantity,
-) -> Quantity:
-    return (
-        2 * flange_width * flange_thickness**3
-        + (total_height - flange_thickness) * web_thickness**3
-    ) / 3
-
-
-def web_height_from_total(
-    depth: Quantity, flange_thickness: Quantity
-) -> Quantity:
-    return depth - 2 * flange_thickness
-
-
-def _total_height(
-    web_height: Quantity, flange_thickness: Quantity
-) -> Quantity:
-    return web_height + 2 * flange_thickness
-
-
-def _channel_area(
-    web_height: Quantity,
-    web_thickness: Quantity,
-    flange_width: Quantity,
-    flange_thickness: Quantity,
-):
-    return web_height * web_thickness + 2 * flange_thickness * flange_width
-
-
-def factor_h(
-    major_axis_shear_centroid: Quantity,
-    minor_axis_shear_centroid: Quantity,
-    polar_radius_of_gyration: Quantity,
-) -> float:
-    """E4-10"""
-
-    return 1 - ratio_simplify(
-        (major_axis_shear_centroid**2 + minor_axis_shear_centroid**2),
-        polar_radius_of_gyration,
-    )

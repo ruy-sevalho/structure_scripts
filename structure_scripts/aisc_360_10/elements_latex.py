@@ -4,6 +4,7 @@ from functools import cached_property
 from pylatex import NoEscape, Section, Subsection, Subsubsection
 from quantities import Quantity
 
+import structure_scripts.helpers
 import structure_scripts.sections
 from structure_scripts.shared.latex_helpers import (
     _slenderness_default_limit_ratio_latex,
@@ -189,8 +190,8 @@ class DoublySymmetricIDimensionsLatex:
     @cached_property
     def web_height(self):
         return _process_quantity_entry_config(
-            entry=structure_scripts.sections.web_height_from_total,
-            print_config=structure_scripts.sections.web_height_from_total,
+            entry=structure_scripts.helpers.web_height_from_total,
+            print_config=structure_scripts.helpers.web_height_from_total,
         )
 
 
@@ -652,10 +653,10 @@ class DoublySymmetricISlendernessLatex:
     @cached_property
     def web_slenderness_equation(self):
         return _ratio_equation(
-            numerator_symbol=structure_scripts.sections.web_height_from_total.label[
+            numerator_symbol=structure_scripts.helpers.web_height_from_total.label[
                 1:-1
-            ],
-            numerator_value=structure_scripts.sections.web_height_from_total,
+                             ],
+            numerator_value=structure_scripts.helpers.web_height_from_total,
             denominator_symbol=config_dict.web_thickness.label[1:-1],
             denominator_value=self.model.section.dimensions.latex.web_thickness,
             ratio_symbol=config_dict.web_slenderness.label[1:-1],

@@ -39,7 +39,7 @@ from structure_scripts.helpers import (
     radius_of_gyration,
     areas_centroid,
     Axis,
-    member_slenderness_ratio,
+    member_slenderness_ratio, _channel_area, factor_h,
 )
 from structure_scripts.materials import IsotropicMaterial
 
@@ -56,8 +56,6 @@ from structure_scripts.aisc_360_10.helpers import (
 if TYPE_CHECKING:
     from structure_scripts.sections import (
         ChannelDimensions,
-        _channel_area,
-        factor_h,
     )
 
 
@@ -196,7 +194,7 @@ class TorsionalBucklingDoublySinglySymmetric(BucklingStrengthMixin):
     section: "ChannelAISC36010"
     factor_k: float
     length: Quantity
-    symmetry_axis: Axis
+    symmetry_axis: Axis = Axis.MAJOR
 
     @cached_property
     def radius_of_gyration(self):
@@ -239,6 +237,7 @@ class TorsionalBucklingDoublySinglySymmetric(BucklingStrengthMixin):
         return factor_h(
             major_axis_shear_centroid=self.section.area_properties.major_axis_shear_centroid,
             minor_axis_shear_centroid=self.section.area_properties.minor_axis_shear_centroid,
+            polar_radius_of_gyration=self.section.area_properties.polar_radius_of_gyration
         )
 
     @cached_property

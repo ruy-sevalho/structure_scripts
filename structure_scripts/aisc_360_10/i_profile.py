@@ -16,7 +16,7 @@ from structure_scripts.aisc_360_10.criteria import (
 )
 from structure_scripts.aisc_360_10.flexure import (
     MajorAxisFlexurePlasticYielding,
-    LateralTorsionalBuckling,
+    LateralTorsionalBuckling, MinorAxisFlexurePlasticYielding,
 )
 from structure_scripts.aisc_360_10.helpers import (
     limit_ratio_default,
@@ -24,7 +24,7 @@ from structure_scripts.aisc_360_10.helpers import (
     limit_stress_built_up_sections,
     elastic_torsional_buckling_stress_doubly_symmetric_member,
 )
-from structure_scripts.aisc_360_10.sections import LoadReturn
+from structure_scripts.aisc_360_10.sections import LoadReturn, AISC_360_10_Rule_Check
 from structure_scripts.aisc_360_10.section_slenderness import (
     axial_slenderness_per_element,
     flexural_slenderness_per_element,
@@ -233,7 +233,7 @@ class DoublySymmetricIFlangeSlenderness:
 
 
 @dataclass(frozen=True)
-class DoublySymmetricIAISC36010:
+class DoublySymmetricIAISC36010(AISC_360_10_Rule_Check):
     dimensions: "DoublySymmetricIDimensions"
     material: IsotropicMaterial
     area_properties: AreaProperties
@@ -349,11 +349,15 @@ class DoublySymmetricIAISC36010:
 
     def flexure_minor_axis(
         self,
-        length: Quantity,
+        # length: Quantity,
         # lateral_torsional_buckling_modification_factor: float = 1.0,
         design_type: DesignType = DesignType.ASD,
     ) -> DesignStrength:
-        ...
+        return DesignStrength(
+            nominal_strengths={
+                StrengthType.YIELD: MinorAxisFlexurePlasticYielding(self)
+            }
+        )
 
     def shear_major_axis(self) -> DesignStrength:
         ...

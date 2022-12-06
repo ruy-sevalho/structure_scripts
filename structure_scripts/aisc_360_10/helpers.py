@@ -422,8 +422,7 @@ def elastic_buckling_stress_polar(
             / (factor_k * length) ** 2
             + modulus_shear * torsional_constant
         )
-        / area
-        * polar_radius_of_gyration**2
+        / (area * polar_radius_of_gyration**2)
     )
 
 

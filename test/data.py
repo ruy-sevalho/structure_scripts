@@ -1,4 +1,4 @@
-from quantities import cm, mm, m
+from quantities import cm, mm, m, inch
 
 from structure_scripts.aisc_360_10.compression import BeamCompression
 from structure_scripts.sections import (
@@ -80,10 +80,20 @@ dimensions_432x102_channel = new_channel_dimensions(
 channel_432x102 = create_channel(
     dimensions=dimensions_432x102_channel, material=steel355mpa
 )
+channel_6_inch_8dot2_lb_ft = channel_creator(
+    dimensions=new_channel_dimensions(
+        flange_thickness=0.343 * inch,
+        flange_width=1.920 * inch,
+        web_thickness=0.200 * inch,
+        channel_depth=6.00 * inch,
+    )
+)
 
 sections: dict[str, SectionChecks] = {
     "wrong_section": wrong_section,
     "w_127x127x73x13": w_127x127x73x13,
     "w_200x10_200x10": w_200x10_200x10,
     "channel_432x102": channel_432x102,
+    "channel_6_inch_8dot2_lb_ft": channel_6_inch_8dot2_lb_ft,
 }
+

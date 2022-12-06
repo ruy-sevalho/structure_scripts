@@ -94,6 +94,32 @@ compression = {
                 },
             },
         ),
+
+    },
+    "channel_6_inch_8dot2_lb_ft": {
+        "beam_1400_mm": ExpectedDesignStrength(
+            design_strength_asd=280978.8249 * N,
+            design_strength_lrfd=422311.1739 * N,
+            nominal_strength=469234.6376 * N,
+            nominal_strength_type=StrengthType.FLEXURAL_BUCKLING_MINOR_AXIS,
+            nominal_strengths={
+                StrengthType.FLEXURAL_BUCKLING_MAJOR_AXIS: {
+                    "elastic_buckling_stress": 5658.57319 * MPa,
+                    "buckling_critical_stress": 345.7995726 * MPa,
+                    "nominal_strength": 570569.2948 * N,
+                },
+                StrengthType.FLEXURAL_BUCKLING_MINOR_AXIS: {
+                    "elastic_buckling_stress": 669.9367836 * MPa,
+                    "buckling_critical_stress": 284.3846289 * MPa,
+                    "nominal_strength": 469234.6376 * N,
+                },
+                StrengthType.TORSIONAL_BUCKLING: {
+                    "elastic_buckling_stress": 1161.123206 * MPa,
+                    "buckling_critical_stress": 312.35827874 * MPa,
+                    "nominal_strength": 5153.91159926 * cm**2 * MPa,
+                },
+            },
+        ),
     }
 }
 compression_test_inputs = [
