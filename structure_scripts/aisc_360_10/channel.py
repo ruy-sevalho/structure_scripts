@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from quantities import Quantity
 
@@ -13,16 +13,18 @@ from structure_scripts.aisc_360_10.criteria import (
     DesignStrength,
     DesignType,
     StrengthType,
+    Strength,
 )
 from structure_scripts.aisc_360_10.flexure import (
     MajorAxisFlexurePlasticYielding,
+    MinorAxisFlexurePlasticYielding,
 )
 from structure_scripts.aisc_360_10.i_profile import (
     DoublySymmetricIFlangeSlenderness,
     DoublySymmetricIWebSlenderness,
     LateralTorsionalBucklingDoublySymmetricI,
 )
-from structure_scripts.aisc_360_10.section_slenderness import (
+from structure_scripts.section_slenderness import (
     DoublySymmetricIAndChannelSlenderness,
     DoublySymmetricIAndChannelSlendernessCalcMemory,
     DoublySymmetricIAndChannelAxialCalcMemory,
@@ -30,21 +32,17 @@ from structure_scripts.aisc_360_10.section_slenderness import (
     DoublySymmetricIAndChannelFlexureMajorAxisCalcMemory,
     FlexuralSlendernessCalcMemory,
     DoublySymmetricIAndChannelFlexureMinorAxisCalcMemory,
+    Slenderness,
 )
 from structure_scripts.helpers import (
-    rectangle_area,
-    self_inertia,
-    transfer_inertia,
-    section_modulus,
-    radius_of_gyration,
-    areas_centroid,
     Axis,
-    member_slenderness_ratio, _channel_area, factor_h,
+    member_slenderness_ratio,
+    factor_h,
 )
 from structure_scripts.materials import IsotropicMaterial
+from structure_scripts.section import AISC_Section
 
 from structure_scripts.section_properties import (
-    AreaProperties,
     ConstructionType,
 )
 from structure_scripts.aisc_360_10.helpers import (
@@ -54,16 +52,14 @@ from structure_scripts.aisc_360_10.helpers import (
 )
 
 if TYPE_CHECKING:
-    from structure_scripts.sections import (
-        ChannelDimensions,
-    )
+    pass
 
 
 @dataclass(frozen=True)
 class ChannelAISC36010:
-    dimensions: "ChannelDimensions"
+    # dimensions: "ChannelDimensions"
     material: IsotropicMaterial
-    area_properties: AreaProperties
+    section: AISC_Section
     construction: ConstructionType = ConstructionType.ROLLED
     # coefficient_c: float = 1.0
 
@@ -73,7 +69,7 @@ class ChannelAISC36010:
 
     @cached_property
     def _web_slenderness(self):
-        return DoublySymmetricIWebSlenderness(section=self)
+        return DoublySymmetricIWebSlenderness(profile=self)
 
     @cached_property
     def slenderness(self):
@@ -136,20 +132,25 @@ class ChannelAISC36010:
         length_minor_axis = length_minor_axis or length_major_axis
         length_torsion = length_torsion or length_major_axis
         flexural_buckling_major_axis = FlexuralBucklingStrength(
-            section=self,
+            profile=self,
             length=length_major_axis,
             factor_k=factor_k_major_axis,
             axis=Axis.MAJOR,
         )
         flexural_buckling_minor_axis = FlexuralBucklingStrength(
-            section=self,
+            profile=self,
             length=length_minor_axis,
             factor_k=factor_k_minor_axis,
             axis=Axis.MINOR,
         )
-        torsional_buckling_strength = TorsionalBucklingDoublySinglySymmetric(
-            section=self, length=length_torsion, factor_k=factor_k_torsion
+        torsional_buckling_strength = TorsionalBucklingSinglySymmetric(
+            profile=self, length=length_torsion, factor_k=factor_k_torsion
         )
+        nominal_strengths = {
+            StrengthType.FLEXURAL_BUCKLING_MAJOR_AXIS: flexural_buckling_major_axis,
+            StrengthType.FLEXURAL_BUCKLING_MINOR_AXIS: flexural_buckling_minor_axis,
+            StrengthType.TORSIONAL_BUCKLING: torsional_buckling_strength,
+        }
         return DesignStrength(
             nominal_strengths={
                 StrengthType.FLEXURAL_BUCKLING_MAJOR_AXIS: flexural_buckling_major_axis,
@@ -158,16 +159,25 @@ class ChannelAISC36010:
             }
         )
 
+    @cached_property
+    def flex_yield_major_axis(self) -> Strength:
+        return MajorAxisFlexurePlasticYielding(self)
+
+    @cached_property
+    def flex_yield_minor_axis(self) -> Strength:
+        return MinorAxisFlexurePlasticYielding(self)
+
     def flexure_major_axis(
         self,
         length: Quantity,
         lateral_torsional_buckling_modification_factor: float = 1.0,
     ) -> DesignStrength:
+
         return DesignStrength(
             nominal_strengths={
-                StrengthType.YIELD: MajorAxisFlexurePlasticYielding(self),
+                StrengthType.YIELD: self.flex_yield_major_axis,
                 StrengthType.LATERAL_TORSIONAL_BUCKLING: LateralTorsionalBucklingDoublySymmetricI(
-                    section=self,
+                    profile=self,
                     length=length,
                     modification_factor=lateral_torsional_buckling_modification_factor,
                 ),
@@ -176,11 +186,12 @@ class ChannelAISC36010:
 
     def flexure_minor_axis(
         self,
-        length: Quantity,
-        # lateral_torsional_buckling_modification_factor: float = 1.0,
-        design_type: DesignType = DesignType.ASD,
     ) -> DesignStrength:
-        ...
+        return DesignStrength(
+            nominal_strengths={
+                StrengthType.YIELD: self.flex_yield_minor_axis,
+            }
+        )
 
     def shear_major_axis(self) -> DesignStrength:
         ...
@@ -190,8 +201,8 @@ class ChannelAISC36010:
 
 
 @dataclass(frozen=True)
-class TorsionalBucklingDoublySinglySymmetric(BucklingStrengthMixin):
-    section: "ChannelAISC36010"
+class TorsionalBucklingSinglySymmetric(BucklingStrengthMixin):
+    profile: "ChannelAISC36010"
     factor_k: float
     length: Quantity
     symmetry_axis: Axis = Axis.MAJOR
@@ -199,8 +210,8 @@ class TorsionalBucklingDoublySinglySymmetric(BucklingStrengthMixin):
     @cached_property
     def radius_of_gyration(self):
         table = {
-            Axis.MAJOR: self.section.area_properties.major_axis_radius_of_gyration,
-            Axis.MINOR: self.section.area_properties.minor_axis_radius_of_gyration,
+            Axis.MAJOR: self.profile.section.rx,
+            Axis.MINOR: self.profile.section.ry,
         }
         return table[self.symmetry_axis]
 
@@ -215,29 +226,29 @@ class TorsionalBucklingDoublySinglySymmetric(BucklingStrengthMixin):
     @cached_property
     def elastic_buckling_stress_symmetry_axis(self):
         return elastic_flexural_buckling_stress(
-            modulus_linear=self.section.material.modulus_linear,
+            modulus_linear=self.profile.material.modulus_linear,
             member_slenderness_ratio=self.member_slenderness_ratio,
         )
 
     @cached_property
     def elastic_buckling_stress_polar(self):
         return elastic_buckling_stress_polar(
-            modulus_linear=self.section.material.modulus_linear,
-            modulus_shear=self.section.material.modulus_linear,
-            warping_constant=self.section.area_properties.warping_constant,
+            modulus_linear=self.profile.material.modulus_linear,
+            modulus_shear=self.profile.material.modulus_shear,
+            warping_constant=self.profile.section.Cw,
             factor_k=self.factor_k,
             length=self.length,
-            area=self.section.area_properties.area,
-            polar_radius_of_gyration=self.section.area_properties.polar_radius_of_gyration,
-            torsional_constant=self.section.area_properties.torsional_constant,
+            area=self.profile.section.A,
+            polar_radius_of_gyration=self.profile.section.ro,
+            torsional_constant=self.profile.section.J,
         )
 
     @cached_property
     def factor_h(self):
         return factor_h(
-            major_axis_shear_centroid=self.section.area_properties.major_axis_shear_centroid,
-            minor_axis_shear_centroid=self.section.area_properties.minor_axis_shear_centroid,
-            polar_radius_of_gyration=self.section.area_properties.polar_radius_of_gyration
+            major_axis_shear_centroid=self.profile.section.xo,
+            minor_axis_shear_centroid=self.profile.section.yo,
+            polar_radius_of_gyration=self.profile.section.ro,
         )
 
     @cached_property

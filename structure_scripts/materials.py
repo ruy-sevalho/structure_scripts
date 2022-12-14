@@ -3,7 +3,7 @@ from functools import cached_property
 from typing import Protocol, TYPE_CHECKING
 
 from pylatex import Section
-from quantities import Quantity, GPa, MPa
+from quantities import Quantity, GPa, MPa, ksi
 
 from structure_scripts.aisc_360_10.helpers import _member_slenderness_limit
 from structure_scripts.shared.latex_helpers import save_single_entry, _dataframe_table_columns, \
@@ -96,9 +96,23 @@ class MaterialLatex:
 
 
 # Commonly used materials
-steel355mpa = IsotropicIsotropicMaterialUserDefined(
+steel355MPa = IsotropicIsotropicMaterialUserDefined(
     modulus_linear=200 * GPa,
     modulus_shear=77 * GPa,
     poisson_ratio=0.3,
     yield_stress=355 * MPa
+)
+
+steel250MPa = IsotropicIsotropicMaterialUserDefined(
+    modulus_linear=200 * GPa,
+    modulus_shear=77 * GPa,
+    poisson_ratio=0.3,
+    yield_stress=250 * MPa
+)
+
+steel50ksi = IsotropicIsotropicMaterialUserDefined(
+    modulus_linear=200 * GPa,
+    modulus_shear=77 * GPa,
+    poisson_ratio=0.3,
+    yield_stress=50 * ksi
 )

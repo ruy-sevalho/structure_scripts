@@ -37,14 +37,14 @@ def axial_slenderness_per_element(slenderness: float, limit: float):
     return Slenderness.SLENDER
 
 
-@dataclass
+@dataclass(frozen=True)
 class AxialSlendernessCalcMemory:
     ratio: float
     slender_limit: float
     value: Slenderness
 
 
-@dataclass
+@dataclass(frozen=True)
 class FlexuralSlendernessCalcMemory:
     ratio: float
     compact_non_compact_limit: float
@@ -52,7 +52,7 @@ class FlexuralSlendernessCalcMemory:
     value: Slenderness
 
 
-@dataclass
+@dataclass(frozen=True)
 class DoublySymmetricIAndChannelSlenderness:
     web_axial: Slenderness
     web_flexure_major_axis: Slenderness
@@ -74,24 +74,24 @@ class DoublySymmetricIAndChannelSlenderness:
 #     flexure_minor_axis: FlexuralSlendernessCalcMemory
 
 
-@dataclass
+@dataclass(frozen=True)
 class DoublySymmetricIAndChannelAxialCalcMemory:
     web: AxialSlendernessCalcMemory
     flange: AxialSlendernessCalcMemory
 
 
-@dataclass
+@dataclass(frozen=True)
 class DoublySymmetricIAndChannelFlexureMajorAxisCalcMemory:
     web: FlexuralSlendernessCalcMemory
     flange: FlexuralSlendernessCalcMemory
 
 
-@dataclass
+@dataclass(frozen=True)
 class DoublySymmetricIAndChannelFlexureMinorAxisCalcMemory:
     flange: FlexuralSlendernessCalcMemory
 
 
-@dataclass
+@dataclass(frozen=True)
 class DoublySymmetricIAndChannelSlendernessCalcMemory:
     axial: DoublySymmetricIAndChannelAxialCalcMemory
     flexure_major_axis: DoublySymmetricIAndChannelFlexureMajorAxisCalcMemory

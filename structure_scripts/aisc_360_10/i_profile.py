@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import cached_property
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from quantities import Quantity
 
@@ -12,11 +12,12 @@ from structure_scripts.aisc_360_10.compression import (
 from structure_scripts.aisc_360_10.criteria import (
     DesignType,
     StrengthType,
-    DesignStrength,
+    DesignStrength, Strength,
 )
 from structure_scripts.aisc_360_10.flexure import (
     MajorAxisFlexurePlasticYielding,
-    LateralTorsionalBuckling, MinorAxisFlexurePlasticYielding,
+    LateralTorsionalBuckling,
+    MinorAxisFlexurePlasticYielding, NonCompactFlangeLocalBuckling, SlenderFlangeLocalBuckingMajorAxis,
 )
 from structure_scripts.aisc_360_10.helpers import (
     limit_ratio_default,
@@ -24,8 +25,10 @@ from structure_scripts.aisc_360_10.helpers import (
     limit_stress_built_up_sections,
     elastic_torsional_buckling_stress_doubly_symmetric_member,
 )
-from structure_scripts.aisc_360_10.sections import LoadReturn, AISC_360_10_Rule_Check
-from structure_scripts.aisc_360_10.section_slenderness import (
+from structure_scripts.aisc_360_10.sections import (
+    AISC_360_10_Rule_Check,
+)
+from structure_scripts.section_slenderness import (
     axial_slenderness_per_element,
     flexural_slenderness_per_element,
     DoublySymmetricIAndChannelSlenderness,
@@ -34,57 +37,51 @@ from structure_scripts.aisc_360_10.section_slenderness import (
     AxialSlendernessCalcMemory,
     FlexuralSlendernessCalcMemory,
     DoublySymmetricIAndChannelFlexureMajorAxisCalcMemory,
-    DoublySymmetricIAndChannelFlexureMinorAxisCalcMemory,
+    DoublySymmetricIAndChannelFlexureMinorAxisCalcMemory, Slenderness,
 )
 from structure_scripts.helpers import (
     Axis,
 )
 from structure_scripts.materials import IsotropicMaterial
+from structure_scripts.section import AISC_Section, Profile, SectionType
 
 from structure_scripts.section_properties import (
-    AreaProperties,
     ConstructionType,
 )
 
 if TYPE_CHECKING:
-    from structure_scripts.sections import (
-        DoublySymmetricIDimensions,
-    )
-    from structure_scripts.aisc_360_10.channel import ChannelAISC36010
+    pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class DoublySymmetricIWebSlenderness:
-    section: Union["DoublySymmetricIAISC36010", "ChannelAISC36010"]
+    profile: Profile
 
     @cached_property
     def ratio(self):
-        return (
-            self.section.dimensions.web_height_corrected
-            / self.section.dimensions.web_thickness
-        )
+        return self.profile.section.h_tw
 
     @cached_property
     def axial_limit(self):
         return limit_ratio_default(
-            modulus_linear=self.section.material.modulus_linear,
-            stress=self.section.material.yield_stress,
+            modulus_linear=self.profile.material.modulus_linear,
+            stress=self.profile.material.yield_stress,
             factor=1.49,
         )
 
     @cached_property
     def flexural_compact_non_compact_limit(self):
         return limit_ratio_default(
-            modulus_linear=self.section.material.modulus_linear,
-            stress=self.section.material.yield_stress,
+            modulus_linear=self.profile.material.modulus_linear,
+            stress=self.profile.material.yield_stress,
             factor=3.76,
         )
 
     @cached_property
     def flexural_non_compact_slender_limit(self):
         return limit_ratio_default(
-            modulus_linear=self.section.material.modulus_linear,
-            stress=self.section.material.yield_stress,
+            modulus_linear=self.profile.material.modulus_linear,
+            stress=self.profile.material.yield_stress,
             factor=5.7,
         )
 
@@ -103,32 +100,21 @@ class DoublySymmetricIWebSlenderness:
             limit_compact=self.flexural_compact_non_compact_limit,
         )
 
-    @cached_property
-    def shear_area(self) -> Quantity:
-        return (
-            self.section.dimensions.depth
-            * self.section.dimensions.web_thickness
-        )
 
-
-@dataclass
+@dataclass(frozen=True)
 class DoublySymmetricIFlangeSlenderness:
-    profile: Union["DoublySymmetricIAISC36010", "ChannelAISC36010"]
+    profile: Profile
 
     @cached_property
     def ratio(self):
-        return (
-            self.profile.dimensions.flange_width
-            / 2
-            / self.profile.dimensions.flange_thickness
-        )
+        table = {
+            SectionType.C: self.profile.section.b_t
+        }
+        return table.get(self.profile.section.type, self.profile.section.bf_2tf)
 
     @cached_property
     def kc_coefficient(self):
-        return kc_coefficient(
-            web_height=self.profile.dimensions.web_height_corrected,
-            web_thickness=self.profile.dimensions.web_thickness,
-        )
+        return kc_coefficient(h_tw=self.profile.section.h_tw)
 
     @cached_property
     def axial_limit_ratio_rolled(self):
@@ -175,8 +161,8 @@ class DoublySymmetricIFlangeSlenderness:
     def flexural_slender_limit_ratio_built_up(self):
         stress = limit_stress_built_up_sections(
             yield_stress=self.profile.material.yield_stress,
-            section_modulus_tension=self.profile.area_properties.major_axis_elastic_section_modulus,
-            section_modulus_compression=self.profile.area_properties.major_axis_elastic_section_modulus,
+            section_modulus_tension=self.profile.section.Sx,
+            section_modulus_compression=self.profile.section.Sx,
         )
         return limit_ratio_default(
             modulus_linear=self.profile.material.modulus_linear,
@@ -224,19 +210,12 @@ class DoublySymmetricIFlangeSlenderness:
             limit_compact=self.flexural_compact_non_compact_limit,
         )
 
-    @cached_property
-    def shear_area(self):
-        return (
-            self.profile.dimensions.flange_width
-            * self.profile.dimensions.flange_thickness
-        )
-
 
 @dataclass(frozen=True)
-class DoublySymmetricIAISC36010(AISC_360_10_Rule_Check):
-    dimensions: "DoublySymmetricIDimensions"
+class DoublySymmetricIAISC36010:
+    # dimensions: "DoublySymmetricIDimensions"
+    section: AISC_Section
     material: IsotropicMaterial
-    area_properties: AreaProperties
     construction: ConstructionType = ConstructionType.ROLLED
     # coefficient_c: float = 1.0
 
@@ -246,7 +225,7 @@ class DoublySymmetricIAISC36010(AISC_360_10_Rule_Check):
 
     @cached_property
     def _web_slenderness(self):
-        return DoublySymmetricIWebSlenderness(section=self)
+        return DoublySymmetricIWebSlenderness(profile=self)
 
     @cached_property
     def slenderness(self):
@@ -309,19 +288,19 @@ class DoublySymmetricIAISC36010(AISC_360_10_Rule_Check):
         length_minor_axis = length_minor_axis or length_major_axis
         length_torsion = length_torsion or length_major_axis
         flexural_buckling_major_axis = FlexuralBucklingStrength(
-            section=self,
+            profile=self,
             length=length_major_axis,
             factor_k=factor_k_major_axis,
             axis=Axis.MAJOR,
         )
         flexural_buckling_minor_axis = FlexuralBucklingStrength(
-            section=self,
+            profile=self,
             length=length_minor_axis,
             factor_k=factor_k_minor_axis,
             axis=Axis.MINOR,
         )
         torsional_buckling_strength = TorsionalBucklingDoublySymmetricI(
-            section=self, length=length_torsion, factor_k=factor_k_torsion
+            profile=self, length=length_torsion, factor_k=factor_k_torsion
         )
         return DesignStrength(
             nominal_strengths={
@@ -331,33 +310,65 @@ class DoublySymmetricIAISC36010(AISC_360_10_Rule_Check):
             }
         )
 
+    @cached_property
+    def flex_yield_major_axis(self) -> Strength:
+        return MajorAxisFlexurePlasticYielding(self)
+
+    @cached_property
+    def flex_yield_minor_axis(self) -> Strength:
+        return MinorAxisFlexurePlasticYielding(self)
+
+    @cached_property
+    def flex_major_axis_non_compact_flange_local_buckling(self):
+        return NonCompactFlangeLocalBuckling(
+            profile=self,
+            axis=Axis.MAJOR
+        )
+
+    @cached_property
+    def flex_major_axis_slender_flange_local_buckling(self):
+        return SlenderFlangeLocalBuckingMajorAxis(
+            profile=self,
+        )
+
+    @cached_property
+    def flex_minor_axis_non_compact_flange_local_buckling(self):
+        return NonCompactFlangeLocalBuckling(
+            profile=self,
+            axis=Axis.MINOR
+        )
+
     def flexure_major_axis(
         self,
         length: Quantity,
         lateral_torsional_buckling_modification_factor: float = 1.0,
     ) -> DesignStrength:
-        return DesignStrength(
-            nominal_strengths={
-                StrengthType.YIELD: MajorAxisFlexurePlasticYielding(self),
-                StrengthType.LATERAL_TORSIONAL_BUCKLING: LateralTorsionalBucklingDoublySymmetricI(
-                    section=self,
-                    length=length,
-                    modification_factor=lateral_torsional_buckling_modification_factor,
-                ),
-            }
-        )
+        nominal_strengths = {
+            StrengthType.YIELD: self.flex_yield_major_axis,
+            StrengthType.LATERAL_TORSIONAL_BUCKLING: LateralTorsionalBucklingDoublySymmetricI(
+                profile=self,
+                length=length,
+                modification_factor=lateral_torsional_buckling_modification_factor,
+            ),
+        }
+        if self.slenderness.flange_flexure_major_axis == Slenderness.NON_COMPACT:
+            nominal_strengths.update(
+                {StrengthType.COMPRESSION_FLANGE_LOCAL_BUCKLING: self.flex_major_axis_non_compact_flange_local_buckling}
+            )
+        return DesignStrength(nominal_strengths=nominal_strengths)
 
     def flexure_minor_axis(
         self,
-        # length: Quantity,
-        # lateral_torsional_buckling_modification_factor: float = 1.0,
-        design_type: DesignType = DesignType.ASD,
     ) -> DesignStrength:
-        return DesignStrength(
-            nominal_strengths={
-                StrengthType.YIELD: MinorAxisFlexurePlasticYielding(self)
-            }
-        )
+        nominal_strengths = {
+            StrengthType.YIELD: MinorAxisFlexurePlasticYielding(self)
+        }
+        if self.slenderness.flange_flexure_minor_axis == Slenderness.NON_COMPACT:
+            nominal_strengths.update(
+                {StrengthType.COMPRESSION_FLANGE_LOCAL_BUCKLING: self.flex_minor_axis_non_compact_flange_local_buckling}
+            )
+
+        return DesignStrength(nominal_strengths=nominal_strengths)
 
     def shear_major_axis(self) -> DesignStrength:
         ...
@@ -375,21 +386,21 @@ class LateralTorsionalBucklingDoublySymmetricI(LateralTorsionalBuckling):
 
 @dataclass(frozen=True)
 class TorsionalBucklingDoublySymmetricI(BucklingStrengthMixin):
-    section: "DoublySymmetricIAISC36010"
+    profile: "DoublySymmetricIAISC36010"
     factor_k: float
     length: Quantity
 
     @cached_property
     def elastic_buckling_stress(self):
         return elastic_torsional_buckling_stress_doubly_symmetric_member(
-            modulus_linear=self.section.material.modulus_linear,
+            modulus_linear=self.profile.material.modulus_linear,
             factor_k=self.factor_k,
             length=self.length,
-            major_axis_inertia=self.section.area_properties.major_axis_inertia,
-            minor_axis_inertia=self.section.area_properties.minor_axis_inertia,
-            torsional_constant=self.section.area_properties.torsional_constant,
-            modulus_shear=self.section.material.modulus_shear,
-            warping_constant=self.section.area_properties.warping_constant,
+            major_axis_inertia=self.profile.section.Ix,
+            minor_axis_inertia=self.profile.section.Iy,
+            torsional_constant=self.profile.section.J,
+            modulus_shear=self.profile.material.modulus_shear,
+            warping_constant=self.profile.section.Cw,
         )
 
     @cached_property

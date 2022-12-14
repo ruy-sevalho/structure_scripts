@@ -2,7 +2,7 @@ from dataclasses import dataclass, asdict
 from pytest import approx, mark, raises
 from quantities import UnitQuantity, Quantity, cm, m, mm, N
 
-from structure_scripts.sections import (
+from structure_scripts.sections_from_dimensions import (
     DirectInputAreaProperties,
     ChannelDimensions,
 )
@@ -18,7 +18,7 @@ from structure_scripts.aisc_360_10.channel import (
     ChannelAreaProperties,
 )
 from structure_scripts.materials import (
-    steel355mpa,
+    steel355MPa,
 )
 
 dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
@@ -50,17 +50,17 @@ dimensions_200x10_200x10 = DoublySymmetricIDimensionsUserDefined(
     total_height=220 * mm,
 )
 profile_127x76x13_rolled = DoublySymmetricIAISC36010(
-    area_properties=area_properties_127x76x13,
+    section=area_properties_127x76x13,
     dimensions=dimensions_127x76x13,
-    material=steel355mpa,
+    material=steel355MPa,
 )
 profile_200x10_200x10 = DoublySymmetricIAISC36010(
-    dimensions=dimensions_200x10_200x10, material=steel355mpa
+    dimensions=dimensions_200x10_200x10, material=steel355MPa
 )
 profile_built_up = DoublySymmetricIAISC36010(
-    area_properties=area_properties_127x76x13,
+    section=area_properties_127x76x13,
     dimensions=dimensions_127x76x13,
-    material=steel355mpa,
+    material=steel355MPa,
     construction=ConstructionType.BUILT_UP,
 )
 
@@ -472,7 +472,7 @@ def test_channel_dimensions_calculates_correct_web_height(
 def test_channel_dimensions_area(
     channel: AreaProperties, expected_area: Quantity
 ):
-    assert channel.area == expected_area
+    assert channel.A == expected_area
 
 
 def test_pandas():

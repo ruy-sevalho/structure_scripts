@@ -1,4 +1,4 @@
-from structure_scripts.materials import steel355mpa
+from structure_scripts.materials import steel355MPa
 from structure_scripts.api_rpa.elements import (
     CircularSection,
     CircularSectionGeometry,
@@ -10,7 +10,7 @@ p4geo = CircularSectionGeometry(
     outer_diameter=(4.5 * inch).rescale(mm),
     wall_thickness=((4.5 - 4.029) * inch).rescale(mm),
 )
-p4 = CircularSection(geometry=p4geo, material=steel355mpa)
+p4 = CircularSection(geometry=p4geo, material=steel355MPa)
 beam = BeamModel(
     profile=p4,
 )

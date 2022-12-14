@@ -27,8 +27,11 @@ from structure_scripts.helpers import (
     channel_torsional_constant,
     channel_warping_constant,
     polar_radius_of_gyration,
-    minor_axis_plastic_section_modulus_i_channel, channel_minor_axis_inertia, channel_shear_center_delta,
-    doubly_symmetric_i_torsional_constant, web_height_from_total,
+    minor_axis_plastic_section_modulus_i_channel,
+    channel_minor_axis_inertia,
+    channel_shear_center_delta,
+    doubly_symmetric_i_torsional_constant,
+    web_height_from_total,
 )
 from structure_scripts.materials import IsotropicMaterial
 
@@ -237,13 +240,9 @@ def _partial_area_prop_dsi_channel(
         AreaProperties,
         area=base_area_prop.area,
         major_axis_inertia=base_area_prop.major_axis_inertia,
-        # minor_axis_inertia=base_area_prop.minor_axis_inertia,
         major_axis_elastic_section_modulus=base_area_prop.major_axis_elastic_section_modulus,
-        # minor_axis_elastic_section_modulus=base_area_prop.minor_axis_elastic_section_modulus,
         major_axis_plastic_section_modulus=base_area_prop.major_axis_plastic_section_modulus,
-        # minor_axis_plastic_section_modulus=base_area_prop.minor_axis_plastic_section_modulus,
         major_axis_radius_of_gyration=base_area_prop.major_axis_radius_of_gyration,
-        # minor_axis_radius_of_gyration=base_area_prop.minor_axis_radius_of_gyration,
     )
 
 
@@ -280,12 +279,12 @@ def channel_area_properties(dimensions: ChannelDimensions):
     minor_axis_inertia, y_neutral_axis = channel_minor_axis_inertia(dimensions)
     major_axis_shear_centroid = 0 * m
     minor_axis_shear_centroid: Quantity = (
-            channel_shear_center_delta(
+        channel_shear_center_delta(
             flange_width_corrected=flange_width_corrected,
             alpha=alpha_,
             web_thickness=dimensions.web_thickness,
         )
-            + y_neutral_axis
+        + y_neutral_axis
     )
     minor_axis_plastic_section_modulus = (
         minor_axis_plastic_section_modulus_i_channel(
@@ -294,7 +293,7 @@ def channel_area_properties(dimensions: ChannelDimensions):
             web_height=dimensions.web_height,
             web_thickness=dimensions.web_thickness,
             flange_width=dimensions.flange_width,
-            flange_thickness=dimensions.flange_thickness
+            flange_thickness=dimensions.flange_thickness,
         )
     )
 
@@ -346,7 +345,7 @@ class DoublySymmetricI:
         return DoublySymmetricIAISC36010(
             dimensions=self.dimensions,
             material=self.material,
-            area_properties=self.area_properties,
+            section=self.area_properties,
             construction=self.construction,
         )
 
@@ -363,7 +362,7 @@ class Channel:
         return ChannelAISC36010(
             dimensions=self.dimensions,
             material=self.material,
-            area_properties=self.area_properties,
+            section=self.area_properties,
             construction=self.construction,
         )
 
@@ -457,5 +456,3 @@ def create_channel(
         area_properties=area_properties or channel_area_properties(dimensions),
         construction=construction,
     )
-
-

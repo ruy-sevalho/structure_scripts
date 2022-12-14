@@ -5,7 +5,7 @@ import numpy as np
 
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.section_slenderness import Slenderness
+from structure_scripts.section_slenderness import Slenderness
 from structure_scripts.helpers import (
     ratio_simplify,
     same_units_simplify,
@@ -79,9 +79,9 @@ def doubly_symmetric_i_warping_constant(
 
 
 # ANSI/AISC 360-10 page 16.1–16 (reference rules)
-def kc_coefficient(web_height: Quantity, web_thickness: Quantity):
-    ratio = ratio_simplify(web_height, web_thickness)
-    return min((max((4 / ratio**0.5, 0.35)), 0.76))
+def kc_coefficient(h_tw: float):
+    # ratio = ratio_simplify(web_height, web_thickness)
+    return min((max((4 / h_tw**0.5, 0.35)), 0.76))
 
 
 # ANSI/AISC 360-10 page 16.1–16 (reference rules)
@@ -163,7 +163,7 @@ def flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_b
     momt_calc, momt_plastic = same_units_simplify(
         calculated_moment, plastic_moment
     )
-    return min(momt_calc, momt_plastic)
+    return momt_calc
 
 
 def flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_c(
@@ -235,13 +235,14 @@ def limiting_length_lateral_torsional_buckling(
         ratio**2 + 6.76 * (0.7 * yield_stress / modulus) ** 2
     ) ** 0.5
     outer_root = (ratio + inner_root) ** 0.5
-    return (
+    value =  (
         1.95
         * effective_radius_of_gyration
         * modulus
         / (0.7 * yield_stress)
         * outer_root
     )
+    return value
 
 
 def effective_radius_of_gyration(
@@ -414,16 +415,15 @@ def elastic_buckling_stress_polar(
     torsional_constant: Quantity,
 ) -> Quantity:
     """E4-9 pg 91"""
+    ans = (
+        pi**2 * modulus_linear * warping_constant / (factor_k * length) ** 2
+        + modulus_shear * torsional_constant
+    ) / (area * polar_radius_of_gyration**2)
+    a = ans.rescale("MPa")
     return (
-        (
-            pi**2
-            * modulus_linear
-            * warping_constant
-            / (factor_k * length) ** 2
-            + modulus_shear * torsional_constant
-        )
-        / (area * polar_radius_of_gyration**2)
-    )
+        pi**2 * modulus_linear * warping_constant / (factor_k * length) ** 2
+        + modulus_shear * torsional_constant
+    ) / (area * polar_radius_of_gyration**2)
 
 
 def elastic_bucking_stress_singly_symmetric(
@@ -433,18 +433,18 @@ def elastic_bucking_stress_singly_symmetric(
 ):
     """E4-5 pg 91"""
 
-    return (
-        (elastic_buckling_stress_y + elastic_buckling_stress_z)
-        / (2 * factor_h)
-        * (
-            1
-            - (
-                1
-                - 4
-                * elastic_buckling_stress_z
-                * elastic_buckling_stress_y
-                * factor_h
-                / (elastic_buckling_stress_y + elastic_buckling_stress_z) ** 2
-            )
-        )
+    term_1 = (elastic_buckling_stress_y + elastic_buckling_stress_z) / (
+        2 * factor_h
     )
+    term_2 = 1 - (
+        1
+        - (
+            4
+            * elastic_buckling_stress_z
+            * elastic_buckling_stress_y
+            * factor_h
+        )
+        / (elastic_buckling_stress_y + elastic_buckling_stress_z) ** 2
+    ) ** 0.5
+    return term_1 * term_2
+

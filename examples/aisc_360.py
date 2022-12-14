@@ -15,9 +15,9 @@ from structure_scripts.aisc_360_10.channel import (
     ChannelAreaProperties,
 )
 from structure_scripts.materials import (
-    steel355mpa,
+    steel355MPa,
 )
-from structure_scripts.sections import (
+from structure_scripts.sections_from_dimensions import (
     DirectInputAreaProperties,
     ChannelDimensions,
 )
@@ -52,17 +52,17 @@ dimensions_200x10_200x10 = DoublySymmetricIDimensionsUserDefined(
     total_height=220 * mm,
 )
 profile_127x76x13_rolled = DoublySymmetricIAISC36010(
-    area_properties=area_properties_127x76x13,
+    section=area_properties_127x76x13,
     dimensions=dimensions_127x76x13,
-    material=steel355mpa,
+    material=steel355MPa,
 )
 profile_200x10_200x10 = DoublySymmetricIAISC36010(
-    dimensions=dimensions_200x10_200x10, material=steel355mpa
+    dimensions=dimensions_200x10_200x10, material=steel355MPa
 )
 profile_built_up = DoublySymmetricIAISC36010(
-    area_properties=area_properties_127x76x13,
+    section=area_properties_127x76x13,
     dimensions=dimensions_127x76x13,
-    material=steel355mpa,
+    material=steel355MPa,
     construction=ConstructionType.BUILT_UP,
 )
 # channel profiles

@@ -12,7 +12,9 @@ from structure_scripts.aisc_360_10.i_profile import (
 from structure_scripts.materials import (
     IsotropicIsotropicMaterialUserDefined,
 )
-from structure_scripts.sections import DirectInputAreaProperties
+from structure_scripts.sections_from_dimensions import (
+    DirectInputAreaProperties,
+)
 
 kN = UnitQuantity("kN", 1000 * N)
 
@@ -75,7 +77,7 @@ if __name__ == "__main__":
         total_height=254 * mm,
     )
     profile_wx250x250x73 = DoublySymmetricIAISC36010(
-        area_properties=area_properties_wx250x250x73,
+        section=area_properties_wx250x250x73,
         dimensions=dimensions_wx250x250x73,
         material=steel,
     )

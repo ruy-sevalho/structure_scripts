@@ -12,6 +12,7 @@ from structure_scripts.aisc_360_10.helpers import (
     critical_compression_stress_buckling_default,
     _nominal_compressive_strength,
 )
+from structure_scripts.section import Profile, ProfileFlangeWeb
 
 from structure_scripts.section_properties import Section
 from structure_scripts.helpers import member_slenderness_ratio, Axis
@@ -38,20 +39,20 @@ class BeamCompression:
 
 @dataclass(frozen=True)
 class BucklingStrengthMixin(ABC):
-    section: Section
+    profile: Profile
 
     @cached_property
     def critical_stress(self):
         return critical_compression_stress_buckling_default(
             elastic_buckling_stress=self.elastic_buckling_stress,
-            yield_stress=self.section.material.yield_stress,
+            yield_stress=self.profile.material.yield_stress,
         )
 
     @cached_property
     def nominal_strength(self) -> Quantity:
         return _nominal_compressive_strength(
             critical_stress=self.critical_stress,
-            sectional_area=self.section.area_properties.area,
+            sectional_area=self.profile.section.A,
         )
 
     @property
@@ -70,7 +71,7 @@ class BucklingStrengthMixin(ABC):
 
 @dataclass(frozen=True)
 class FlexuralBucklingStrength(BucklingStrengthMixin):
-    section: Section
+    profile: Profile
     length: Quantity
     factor_k: float
     axis: Axis
@@ -78,8 +79,8 @@ class FlexuralBucklingStrength(BucklingStrengthMixin):
     @cached_property
     def radius_of_gyration(self):
         table = {
-            Axis.MAJOR: self.section.area_properties.major_axis_radius_of_gyration,
-            Axis.MINOR: self.section.area_properties.minor_axis_radius_of_gyration,
+            Axis.MAJOR: self.profile.section.rx,
+            Axis.MINOR: self.profile.section.ry,
         }
         return table[self.axis]
 
@@ -101,6 +102,9 @@ class FlexuralBucklingStrength(BucklingStrengthMixin):
     @cached_property
     def elastic_buckling_stress(self):
         return elastic_flexural_buckling_stress(
-            modulus_linear=self.section.material.modulus_linear,
+            modulus_linear=self.profile.material.modulus_linear,
             member_slenderness_ratio=self.beam_slenderness,
         )
+
+
+

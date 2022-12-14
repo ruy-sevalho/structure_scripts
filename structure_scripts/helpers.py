@@ -5,7 +5,7 @@ from typing import Collection, TYPE_CHECKING
 from quantities import Quantity, dimensionless
 
 if TYPE_CHECKING:
-    from structure_scripts.sections import ChannelDimensions
+    from structure_scripts.sections_from_dimensions import ChannelDimensions
 
 
 class Axis(str, Enum):
@@ -48,9 +48,9 @@ def circular_section_polar_moment_of_inertia(
 def same_units_simplify(q1: Quantity, q2: Quantity, strip_units: bool = False):
     q1 = q1.simplified
     q2 = q2.simplified
-    if not q1.UNITS == q2.UNITS:
+    if not q1.units == q2.units:
         raise ValueError(
-            f"q1 has {q1.UNITS} units and q2 has {q2.UNITS} units"
+            f"q1 has {q1.units} units and q2 has {q2.units} units"
         )
     if strip_units:
         return q1.magnitude.item(), q2.magnitude.item()

@@ -7,7 +7,7 @@ from structure_scripts.aisc_360_10.criteria import (
     StrengthType,
     DesignStrength,
 )
-
+from structure_scripts.section import Profile
 
 LoadReturn = TypeVar(
     "LoadReturn",
@@ -18,7 +18,7 @@ LoadReturn = TypeVar(
 )
 
 
-class AISC_360_10_Rule_Check(Protocol):
+class AISC_360_10_Rule_Check(Profile, Protocol):
     def compression(
         self,
         length_major_axis: Quantity,
@@ -50,8 +50,7 @@ class AISC_360_10_Rule_Check(Protocol):
     def shear_minor_axis(self) -> DesignStrength:
         ...
 
-    def load_check(
-            self,
-
-    ):
-        return
+    # def load_check(
+    #     self,
+    # ):
+    #     return
