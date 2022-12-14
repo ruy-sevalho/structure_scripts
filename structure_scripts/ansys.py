@@ -1,4 +1,4 @@
-import pathlib
+from typing import Collection
 
 import pandas as pd
 from os import listdir
@@ -59,40 +59,63 @@ def _convert(x):
     return int(float(x))
 
 
-def read_results(file: pathlib.Path):
+RESULT_VALUES = [ELEM, NODE_I, NODE_J, FXI, FXJ, MYI, MYJ, MZI, MZJ]
+
+
+def _append_load_case_name(names: list[str], case: str, start_from: int = 3):
+    return names[:start_from] + [
+        f"{name}_{case}" for name in names[start_from:]
+    ]
+
+
+def _read_load_case_result(
+    file: Path, load_case: str, include_nodes: bool = False
+):
+    names = _append_load_case_name(RESULT_VALUES, case=load_case)
+    cols = list(names)
+    if not include_nodes:
+        cols.remove(NODE_I)
+        cols.remove(NODE_J)
     with open(file, "r") as f:
         results = pd.read_table(
             f,
             sep=",",
             index_col=False,
-            names=[
-                ELEM,
-                "node_i",
-                "node_j",
-                "fxi",
-                "fxj",
-                "myi",
-                "myj",
-                "mzi",
-                "mzj",
-            ],
+            names=names,
+            usecols=cols,
             converters={ELEM: _convert},
         ).set_index(ELEM)
     return results
 
 
-def read_node(file: pathlib.Path) -> pd.DataFrame:
+def _read_results(load_cases_dict: dict[str, Path]):
+    df = pd.DataFrame()
+    for i, (key, value) in enumerate(load_cases_dict.items()):
+        i = not i
+        df = pd.concat(
+            (
+                df,
+                _read_load_case_result(
+                    file=value, load_case=key, include_nodes=i
+                ),
+            ),
+            axis=1,
+        )
+    return df
+
+
+def read_node(file: Path) -> pd.DataFrame:
     with open(file, "r") as f:
         nodes = pd.read_table(f, sep=",", index_col=False, names=["node"])
     return nodes
 
 
-def read_nodes(nodes: dict[str, pathlib.Path]) -> dict[str, pd.DataFrame]:
+def read_nodes(nodes: dict[str, Path]) -> dict[str, pd.DataFrame]:
     return {key: read_node(value) for key, value in nodes.items()}
 
 
 def generate_path_dict(
-    folder: pathlib.Path, n: int, prefix: str = "beams", suffix: str = ".txt"
+    folder: Path, n: int, prefix: str = "beams", suffix: str = ".txt"
 ):
     return {
         f"{prefix}{i}": folder / Path(f"{prefix}{i}{suffix}")
@@ -100,17 +123,47 @@ def generate_path_dict(
     }
 
 
-if __name__ == "__main__":
-    results_fp = Path(
-        r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\PROJE\PROJE101\Ansys\wip_files\dp0\SYS\MECH\vert.txt"
+def _generate_load_cases_paths(
+    directories: list[Path], load_cases: Collection[str]
+):
+    suffix = ".txt"
+    return {
+        load_case: directory / Path(f"{load_case}{suffix}")
+        for load_case, directory in zip(load_cases, directories)
+    }
+
+
+def get_and_process_results(
+    directories: list[Path],
+    n_named_selection: int,
+    load_cases: Collection[str],
+    prefix: str = "beams",
+):
+    load_cases_paths = _generate_load_cases_paths(
+        directories=directories, load_cases=load_cases
     )
-    nodes_directory = Path(
-        r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\PROJE\PROJE101\Ansys\wip_files\dp0\SYS\MECH"
+    nodes_path_dict = generate_path_dict(
+        directories[0], n=n_named_selection, prefix=prefix
     )
-    nodes_path_dict = generate_path_dict(nodes_directory, 11)
     nodes = read_nodes(nodes_path_dict)
-    df = read_results(results_fp)
-    df = name_elements(df, nodes)
+    df = _read_results(load_cases_paths)
+    return name_elements(df, nodes)
+
+
+if __name__ == "__main__":
+    d = {i: str(i + 1) for i in range(5)}
+    print(list(enumerate(d.items())))
+    pass
+    # results_fp = Path(
+    #     r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\PROJE\PROJE101\Ansys\wip_files\dp0\SYS\MECH\vert.txt"
+    # )
+    # nodes_directory = Path(
+    #     r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\PROJE\PROJE101\Ansys\wip_files\dp0\SYS\MECH"
+    # )
+    # nodes_path_dict = generate_path_dict(nodes_directory, 11)
+    # nodes = read_nodes(nodes_path_dict)
+    # df = read_results(results_fp)
+    # df = name_elements(df, nodes)
 
     # directory = Path("crazy/")
     # files = listdir(directory)
