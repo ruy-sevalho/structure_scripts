@@ -1,13 +1,13 @@
 from pytest import mark
 
 from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIAISC36010
-from structure_scripts.section_slenderness import (
+from structure_scripts.aisc_360_10.section_slenderness import (
     DoublySymmetricIAndChannelSlenderness,
     Slenderness,
 )
-from structure_scripts.aisc_database import AISC_Sections
+from structure_scripts.aisc_360_10.aisc_database import AISC_Sections
 from structure_scripts.materials import steel355MPa, IsotropicMaterial
-from structure_scripts.section_properties import ConstructionType
+from structure_scripts.aisc_360_10.sections import ConstructionType
 
 slenderness_test_data = [
     (

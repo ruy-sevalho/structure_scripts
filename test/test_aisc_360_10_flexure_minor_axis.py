@@ -1,26 +1,18 @@
-from dataclasses import asdict
-
 from pytest import mark
 
-from structure_scripts.aisc_database import AISC_Sections
+from structure_scripts.aisc_360_10.aisc_database import AISC_Sections
 from structure_scripts.aisc_360_10.criteria import (
     StrengthType, NOMINAL_STRENGTH,
 )
-from structure_scripts.aisc_360_10.flexure import BeamFlexure
-from structure_scripts.aisc_360_10.sections import AISC_360_10_Rule_Check
+from structure_scripts.aisc_360_10.sections import ConstructionType, AISC_Section
+from structure_scripts.aisc_360_10.profile import create_profile
 from structure_scripts.materials import steel250MPa, IsotropicMaterial
-from structure_scripts.profile import create_profile
-from structure_scripts.section import AISC_Section
-from structure_scripts.section_properties import ConstructionType
 
-from test.data import (
-    sections,
-)
 from test.helpers import (
     compare_loading_strengths,
     ExpectedDesignStrength,
 )
-from quantities import Quantity, cm, N, MPa, m, mm
+from quantities import N, mm
 
 
 

@@ -1,12 +1,18 @@
+import os
+import inspect
 from pathlib import Path
 from typing import Any
-
+from os import getcwd
 import pandas as pd
 from quantities import Quantity, mm, kg, m
 
-from structure_scripts.section import AISC_Section
+import structure_scripts.aisc_360_10 as aisc
+from structure_scripts.aisc_360_10.sections import AISC_Section
 
-file_path = Path("../aisc_database/aisc-shapes-database-v15.0.CSV")
+DIRECTORY_PATH = os.path.dirname(inspect.getfile(aisc))
+
+DATABASE_PATH = DIRECTORY_PATH / Path(r"aisc-shapes-database-v15.0.CSV")
+
 
 LENGTH = "length"
 AREA = "area"
@@ -263,4 +269,4 @@ def read_xls_table(file_path):
     return AISC_Sections
 
 
-AISC_Sections = read_xls_table(file_path)
+AISC_Sections = read_xls_table(DATABASE_PATH)

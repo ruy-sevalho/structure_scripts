@@ -5,7 +5,7 @@ from pylatex import NoEscape, Section, Subsection, Subsubsection
 from quantities import Quantity
 
 import structure_scripts.helpers
-import structure_scripts.sections_from_dimensions
+import structure_scripts.sections.sections_from_dimensions
 from structure_scripts.shared.latex_helpers import (
     _slenderness_default_limit_ratio_latex,
     _member_slenderness_minor_axis_flexural_bucking_latex,
@@ -37,7 +37,7 @@ from structure_scripts.shared.latex_helpers import (
 from structure_scripts.aisc_360_10.helpers import (
     flexural_lateral_torsional_buckling_strength,
 )
-from structure_scripts.section_properties import ConstructionType
+from structure_scripts.aisc_360_10.sections import ConstructionType
 from structure_scripts.shared.report_config import config_dict
 
 from typing import TYPE_CHECKING

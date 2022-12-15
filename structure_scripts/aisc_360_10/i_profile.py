@@ -10,7 +10,6 @@ from structure_scripts.aisc_360_10.compression import (
     ELASTIC_BUCKLING_STRESS,
 )
 from structure_scripts.aisc_360_10.criteria import (
-    DesignType,
     StrengthType,
     DesignStrength, Strength,
 )
@@ -25,10 +24,7 @@ from structure_scripts.aisc_360_10.helpers import (
     limit_stress_built_up_sections,
     elastic_torsional_buckling_stress_doubly_symmetric_member,
 )
-from structure_scripts.aisc_360_10.sections import (
-    AISC_360_10_Rule_Check,
-)
-from structure_scripts.section_slenderness import (
+from structure_scripts.aisc_360_10.section_slenderness import (
     axial_slenderness_per_element,
     flexural_slenderness_per_element,
     DoublySymmetricIAndChannelSlenderness,
@@ -43,11 +39,8 @@ from structure_scripts.helpers import (
     Axis,
 )
 from structure_scripts.materials import IsotropicMaterial
-from structure_scripts.section import AISC_Section, Profile, SectionType
 
-from structure_scripts.section_properties import (
-    ConstructionType,
-)
+from structure_scripts.aisc_360_10.sections import ConstructionType, SectionType, AISC_Section, Profile
 
 if TYPE_CHECKING:
     pass

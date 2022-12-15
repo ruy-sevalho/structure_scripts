@@ -6,25 +6,20 @@ from structure_scripts.aisc_360_10.compression import BeamCompression
 from structure_scripts.aisc_360_10.criteria import (
     StrengthType,
 )
-from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIAISC36010
-from structure_scripts.aisc_360_10.sections import AISC_360_10_Rule_Check
-from structure_scripts.aisc_database import AISC_Sections
+
+from structure_scripts.aisc_360_10.aisc_database import AISC_Sections
 from structure_scripts.materials import (
-    steel355MPa,
     IsotropicMaterial,
     steel250MPa,
 )
-from structure_scripts.profile import create_profile
-from structure_scripts.section import AISC_Section
-from structure_scripts.section_properties import ConstructionType
-from test.data import (
-    sections,
-)
+from structure_scripts.aisc_360_10.sections import ConstructionType, AISC_Section
+from structure_scripts.aisc_360_10.profile import create_profile
+
 from test.helpers import (
     compare_loading_strengths,
     ExpectedDesignStrength,
 )
-from quantities import Quantity, cm, N, MPa, m, kip
+from quantities import N, MPa, m
 
 test_params = {
     "test_1": (

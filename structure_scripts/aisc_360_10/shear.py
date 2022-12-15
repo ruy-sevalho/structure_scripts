@@ -8,9 +8,8 @@ from structure_scripts.aisc_360_10.helpers import (
     web_shear_coefficient_iii,
     _nominal_shear_strength,
 )
-from structure_scripts.section_properties import ConstructionType
 
-from structure_scripts.section_slenderness import (
+from structure_scripts.aisc_360_10.section_slenderness import (
     ElementSlendernessDefinition,
 )
 from structure_scripts.helpers import Axis
@@ -18,8 +17,8 @@ from structure_scripts.materials import IsotropicMaterial
 
 if TYPE_CHECKING:
     from structure_scripts.aisc_360_10.sections import (
-        SectionWithWebFlange,
-    )
+        SectionWithWebFlange, ConstructionType,
+)
 
 SHEAR_STRENGTH = "shear_strength"
 

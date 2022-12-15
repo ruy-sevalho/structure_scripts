@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Union, TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional
 from abc import ABC, abstractmethod
 
 from quantities import Quantity
@@ -18,14 +18,10 @@ from structure_scripts.aisc_360_10.helpers import (
     flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_b, kc_coefficient,
 )
 from structure_scripts.helpers import Axis
-from structure_scripts.section import ProfileFlangeWeb, Profile, SectionType
-from structure_scripts.section_properties import Section
+
 
 if TYPE_CHECKING:
-    from structure_scripts.sections_from_dimensions import DoublySymmetricI
-    from structure_scripts.aisc_360_10.i_profile import (
-        DoublySymmetricIAISC36010,
-    )
+    from structure_scripts.aisc_360_10.sections import SectionType, Profile, ProfileFlangeWeb
 
 
 @dataclass(frozen=True)
@@ -38,7 +34,7 @@ class BeamFlexure:
 class MajorAxisFlexurePlasticYielding:
     """F2.1 see page 103"""
 
-    profile: Profile
+    profile: "Profile"
 
     @cached_property
     def nominal_strength(self):
@@ -56,7 +52,7 @@ class MajorAxisFlexurePlasticYielding:
 class MinorAxisFlexurePlasticYielding:
     """F6.1 see page 111"""
 
-    profile: Profile
+    profile: "Profile"
 
     @cached_property
     def nominal_strength(self):
@@ -75,7 +71,7 @@ class MinorAxisFlexurePlasticYielding:
 class LateralTorsionalBuckling(ABC):
     """F2 page 103"""
 
-    profile: ProfileFlangeWeb
+    profile: "ProfileFlangeWeb"
     modification_factor: float
     length: Quantity
 
@@ -174,7 +170,7 @@ class NonCompactFlangeLocalBuckling:
     lambda_r:  limiting slenderness for a noncompact flange
     lambda: flange slenderness ratio bf_2tf
     """
-    profile: ProfileFlangeWeb
+    profile: "ProfileFlangeWeb"
     axis: Axis
 
     @cached_property
@@ -214,7 +210,7 @@ class NonCompactFlangeLocalBuckling:
 
 @dataclass(frozen=True)
 class SlenderFlangeLocalBuckingMajorAxis:
-    profile: ProfileFlangeWeb
+    profile: "ProfileFlangeWeb"
 
     @cached_property
     def nominal_strength(self) -> Quantity:
@@ -234,7 +230,7 @@ class SlenderFlangeLocalBuckingMajorAxis:
 
 @dataclass(frozen=True)
 class SlenderFlangeLocalBuckingMinorAxis:
-    profile: ProfileFlangeWeb
+    profile: "ProfileFlangeWeb"
 
     @cached_property
     def critical_stress(self) -> Quantity:

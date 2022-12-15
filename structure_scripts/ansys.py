@@ -4,6 +4,8 @@ import pandas as pd
 from os import listdir
 from pathlib import Path
 
+from quantities import Quantity
+
 
 def rename_col(df: pd.DataFrame):
     _, cols = df.shape
@@ -15,8 +17,8 @@ def set_size(df: pd.DataFrame):
 
 
 def check_dataframe(df: pd.DataFrame):
-    """Check if file with results from ansys is giving repeated values (same node and element id appears multiple times
-    in results).
+    """Check if file with results from ansys is giving repeated values. Same node and element id appears multiple times
+    in txt exported results, with apparently the same value.
     """
     _, cols = df.shape
     n = df["Node Number"].max()
@@ -59,6 +61,9 @@ def _convert(x):
     return int(float(x))
 
 
+BEAM_RESULTS = [FXI, FXJ, MYI, MYJ, MZI, MZJ]
+
+# Order must match order of the table exported by ansys
 RESULT_VALUES = [ELEM, NODE_I, NODE_J, FXI, FXJ, MYI, MYJ, MZI, MZJ]
 
 
@@ -83,7 +88,9 @@ def _read_load_case_result(
             index_col=False,
             names=names,
             usecols=cols,
-            converters={ELEM: _convert},
+            converters={
+                ELEM: _convert,
+            },
         ).set_index(ELEM)
     return results
 
@@ -134,16 +141,16 @@ def _generate_load_cases_paths(
 
 
 def get_and_process_results(
-    directories: list[Path],
     n_named_selection: int,
-    load_cases: Collection[str],
+    load_cases: dict[str: Path],
+    nodes_path: Path,
     prefix: str = "beams",
 ):
     load_cases_paths = _generate_load_cases_paths(
-        directories=directories, load_cases=load_cases
+        directories=load_cases.values(), load_cases=load_cases.keys()
     )
     nodes_path_dict = generate_path_dict(
-        directories[0], n=n_named_selection, prefix=prefix
+        nodes_path, n=n_named_selection, prefix=prefix
     )
     nodes = read_nodes(nodes_path_dict)
     df = _read_results(load_cases_paths)
@@ -151,39 +158,4 @@ def get_and_process_results(
 
 
 if __name__ == "__main__":
-    d = {i: str(i + 1) for i in range(5)}
-    print(list(enumerate(d.items())))
     pass
-    # results_fp = Path(
-    #     r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\PROJE\PROJE101\Ansys\wip_files\dp0\SYS\MECH\vert.txt"
-    # )
-    # nodes_directory = Path(
-    #     r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\PROJE\PROJE101\Ansys\wip_files\dp0\SYS\MECH"
-    # )
-    # nodes_path_dict = generate_path_dict(nodes_directory, 11)
-    # nodes = read_nodes(nodes_path_dict)
-    # df = read_results(results_fp)
-    # df = name_elements(df, nodes)
-
-    # directory = Path("crazy/")
-    # files = listdir(directory)
-    #
-    # axial_results = dict()
-
-    #
-    # with open(directory/"vert.txt" "r") as f:
-    #     results = pd.read_table(f sep="" index_col=False header=None names=["elem" "node_i" "node_j" "fxi" "fxj" "myi" "myj" "mzi" "mzj"])
-    #
-    # nodes_series = nodes["node"]
-    # check = check_elem_in(results nodes)
-    # check = check[(check.both)]
-
-    # results["sel"] = results.apply()
-
-    # for file in files:
-    #     with open(directory / file "r") as f:
-    #         df = pd.concat((df pd.read_table(f)) axis=1)
-    #
-    # df = df.sort_values("Element Number")
-    # df2 = df.drop_duplicates()
-    # df3 = df.drop_duplicates().sort_values("Directional Axial Force (N)")

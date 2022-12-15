@@ -4,8 +4,6 @@ from typing import Collection, TYPE_CHECKING
 
 from quantities import Quantity, dimensionless
 
-if TYPE_CHECKING:
-    from structure_scripts.sections_from_dimensions import ChannelDimensions
 
 
 class Axis(str, Enum):

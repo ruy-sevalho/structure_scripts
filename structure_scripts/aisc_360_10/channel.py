@@ -11,7 +11,6 @@ from structure_scripts.aisc_360_10.compression import (
 )
 from structure_scripts.aisc_360_10.criteria import (
     DesignStrength,
-    DesignType,
     StrengthType,
     Strength,
 )
@@ -24,7 +23,7 @@ from structure_scripts.aisc_360_10.i_profile import (
     DoublySymmetricIWebSlenderness,
     LateralTorsionalBucklingDoublySymmetricI,
 )
-from structure_scripts.section_slenderness import (
+from structure_scripts.aisc_360_10.section_slenderness import (
     DoublySymmetricIAndChannelSlenderness,
     DoublySymmetricIAndChannelSlendernessCalcMemory,
     DoublySymmetricIAndChannelAxialCalcMemory,
@@ -32,7 +31,6 @@ from structure_scripts.section_slenderness import (
     DoublySymmetricIAndChannelFlexureMajorAxisCalcMemory,
     FlexuralSlendernessCalcMemory,
     DoublySymmetricIAndChannelFlexureMinorAxisCalcMemory,
-    Slenderness,
 )
 from structure_scripts.helpers import (
     Axis,
@@ -40,11 +38,8 @@ from structure_scripts.helpers import (
     factor_h,
 )
 from structure_scripts.materials import IsotropicMaterial
-from structure_scripts.section import AISC_Section
 
-from structure_scripts.section_properties import (
-    ConstructionType,
-)
+from structure_scripts.aisc_360_10.sections import ConstructionType, AISC_Section
 from structure_scripts.aisc_360_10.helpers import (
     elastic_flexural_buckling_stress,
     elastic_buckling_stress_polar,

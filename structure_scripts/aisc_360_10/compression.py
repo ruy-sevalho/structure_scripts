@@ -12,13 +12,11 @@ from structure_scripts.aisc_360_10.helpers import (
     critical_compression_stress_buckling_default,
     _nominal_compressive_strength,
 )
-from structure_scripts.section import Profile, ProfileFlangeWeb
 
-from structure_scripts.section_properties import Section
 from structure_scripts.helpers import member_slenderness_ratio, Axis
 
 if TYPE_CHECKING:
-    pass
+    from structure_scripts.aisc_360_10.sections import Profile
 
 FLEXURAL_BUCKLING_MAJOR_AXIS_STRENGTH = "flexural_buckling_major_axis_strength"
 FLEXURAL_BUCKLING_MINOR_AXIS_STRENGTH = "flexural_buckling_major_axis_strength"
@@ -39,7 +37,7 @@ class BeamCompression:
 
 @dataclass(frozen=True)
 class BucklingStrengthMixin(ABC):
-    profile: Profile
+    profile: "Profile"
 
     @cached_property
     def critical_stress(self):
@@ -71,7 +69,7 @@ class BucklingStrengthMixin(ABC):
 
 @dataclass(frozen=True)
 class FlexuralBucklingStrength(BucklingStrengthMixin):
-    profile: Profile
+    profile: "Profile"
     length: Quantity
     factor_k: float
     axis: Axis
