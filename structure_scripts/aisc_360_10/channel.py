@@ -18,7 +18,7 @@ from structure_scripts.aisc_360_10.flexure import (
     MajorAxisFlexurePlasticYielding,
     MinorAxisFlexurePlasticYielding,
 )
-from structure_scripts.aisc_360_10.i_profile import (
+from structure_scripts.aisc_360_10.i_section import (
     DoublySymmetricIFlangeSlenderness,
     DoublySymmetricIWebSlenderness,
     LateralTorsionalBucklingDoublySymmetricI,

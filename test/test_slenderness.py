@@ -1,6 +1,6 @@
 from pytest import mark
 
-from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIAISC36010
+from structure_scripts.aisc_360_10.i_section import DoublySymmetricIAISC36010
 from structure_scripts.aisc_360_10.section_slenderness import (
     DoublySymmetricIAndChannelSlenderness,
     Slenderness,

@@ -1,5 +1,5 @@
 from structure_scripts.aisc_360_10.channel import ChannelAISC36010
-from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIAISC36010
+from structure_scripts.aisc_360_10.i_section import DoublySymmetricIAISC36010
 from structure_scripts.aisc_360_10.sections import AISC_Section, ConstructionType, AISC_360_10_Rule_Check, SectionType
 from structure_scripts.materials import IsotropicMaterial
 
