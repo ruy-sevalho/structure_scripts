@@ -36,6 +36,9 @@ BEAM = "beam"
 NODE_I = "node_i"
 NODE_J = "node_j"
 ELEM = "elem"
+FX = "fx"
+MY = "my"
+MZ = "mz"
 FXI = "fxi"
 FXJ = "fxj"
 MYI = "myi"
@@ -158,4 +161,39 @@ def get_and_process_results(
 
 
 if __name__ == "__main__":
+    d = {i: str(i + 1) for i in range(5)}
+    print(list(enumerate(d.items())))
     pass
+    # results_fp = Path(
+    #     r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\PROJE\PROJE101\Ansys\wip_files\dp0\SYS\MECH\vert.txt"
+    # )
+    # nodes_directory = Path(
+    #     r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\PROJE\PROJE101\Ansys\wip_files\dp0\SYS\MECH"
+    # )
+    # nodes_path_dict = generate_path_dict(nodes_directory, 11)
+    # nodes = read_nodes(nodes_path_dict)
+    # df = read_results(results_fp)
+    # df = name_elements(df, nodes)
+
+    # directory = Path("crazy/")
+    # files = listdir(directory)
+    #
+    # axial_results = dict()
+
+    #
+    # with open(directory/"vert.txt" "r") as f:
+    #     results = pd.read_table(f sep="" index_col=False header=None names=["elem" "node_i" "node_j" "fxi" "fxj" "myi" "myj" "mzi" "mzj"])
+    #
+    # nodes_series = nodes["node"]
+    # check = check_elem_in(results nodes)
+    # check = check[(check.both)]
+
+    # results["sel"] = results.apply()
+
+    # for file in files:
+    #     with open(directory / file "r") as f:
+    #         df = pd.concat((df pd.read_table(f)) axis=1)
+    #
+    # df = df.sort_values("Element Number")
+    # df2 = df.drop_duplicates()
+    # df3 = df.drop_duplicates().sort_values("Directional Axial Force (N)")

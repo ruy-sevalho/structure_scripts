@@ -40,7 +40,8 @@ from structure_scripts.helpers import (
 )
 from structure_scripts.materials import IsotropicMaterial
 
-from structure_scripts.aisc_360_10.sections import ConstructionType, SectionType, AISC_Section, Profile
+from structure_scripts.aisc_360_10.sections import ConstructionType, SectionType, AISC_Section, Profile, \
+    AISC_360_10_Rule_Check
 
 if TYPE_CHECKING:
     pass
@@ -205,7 +206,7 @@ class DoublySymmetricIFlangeSlenderness:
 
 
 @dataclass(frozen=True)
-class DoublySymmetricIAISC36010:
+class DoublySymmetricIAISC36010(AISC_360_10_Rule_Check):
     # dimensions: "DoublySymmetricIDimensions"
     section: AISC_Section
     material: IsotropicMaterial

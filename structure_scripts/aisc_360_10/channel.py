@@ -39,7 +39,7 @@ from structure_scripts.helpers import (
 )
 from structure_scripts.materials import IsotropicMaterial
 
-from structure_scripts.aisc_360_10.sections import ConstructionType, AISC_Section
+from structure_scripts.aisc_360_10.sections import ConstructionType, AISC_Section, AISC_360_10_Rule_Check
 from structure_scripts.aisc_360_10.helpers import (
     elastic_flexural_buckling_stress,
     elastic_buckling_stress_polar,
@@ -51,7 +51,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
-class ChannelAISC36010:
+class ChannelAISC36010(AISC_360_10_Rule_Check):
     # dimensions: "ChannelDimensions"
     material: IsotropicMaterial
     section: AISC_Section
