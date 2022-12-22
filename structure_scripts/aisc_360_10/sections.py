@@ -6,12 +6,16 @@ from typing import Protocol, Callable
 from quantities import Quantity, mm
 
 from structure_scripts.aisc_360_10.criteria import (
-    DesignStrength, Strength,
+    DesignStrength,
+    Strength,
 )
-from structure_scripts.aisc_360_10.section_slenderness import DoublySymmetricIAndChannelSlenderness, \
-    DoublySymmetricIAndChannelSlendernessCalcMemory
+from structure_scripts.aisc_360_10.section_slenderness import (
+    DoublySymmetricIAndChannelSlenderness,
+    DoublySymmetricIAndChannelSlendernessCalcMemory,
+)
 from structure_scripts.ansys import FX, MY, MZ
 from structure_scripts.materials import IsotropicMaterial
+
 
 class ConstructionType(str, Enum):
     ROLLED = "ROLLED"
@@ -308,29 +312,31 @@ class AISC_360_10_Rule_Check(Profile, Protocol):
         ...
 
     def combined_axial_flexural_loading(
-            self,
-            length_major_axis: Quantity,
-            length_minor_axis: Quantity | None = None,
-            length_torsion: Quantity | None = None,
-            k_factor_major_axis: float = 1,
-            k_factor_minor_axis: float = 1,
-            k_factor_torsion: float = 1,
+        self,
+        length_major_axis: Quantity,
+        length_minor_axis: Quantity | None = None,
+        length_torsion: Quantity | None = None,
+        length_flexure: Quantity | None = None,
+        k_factor_major_axis: float = 1,
+        k_factor_minor_axis: float = 1,
+        k_factor_torsion: float = 1,
     ):
         length_minor_axis = length_minor_axis or length_major_axis
         length_torsion = length_torsion or length_major_axis
+        length_flexure = length_flexure or length_minor_axis
         return {
-            "axial": self.compression(
+            FX: self.compression(
                 length_major_axis=length_major_axis,
                 length_minor_axis=length_minor_axis,
                 length_torsion=length_torsion,
                 factor_k_major_axis=k_factor_major_axis,
                 factor_k_minor_axis=k_factor_minor_axis,
-                factor_k_torsion=k_factor_torsion
+                factor_k_torsion=k_factor_torsion,
             ),
-            "flex_major_axis": self.flexure_major_axis(
-                length=length_major_axis,
+            MY: self.flexure_major_axis(
+                length=length_flexure,
             ),
-            "flex_minor_axis": self.flexure_minor_axis()
+            MZ: self.flexure_minor_axis(),
         }
 
 
@@ -338,11 +344,24 @@ class AISC_360_10_Rule_Check(Profile, Protocol):
 class AxialFlexuralCombination:
     profile: AISC_360_10_Rule_Check
     length_major_axis: Quantity
-    length_minor_axis: Quantity
-    length_torsion: Quantity
+    length_minor_axis: Quantity | None = None
+    length_torsion: Quantity | None = None
+    length_flex: Quantity | None = None
     k_factor_major_axis: float = 1
     k_factor_minor_axis: float = 1
     k_factor_torsion: float = 1
+
+    @cached_property
+    def result(self):
+        return self.profile.combined_axial_flexural_loading(
+            length_major_axis=self.length_major_axis,
+            length_minor_axis=self.length_minor_axis,
+            length_torsion=self.length_torsion,
+            length_flexure=self.length_flex,
+            k_factor_major_axis=self.k_factor_major_axis,
+            k_factor_minor_axis=self.k_factor_minor_axis,
+            k_factor_torsion=self.k_factor_torsion
+        )
 
 
 def get_axial_and_flexural_strengths(data: AxialFlexuralCombination):
@@ -352,21 +371,25 @@ def get_axial_and_flexural_strengths(data: AxialFlexuralCombination):
         length_torsion=data.length_torsion,
         k_factor_major_axis=data.k_factor_major_axis,
         k_factor_minor_axis=data.k_factor_minor_axis,
-        k_factor_torsion=data.k_factor_torsion
+        k_factor_torsion=data.k_factor_torsion,
     )
 
 
 def axial_flexural_critical_load(
     profile: AISC_360_10_Rule_Check,
     length_major_axis: Quantity,
+    length_flex: Quantity | None = None,
     length_minor_axis: Quantity | None = None,
-    length_torsion: Quantity| None = None,
+    length_torsion: Quantity | None = None,
     k_factor_major_axis: float = 1,
     k_factor_minor_axis: float = 1,
     k_factor_torsion: float = 1,
     force_unit: str = "N",
-    moment_unit: str = "N*mm"
+    moment_unit: str = "N*mm",
 ):
+    length_minor_axis = length_minor_axis or length_major_axis
+    length_torsion = length_torsion or length_major_axis
+    length_flex = length_flex or length_minor_axis
     comp_ds = (
         profile.compression(
             length_major_axis=length_major_axis,
@@ -377,18 +400,30 @@ def axial_flexural_critical_load(
             factor_k_minor_axis=k_factor_minor_axis,
         )
         .design_strength_asd.rescale(force_unit)
-        .magnitude
+        .magnitude.item()
     )
     # print(f"comp ds: {comp_ds}")
     flex_major_axis_ds = (
-        profile.flexure_major_axis(length=length_major_axis)
+        profile.flexure_major_axis(length=length_flex)
         .design_strength_asd.rescale(moment_unit)
         .magnitude
+        .item()
     )
     # print(rf"flex major axis ds: {flex_major_axis_ds}")
     flex_minor_axis_ds = (
         profile.flexure_minor_axis()
         .design_strength_asd.rescale(moment_unit)
         .magnitude
+        .item()
     )
     return {FX: comp_ds, MY: flex_major_axis_ds, MZ: flex_minor_axis_ds}
+
+
+def convert_ansys_command(str: dict[str, dict[str, float]]):
+    s = list()
+    for beam, strs in str.items():
+        s.append(beam)
+        s.append(
+            f"abs(BEAM_AXIAL_FX) / {strs[FX]} + abs(BEAM_BENDING_MY) / {strs[MY]} + abs(BEAM_BENDING_MZ) / {strs[MZ]}"
+        )
+    return s

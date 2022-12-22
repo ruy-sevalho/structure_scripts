@@ -1,7 +1,7 @@
 from functools import partial
 from typing import Collection, Literal
 
-from pandas import DataFrame, concat, Series
+from pandas import DataFrame, Series
 
 from structure_scripts.ansys import (
     BEAM_RESULTS,
@@ -34,15 +34,8 @@ def add_load_cases(
     load_cases: Collection[tuple[str, Collection[tuple[str, float]]]],
 ):
     for load_case in load_cases:
-        df = concat(
-            (df, add_load_case(df, load_case=load_case[1], name=load_case[0]))
-        )
+        df = add_load_case(df, load_case=load_case[1], name=load_case[0])
     return df
-
-
-# def check_load_case_combined_compression_and_flexure(
-#         df: DataFrame, load_case: str
-# ):
 
 
 def _h1_comp_flex_check(
@@ -61,6 +54,19 @@ def _h1_comp_flex_check(
         return comp_ratio / 2 + moment_ratio
     else:
         return comp_ratio + 8 / 9 * moment_ratio
+
+
+def _ratio(
+    row: Series,
+    case_name: str,
+    elem_node: Literal["i", "j"],
+    beams_strengths: dict[str, dict[str, float]],
+    load_type: Literal[FX, MY, MZ],
+):
+    return abs(
+        row[f"{load_type}{elem_node}_{case_name}"]
+        / beams_strengths[row[BEAM]][load_type]
+    )
 
 
 def _row_check_load_case_combined_compression_and_flexure(
@@ -92,6 +98,15 @@ def check_load_case_combined_compression_and_flexure(
     beams_strengths: dict[str, dict[str, float]],
 ):
     for node in ("i", "j"):
+        for load in (FX, MY, MZ):
+            func = partial(
+                _ratio,
+                case_name=case_name,
+                elem_node=node,
+                beams_strengths=beams_strengths,
+                load_type=load,
+            )
+            df[f"{load}{node}_{case_name}_ratio"] = df.apply(func, axis=1)
         func = partial(
             _row_check_load_case_combined_compression_and_flexure,
             case_name=case_name,
@@ -99,4 +114,23 @@ def check_load_case_combined_compression_and_flexure(
             beams_strengths=beams_strengths,
         )
         df[f"h1_criteria_{node}_{case_name}"] = df.apply(func, axis=1)
+
+    df[f"h1_criteria_{case_name}"] = df[
+        [f"h1_criteria_i_{case_name}", f"h1_criteria_j_{case_name}"]
+    ].max(axis=1)
+    return df
+
+
+def check_multiple_load_case_combined_compression_and_flexure(
+    df: DataFrame,
+    case_names: list[str],
+    beams_strengths: dict[str, dict[str, float]],
+):
+    for name in case_names:
+        df = check_load_case_combined_compression_and_flexure(
+            df=df, case_name=name, beams_strengths=beams_strengths
+        )
+    df[f"h1_criteria_max"] = df[
+        [f"h1_criteria_{name}" for name in case_names]
+    ].max(axis=1)
     return df
