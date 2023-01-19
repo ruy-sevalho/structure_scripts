@@ -79,6 +79,7 @@ class FlexuralBucklingStrength(BucklingStrengthMixin):
         table = {
             Axis.MAJOR: self.profile.section.rx,
             Axis.MINOR: self.profile.section.ry,
+            Axis.W: self.profile.section.rz
         }
         return table[self.axis]
 

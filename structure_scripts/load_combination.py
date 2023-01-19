@@ -1,6 +1,7 @@
 from functools import partial
 from typing import Collection, Literal
 
+import numpy as np
 from pandas import DataFrame, Series
 
 from structure_scripts.ansys import (
@@ -63,6 +64,9 @@ def _ratio(
     beams_strengths: dict[str, dict[str, float]],
     load_type: Literal[FX, MY, MZ],
 ):
+    b = beams_strengths.get(row[BEAM], None)
+    if not b:
+        return None
     return abs(
         row[f"{load_type}{elem_node}_{case_name}"]
         / beams_strengths[row[BEAM]][load_type]
@@ -75,7 +79,10 @@ def _row_check_load_case_combined_compression_and_flexure(
     elem_node: Literal["i", "j"],
     beams_strengths: dict[str, dict[str, float]],
 ):
-    beam_str = beams_strengths[row[BEAM]]
+
+    beam_str = beams_strengths.get(row[BEAM], None)
+    if not beam_str:
+        return None
     comp_str = beam_str[FX]
     flex_major_str = beam_str[MY]
     flex_minor_str = beam_str[MZ]
@@ -133,4 +140,7 @@ def check_multiple_load_case_combined_compression_and_flexure(
     df[f"h1_criteria_max"] = df[
         [f"h1_criteria_{name}" for name in case_names]
     ].max(axis=1)
+    df[f"h1_criteria_max_case"] = df[
+        [f"h1_criteria_{name}" for name in case_names]
+    ].idxmax(axis=1)
     return df

@@ -9,6 +9,7 @@ from quantities import Quantity, dimensionless
 class Axis(str, Enum):
     MAJOR = "MAJOR"
     MINOR = "MINOR"
+    W = "w"
 
 
 def ratio_simplify(q1: Quantity, q2: Quantity) -> float:

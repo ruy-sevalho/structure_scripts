@@ -67,7 +67,7 @@ def _convert(x):
 BEAM_RESULTS = [FXI, FXJ, MYI, MYJ, MZI, MZJ]
 
 # Order must match order of the table exported by ansys
-RESULT_VALUES = [ELEM, NODE_I, NODE_J, FXI, FXJ, MYI, MYJ, MZI, MZJ]
+BEAM_RESULT_VALUES = [ELEM, NODE_I, NODE_J, FXI, FXJ, MYI, MYJ, MZI, MZJ]
 
 
 def _append_load_case_name(names: list[str], case: str, start_from: int = 3):
@@ -79,7 +79,7 @@ def _append_load_case_name(names: list[str], case: str, start_from: int = 3):
 def _read_load_case_result(
     file: Path, load_case: str, include_nodes: bool = False
 ):
-    names = _append_load_case_name(RESULT_VALUES, case=load_case)
+    names = _append_load_case_name(BEAM_RESULT_VALUES, case=load_case)
     cols = list(names)
     if not include_nodes:
         cols.remove(NODE_I)
@@ -98,6 +98,66 @@ def _read_load_case_result(
     return results
 
 
+def _read_beam_load_case_result__(
+    file: Path, load_case: str, include_nodes: bool = False
+):
+    names = _append_load_case_name(BEAM_RESULT_VALUES, case=load_case)
+    cols = list(names)
+    if not include_nodes:
+        cols.remove(NODE_I)
+        cols.remove(NODE_J)
+    with open(file, "r") as f:
+        results = pd.read_table(
+            f,
+            sep=",",
+            index_col=False,
+            names=names,
+            usecols=cols,
+            converters={
+                ELEM: _convert,
+            },
+        ).set_index(ELEM)
+    return results
+
+
+def _read_beams_results__(
+    case_path: Path,
+    case_name: str,
+    n_bodies: int,
+    prefix: str = "beams",
+    include_nodes: bool = False,
+):
+    names = _append_load_case_name(BEAM_RESULT_VALUES, case=case_name)
+    cols = list(names)
+    sufix = ".txt"
+    if not include_nodes:
+        cols.remove(NODE_I)
+        cols.remove(NODE_J)
+    df = pd.DataFrame()
+    for i in range(n_bodies):
+        beam_name = f"{prefix}{str(i+1)}"
+        file = case_path / f"{beam_name}{sufix}"
+        with open(file, "r") as f:
+            results = pd.read_table(
+                f,
+                sep=",",
+                index_col=False,
+                names=names,
+                usecols=cols,
+                converters={
+                    ELEM: _convert,
+                },
+            ).set_index(ELEM)
+            # old_idx = results.index.to_frame()
+            # old_idx.insert(0, beam_name, beam_name)
+            # results.index = pd.MultiIndex.from_frame(old_idx)
+            if include_nodes:
+                results.insert(loc=0, column="beam", value=beam_name)
+            df = pd.concat((df, results))
+
+    return df
+
+
 def _read_results(load_cases_dict: dict[str, Path]):
     df = pd.DataFrame()
     for i, (key, value) in enumerate(load_cases_dict.items()):
@@ -112,6 +172,14 @@ def _read_results(load_cases_dict: dict[str, Path]):
             axis=1,
         )
     return df
+
+
+def _read_beam_results(load_cases_dict: dict[str, Path]):
+    return
+
+
+def _read_beam_truss(load_cases_dict: dict[str, Path]):
+    return
 
 
 def read_node(file: Path) -> pd.DataFrame:
@@ -143,9 +211,22 @@ def _generate_load_cases_paths(
     }
 
 
+def _generate_load_cases_paths__(
+    directories: list[Path],
+    load_cases: Collection[str],
+    n_bodies: int,
+    body_prefix: str,
+):
+    suffix = ".txt"
+    return {
+        load_case: directory / Path(f"{suffix}")
+        for load_case, directory in zip(load_cases, directories)
+    }
+
+
 def get_and_process_results(
     n_named_selection: int,
-    load_cases: dict[str: Path],
+    load_cases: dict[str:Path],
     nodes_path: Path,
     prefix: str = "beams",
 ):
@@ -158,6 +239,26 @@ def get_and_process_results(
     nodes = read_nodes(nodes_path_dict)
     df = _read_results(load_cases_paths)
     return name_elements(df, nodes)
+
+
+def get_and_process_results__(
+    load_cases: dict[str:Path],
+    n_beams: int = 0,
+    n_truss: int = 0,
+    beam_prefix: str = "beams",
+    truss_prefix: str = "beams",
+):
+    df = pd.DataFrame()
+    for i, (name, path) in enumerate(load_cases.items()):
+        results = _read_beams_results__(
+            case_path=path,
+            case_name=name,
+            n_bodies=n_beams,
+            prefix=beam_prefix,
+            include_nodes=not i,
+        )
+        df = pd.concat((df, results), axis=1)
+    return df
 
 
 if __name__ == "__main__":

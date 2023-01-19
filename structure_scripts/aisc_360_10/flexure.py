@@ -15,13 +15,18 @@ from structure_scripts.aisc_360_10.helpers import (
     flexural_lateral_torsional_buckling_strength,
     flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_c,
     flexural_lateral_torsional_buckling_critical_stress_compact_doubly_symmetric,
-    flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_b, kc_coefficient,
+    flexural_lateral_torsional_buckling_strength_compact_doubly_symmetric_case_b,
+    kc_coefficient,
 )
 from structure_scripts.helpers import Axis
 
 
 if TYPE_CHECKING:
-    from structure_scripts.aisc_360_10.sections import SectionType, Profile, ProfileFlangeWeb
+    from structure_scripts.aisc_360_10.sections import (
+        SectionType,
+        Profile,
+        ProfileFlangeWeb,
+    )
 
 
 @dataclass(frozen=True)
@@ -45,7 +50,7 @@ class MajorAxisFlexurePlasticYielding:
 
     @cached_property
     def detailed_results(self):
-        return {NOMINAL_STRENGTH: self.nominal_strength}
+        return {NOMINAL_STRENGTH: self.nominal_strength.rescale("N*mm")}
 
 
 @dataclass
@@ -64,7 +69,7 @@ class MinorAxisFlexurePlasticYielding:
 
     @cached_property
     def detailed_results(self):
-        return {NOMINAL_STRENGTH: self.nominal_strength}
+        return {NOMINAL_STRENGTH: self.nominal_strength.rescale("N*mm")}
 
 
 @dataclass(frozen=True)
@@ -159,7 +164,7 @@ class LateralTorsionalBuckling(ABC):
         return {
             "limit_length_yield": self.limit_length_yield,
             "limit_length_torsional_buckling": self.limit_length_torsional_buckling,
-            NOMINAL_STRENGTH: self.nominal_strength,
+            NOMINAL_STRENGTH: self.nominal_strength.rescale("N*mm"),
         }
 
 
@@ -170,6 +175,7 @@ class NonCompactFlangeLocalBuckling:
     lambda_r:  limiting slenderness for a noncompact flange
     lambda: flange slenderness ratio bf_2tf
     """
+
     profile: "ProfileFlangeWeb"
     axis: Axis
 
@@ -177,7 +183,7 @@ class NonCompactFlangeLocalBuckling:
     def lambda_p(self):
         table = {
             Axis.MAJOR: self.profile.slenderness_calc_memory.flexure_major_axis.flange.compact_non_compact_limit,
-            Axis.MINOR: self.profile.slenderness_calc_memory.flexure_minor_axis.flange.compact_non_compact_limit
+            Axis.MINOR: self.profile.slenderness_calc_memory.flexure_minor_axis.flange.compact_non_compact_limit,
         }
         return table[self.axis]
 
@@ -185,27 +191,33 @@ class NonCompactFlangeLocalBuckling:
     def lambda_r(self):
         table = {
             Axis.MAJOR: self.profile.slenderness_calc_memory.flexure_major_axis.flange.non_compact_slender_limit,
-            Axis.MINOR: self.profile.slenderness_calc_memory.flexure_minor_axis.flange.non_compact_slender_limit
+            Axis.MINOR: self.profile.slenderness_calc_memory.flexure_minor_axis.flange.non_compact_slender_limit,
         }
         return table[self.axis]
 
     @cached_property
     def nominal_strength(self) -> Quantity:
         table = {
-            Axis.MAJOR: (self.profile.flex_yield_major_axis.nominal_strength, self.profile.section.Sx),
-            Axis.MINOR: (self.profile.flex_yield_minor_axis.nominal_strength, self.profile.section.Sy)
+            Axis.MAJOR: (
+                self.profile.flex_yield_major_axis.nominal_strength,
+                self.profile.section.Sx,
+            ),
+            Axis.MINOR: (
+                self.profile.flex_yield_minor_axis.nominal_strength,
+                self.profile.section.Sy,
+            ),
         }
         mp, S = table[self.axis]
-        factor1 = (mp - 0.7*self.profile.material.yield_stress*S)
-        factor2 = (self.profile.section.bf_2tf - self.lambda_p)/ (self.lambda_r - self.lambda_p)
-        res = mp - factor1*factor2
-        return mp - factor1*factor2
+        factor1 = mp - 0.7 * self.profile.material.yield_stress * S
+        factor2 = (self.profile.section.bf_2tf - self.lambda_p) / (
+            self.lambda_r - self.lambda_p
+        )
+        res = mp - factor1 * factor2
+        return mp - factor1 * factor2
 
     @cached_property
     def detailed_results(self):
-        return {
-            NOMINAL_STRENGTH: self.nominal_strength
-        }
+        return {NOMINAL_STRENGTH: self.nominal_strength.rescale("N*mm")}
 
 
 @dataclass(frozen=True)
@@ -214,7 +226,13 @@ class SlenderFlangeLocalBuckingMajorAxis:
 
     @cached_property
     def nominal_strength(self) -> Quantity:
-        return 0.9 * self.profile.material.modulus_linear * self.kc * self.profile.section / self.profile.section.bf_2tf**2
+        return (
+            0.9
+            * self.profile.material.modulus_linear
+            * self.kc
+            * self.profile.section
+            / self.profile.section.bf_2tf**2
+        )
 
     @cached_property
     def kc(self):
@@ -224,7 +242,7 @@ class SlenderFlangeLocalBuckingMajorAxis:
     def detailed_results(self):
         return {
             "kc_coefficient": self.kc,
-            NOMINAL_STRENGTH: self.nominal_strength
+            NOMINAL_STRENGTH: self.nominal_strength.rescale("N*mm"),
         }
 
 
@@ -240,7 +258,11 @@ class SlenderFlangeLocalBuckingMinorAxis:
             SectionType.M: self.profile.section.bf_2tf,
             SectionType.HP: self.profile.section.bf_2tf,
         }
-        return 0.69 * self.profile.material.modulus_linear / table[self.profile.section.type]
+        return (
+            0.69
+            * self.profile.material.modulus_linear
+            / table[self.profile.section.type]
+        )
 
     @cached_property
     def nominal_strength(self) -> Quantity:
@@ -250,5 +272,5 @@ class SlenderFlangeLocalBuckingMinorAxis:
     def detailed_results(self):
         return {
             "critical_stress": self.critical_stress,
-            NOMINAL_STRENGTH: self.nominal_strength
+            NOMINAL_STRENGTH: self.nominal_strength.rescale("N*mm"),
         }

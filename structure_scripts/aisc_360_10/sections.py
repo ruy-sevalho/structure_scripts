@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import cached_property
 from typing import Protocol, Callable
+
+import pandas as pd
 from quantities import Quantity, mm
 
 from structure_scripts.aisc_360_10.criteria import (
@@ -320,7 +322,7 @@ class AISC_360_10_Rule_Check(Profile, Protocol):
         k_factor_major_axis: float = 1,
         k_factor_minor_axis: float = 1,
         k_factor_torsion: float = 1,
-    ):
+    ) -> dict[str, DesignStrength]:
         length_minor_axis = length_minor_axis or length_major_axis
         length_torsion = length_torsion or length_major_axis
         length_flexure = length_flexure or length_minor_axis
@@ -360,7 +362,7 @@ class AxialFlexuralCombination:
             length_flexure=self.length_flex,
             k_factor_major_axis=self.k_factor_major_axis,
             k_factor_minor_axis=self.k_factor_minor_axis,
-            k_factor_torsion=self.k_factor_torsion
+            k_factor_torsion=self.k_factor_torsion,
         )
 
 
@@ -406,15 +408,18 @@ def axial_flexural_critical_load(
     flex_major_axis_ds = (
         profile.flexure_major_axis(length=length_flex)
         .design_strength_asd.rescale(moment_unit)
-        .magnitude
-        .item()
+        .magnitude.item()
     )
     # print(rf"flex major axis ds: {flex_major_axis_ds}")
     flex_minor_axis_ds = (
         profile.flexure_minor_axis()
         .design_strength_asd.rescale(moment_unit)
-        .magnitude
-        .item()
+        .magnitude.item()
+    )
+    df = pd.DataFrame(
+        {
+            ""
+        }
     )
     return {FX: comp_ds, MY: flex_major_axis_ds, MZ: flex_minor_axis_ds}
 

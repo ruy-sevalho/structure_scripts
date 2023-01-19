@@ -1,3 +1,4 @@
+from structure_scripts.aisc_360_10.angle import AngleAISC36010
 from structure_scripts.aisc_360_10.channel import ChannelAISC36010
 from structure_scripts.aisc_360_10.i_section import DoublySymmetricIAISC36010
 from structure_scripts.aisc_360_10.sections import AISC_Section, ConstructionType, AISC_360_10_Rule_Check, SectionType
@@ -13,8 +14,11 @@ def create_profile(
     table = {
         SectionType.W: DoublySymmetricIAISC36010,
         SectionType.C: ChannelAISC36010,
+        SectionType.L: AngleAISC36010,
     }
     # noinspection PyArgumentList
     return table[section.type](
         section=section, material=material, construction=construction
     )
+
+
