@@ -5,7 +5,7 @@ from typing import Any, Optional, Union
 from pytest import approx
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.criteria import (
+from structure_scripts.aisc.criteria import (
     StrengthType,
     DesignStrength,
     NOMINAL_STRENGTH,

@@ -3,22 +3,23 @@ from functools import partial
 from typing import Protocol, TYPE_CHECKING
 from abc import ABC, abstractmethod
 
-from structure_scripts.aisc_360_10.helpers import (
+from structure_scripts.aisc.helpers import (
     _web_shear_coefficient_limit,
     web_shear_coefficient_iii,
     _nominal_shear_strength,
 )
 
-from structure_scripts.aisc_360_10.section_slenderness import (
+from structure_scripts.aisc.section_slenderness import (
     ElementSlendernessDefinition,
 )
 from structure_scripts.helpers import Axis
 from structure_scripts.materials import IsotropicMaterial
 
 if TYPE_CHECKING:
-    from structure_scripts.aisc_360_10.sections import (
-        SectionWithWebFlange, ConstructionType,
-)
+    from structure_scripts.aisc.sections import (
+        SectionWithWebFlange,
+        ConstructionType,
+    )
 
 SHEAR_STRENGTH = "shear_strength"
 

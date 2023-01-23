@@ -5,7 +5,7 @@ import numpy as np
 
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.section_slenderness import Slenderness
+from structure_scripts.aisc.section_slenderness import Slenderness
 from structure_scripts.helpers import (
     ratio_simplify,
     same_units_simplify,

@@ -14,11 +14,11 @@ from pylatex.base_classes import Environment, CommandBase, Command
 from pylatex.utils import dumps_list
 from quantities import Quantity, percent
 
-from structure_scripts.aisc_360_10.criteria import DesignType
+from structure_scripts.aisc.criteria import DesignType
 from structure_scripts.shared.report_config import ReportConfig, PrintOptions
-from structure_scripts.aisc_360_10.section_slenderness import Slenderness
+from structure_scripts.aisc.section_slenderness import Slenderness
 
-env = JinjaEnvironment(loader=PackageLoader("structure_scripts.aisc_360_10"))
+env = JinjaEnvironment(loader=PackageLoader("structure_scripts.aisc"))
 
 CONCATENATE_STRING = env.get_template("concatenation.tex").render()
 

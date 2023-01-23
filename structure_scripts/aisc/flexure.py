@@ -5,8 +5,8 @@ from abc import ABC, abstractmethod
 
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.criteria import NOMINAL_STRENGTH
-from structure_scripts.aisc_360_10.helpers import (
+from structure_scripts.aisc.criteria import NOMINAL_STRENGTH
+from structure_scripts.aisc.helpers import (
     flexural_major_axis_yield_strength,
     flexural_minor_axis_yield_strength,
     effective_radius_of_gyration,
@@ -22,7 +22,7 @@ from structure_scripts.helpers import Axis
 
 
 if TYPE_CHECKING:
-    from structure_scripts.aisc_360_10.sections import (
+    from structure_scripts.aisc.sections import (
         SectionType,
         Profile,
         ProfileFlangeWeb,

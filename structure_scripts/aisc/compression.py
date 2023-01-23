@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING
 from functools import cached_property
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.criteria import (
+from structure_scripts.aisc.criteria import (
     NOMINAL_STRENGTH,
 )
-from structure_scripts.aisc_360_10.helpers import (
+from structure_scripts.aisc.helpers import (
     elastic_flexural_buckling_stress,
     critical_compression_stress_buckling_default,
     _nominal_compressive_strength,
@@ -16,7 +16,7 @@ from structure_scripts.aisc_360_10.helpers import (
 from structure_scripts.helpers import member_slenderness_ratio, Axis
 
 if TYPE_CHECKING:
-    from structure_scripts.aisc_360_10.sections import Profile
+    from structure_scripts.aisc.sections import Profile
 
 FLEXURAL_BUCKLING_MAJOR_AXIS_STRENGTH = "flexural_buckling_major_axis_strength"
 FLEXURAL_BUCKLING_MINOR_AXIS_STRENGTH = "flexural_buckling_major_axis_strength"
@@ -79,7 +79,7 @@ class FlexuralBucklingStrength(BucklingStrengthMixin):
         table = {
             Axis.MAJOR: self.profile.section.rx,
             Axis.MINOR: self.profile.section.ry,
-            Axis.W: self.profile.section.rz
+            Axis.W: self.profile.section.rz,
         }
         return table[self.axis]
 
@@ -104,6 +104,3 @@ class FlexuralBucklingStrength(BucklingStrengthMixin):
             modulus_linear=self.profile.material.modulus_linear,
             member_slenderness_ratio=self.beam_slenderness,
         )
-
-
-

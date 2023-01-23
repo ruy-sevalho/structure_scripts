@@ -34,16 +34,16 @@ from structure_scripts.shared.latex_helpers import (
     save_single_entry,
     insert_between,
 )
-from structure_scripts.aisc_360_10.helpers import (
+from structure_scripts.aisc.helpers import (
     flexural_lateral_torsional_buckling_strength,
 )
-from structure_scripts.aisc_360_10.sections import ConstructionType
+from structure_scripts.aisc.sections import ConstructionType
 from structure_scripts.shared.report_config import config_dict
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from structure_scripts.aisc_360_10 import (
+    from structure_scripts.aisc import (
         AreaProperties,
         DoublySymmetricIDimensions,
         DoublySymmetricIUserDefined,

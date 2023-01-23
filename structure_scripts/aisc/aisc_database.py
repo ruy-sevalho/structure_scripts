@@ -6,8 +6,8 @@ from os import getcwd
 import pandas as pd
 from quantities import Quantity, mm, kg, m
 
-import structure_scripts.aisc_360_10 as aisc
-from structure_scripts.aisc_360_10.sections import AISC_Section
+import structure_scripts.aisc as aisc
+from structure_scripts.aisc.sections import AISC_Section
 
 DIRECTORY_PATH = os.path.dirname(inspect.getfile(aisc))
 

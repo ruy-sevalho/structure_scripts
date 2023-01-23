@@ -4,26 +4,26 @@ from typing import TYPE_CHECKING
 
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.compression import (
+from structure_scripts.aisc.compression import (
     FlexuralBucklingStrength,
     BucklingStrengthMixin,
     ELASTIC_BUCKLING_STRESS,
 )
-from structure_scripts.aisc_360_10.criteria import (
+from structure_scripts.aisc.criteria import (
     DesignStrength,
     StrengthType,
     Strength,
 )
-from structure_scripts.aisc_360_10.flexure import (
+from structure_scripts.aisc.flexure import (
     MajorAxisFlexurePlasticYielding,
     MinorAxisFlexurePlasticYielding,
 )
-from structure_scripts.aisc_360_10.i_section import (
+from structure_scripts.aisc.i_section import (
     DoublySymmetricIFlangeSlenderness,
     DoublySymmetricIWebSlenderness,
     LateralTorsionalBucklingDoublySymmetricI,
 )
-from structure_scripts.aisc_360_10.section_slenderness import (
+from structure_scripts.aisc.section_slenderness import (
     DoublySymmetricIAndChannelSlenderness,
     DoublySymmetricIAndChannelSlendernessCalcMemory,
     DoublySymmetricIAndChannelAxialCalcMemory,
@@ -39,8 +39,12 @@ from structure_scripts.helpers import (
 )
 from structure_scripts.materials import IsotropicMaterial
 
-from structure_scripts.aisc_360_10.sections import ConstructionType, AISC_Section, AISC_360_10_Rule_Check
-from structure_scripts.aisc_360_10.helpers import (
+from structure_scripts.aisc.sections import (
+    ConstructionType,
+    AISC_Section,
+    AISC_360_10_Rule_Check,
+)
+from structure_scripts.aisc.helpers import (
     elastic_flexural_buckling_stress,
     elastic_buckling_stress_polar,
     elastic_bucking_stress_singly_symmetric,

@@ -2,9 +2,13 @@ from dataclasses import dataclass
 
 from quantities import Quantity
 
-from structure_scripts.aisc_360_10.compression import FlexuralBucklingStrength
-from structure_scripts.aisc_360_10.criteria import DesignStrength, StrengthType
-from structure_scripts.aisc_360_10.sections import AISC_360_10_Rule_Check, AISC_Section, ConstructionType
+from structure_scripts.aisc.compression import FlexuralBucklingStrength
+from structure_scripts.aisc.criteria import DesignStrength, StrengthType
+from structure_scripts.aisc.sections import (
+    AISC_360_10_Rule_Check,
+    AISC_Section,
+    ConstructionType,
+)
 from structure_scripts.helpers import Axis
 from structure_scripts.materials import IsotropicMaterial
 

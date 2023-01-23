@@ -5,15 +5,15 @@
 #
 # from quantities import Quantity, m
 #
-# from structure_scripts.aisc_360_10.channel import ChannelAISC36010
-# from structure_scripts.aisc_360_10.sections import AISC_360_10_Rule_Check
+# from structure_scripts.aisc.channel import ChannelAISC36010
+# from structure_scripts.aisc.sections import AISC_360_10_Rule_Check
 # from structure_scripts.section_properties import (
 #     ConstructionType,
 # )
-# from structure_scripts.aisc_360_10.helpers import (
+# from structure_scripts.aisc.helpers import (
 #     doubly_symmetric_i_warping_constant,
 # )
-# from structure_scripts.aisc_360_10.i_profile import DoublySymmetricIAISC36010
+# from structure_scripts.aisc.i_profile import DoublySymmetricIAISC36010
 # from structure_scripts.helpers import (
 #     radius_of_gyration,
 #     rectangle_area,
@@ -210,26 +210,26 @@
 #             * self.major_axis_plastic_half_area
 #         )
 
-    # @cached_property
-    # def minor_axis_plastic_half_centroid(self):
-    #     return areas_centroid(
-    #         (
-    #             (self.flange_area, self.dimensions.flange_width / 4),
-    #             (self.web_area / 2, self.dimensions.web_thickness / 4),
-    #         )
-    #     )
-    #
-    # @cached_property
-    # def minor_axis_plastic_half_area(self):
-    #     return self.flange_area + self.web_area / 2
-    #
-    # @cached_property
-    # def minor_axis_plastic_section_modulus(self):
-    #     return (
-    #         2
-    #         * self.minor_axis_plastic_half_area
-    #         * self.minor_axis_plastic_half_centroid
-    #     )
+# @cached_property
+# def minor_axis_plastic_half_centroid(self):
+#     return areas_centroid(
+#         (
+#             (self.flange_area, self.dimensions.flange_width / 4),
+#             (self.web_area / 2, self.dimensions.web_thickness / 4),
+#         )
+#     )
+#
+# @cached_property
+# def minor_axis_plastic_half_area(self):
+#     return self.flange_area + self.web_area / 2
+#
+# @cached_property
+# def minor_axis_plastic_section_modulus(self):
+#     return (
+#         2
+#         * self.minor_axis_plastic_half_area
+#         * self.minor_axis_plastic_half_centroid
+#     )
 #
 #
 # def _partial_area_prop_dsi_channel(
@@ -328,7 +328,7 @@
 #
 #     @property
 #     @abstractmethod
-#     def aisc_360_10(self) -> AISC_360_10_Rule_Check:
+#     def aisc(self) -> AISC_360_10_Rule_Check:
 #         pass
 #
 #
@@ -340,7 +340,7 @@
 #     construction: ConstructionType = ConstructionType.ROLLED
 #
 #     @cached_property
-#     def aisc_360_10(self):
+#     def aisc(self):
 #         return DoublySymmetricIAISC36010(
 #             dimensions=self.dimensions,
 #             material=self.material,
@@ -357,7 +357,7 @@
 #     construction: ConstructionType = ConstructionType.ROLLED
 #
 #     @cached_property
-#     def aisc_360_10(self):
+#     def aisc(self):
 #         return ChannelAISC36010(
 #             dimensions=self.dimensions,
 #             material=self.material,

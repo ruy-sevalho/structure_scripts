@@ -1,11 +1,12 @@
 from pytest import mark
 
-from structure_scripts.aisc_360_10.aisc_database import AISC_Sections
-from structure_scripts.aisc_360_10.criteria import (
-    StrengthType, NOMINAL_STRENGTH,
+from structure_scripts.aisc.aisc_database import AISC_Sections
+from structure_scripts.aisc.criteria import (
+    StrengthType,
+    NOMINAL_STRENGTH,
 )
-from structure_scripts.aisc_360_10.sections import ConstructionType, AISC_Section
-from structure_scripts.aisc_360_10.profile import create_profile
+from structure_scripts.aisc.sections import ConstructionType, AISC_Section
+from structure_scripts.aisc.profile import create_profile
 from structure_scripts.materials import steel250MPa, IsotropicMaterial
 
 from test.helpers import (
@@ -13,8 +14,6 @@ from test.helpers import (
     ExpectedDesignStrength,
 )
 from quantities import N, mm
-
-
 
 
 test_params = {
@@ -33,9 +32,9 @@ test_params = {
                 },
                 StrengthType.COMPRESSION_FLANGE_LOCAL_BUCKLING: {
                     NOMINAL_STRENGTH: 18998674.43 * N * mm
-                }
+                },
             },
-        )
+        ),
     ),
     "test_2": (
         AISC_Sections["C4X4.5"],
@@ -51,15 +50,15 @@ test_params = {
                     "nominal_strength": 1660000 * N * mm,
                 },
             },
-        )
-    )
+        ),
+    ),
 }
 
 
 @mark.parametrize(
     "section, material, construction, expected",
     test_params.values(),
-    ids=test_params.keys()
+    ids=test_params.keys(),
 )
 def test_flexure_minor_axis(
     section: AISC_Section,
@@ -68,9 +67,7 @@ def test_flexure_minor_axis(
     expected: ExpectedDesignStrength,
 ):
     profile = create_profile(
-        section=section,
-        material=material,
-        construction=construction
+        section=section, material=material, construction=construction
     )
     flexure = profile.flexure_minor_axis()
     calc, exp = compare_loading_strengths(flexure, expected)

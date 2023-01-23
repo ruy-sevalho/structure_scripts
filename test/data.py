@@ -1,6 +1,6 @@
 # from quantities import cm, mm, m, inch
 #
-# from structure_scripts.aisc_360_10.compression import BeamCompression
+# from structure_scripts.aisc.compression import BeamCompression
 # from structure_scripts.sections_from_dimensions import (
 #     create_doubly_symmetric_i,
 #     SectionChecks,

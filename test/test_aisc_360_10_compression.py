@@ -2,18 +2,18 @@ from dataclasses import asdict
 
 from pytest import mark
 
-from structure_scripts.aisc_360_10.compression import BeamCompression
-from structure_scripts.aisc_360_10.criteria import (
+from structure_scripts.aisc.compression import BeamCompression
+from structure_scripts.aisc.criteria import (
     StrengthType,
 )
 
-from structure_scripts.aisc_360_10.aisc_database import AISC_Sections
+from structure_scripts.aisc.aisc_database import AISC_Sections
 from structure_scripts.materials import (
     IsotropicMaterial,
     steel250MPa,
 )
-from structure_scripts.aisc_360_10.sections import ConstructionType, AISC_Section
-from structure_scripts.aisc_360_10.profile import create_profile
+from structure_scripts.aisc.sections import ConstructionType, AISC_Section
+from structure_scripts.aisc.profile import create_profile
 
 from test.helpers import (
     compare_loading_strengths,

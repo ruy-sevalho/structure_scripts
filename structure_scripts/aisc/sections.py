@@ -7,11 +7,11 @@ from typing import Protocol, Callable
 import pandas as pd
 from quantities import Quantity, mm
 
-from structure_scripts.aisc_360_10.criteria import (
+from structure_scripts.aisc.criteria import (
     DesignStrength,
     Strength,
 )
-from structure_scripts.aisc_360_10.section_slenderness import (
+from structure_scripts.aisc.section_slenderness import (
     DoublySymmetricIAndChannelSlenderness,
     DoublySymmetricIAndChannelSlendernessCalcMemory,
 )
@@ -416,11 +416,7 @@ def axial_flexural_critical_load(
         .design_strength_asd.rescale(moment_unit)
         .magnitude.item()
     )
-    df = pd.DataFrame(
-        {
-            ""
-        }
-    )
+    df = pd.DataFrame({""})
     return {FX: comp_ds, MY: flex_major_axis_ds, MZ: flex_minor_axis_ds}
 
 
