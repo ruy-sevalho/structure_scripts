@@ -34,7 +34,7 @@ def lrfd(nominal_strength: Quantity, safety_factor: float) -> Quantity:
     return nominal_strength * safety_factor
 
 
-@dataclass
+@dataclass(frozen=True)
 class Criteria:
     allowable_strength: float = 1.67
     load_resistance_factor: float = 0.9
@@ -68,10 +68,26 @@ class Strength(Protocol):
     def nominal_strength(self) -> Quantity:
         pass
 
-    @property
-    @abstractmethod
-    def detailed_results(self) -> dict[str, Union[Quantity, float, None]]:
-        pass
+    # @property
+    # @abstractmethod
+    # def detailed_results(self) -> dict[str, Union[Quantity, float, None]]:
+    #     return {NOMINAL_STRENGTH: self.nominal_strength}
+
+
+class DesignStrengthMixin(ABC, Strength):
+    criteria: Criteria = Criteria()
+
+    @cached_property
+    def design_strength_asd(self):
+        return self.criteria.design_strength(
+            nominal_strength=self.nominal_strength, design_type=DesignType.ASD
+        )
+
+    @cached_property
+    def design_strength_lrfd(self):
+        return self.criteria.design_strength(
+            nominal_strength=self.nominal_strength, design_type=DesignType.LRFD
+        )
 
 
 @dataclass(frozen=True)
