@@ -1,33 +1,22 @@
-from dataclasses import field
 from pathlib import Path
-from typing import Collection
 
-import numpy
-import pandas
 import pandas as pd
-from quantities import Quantity, m
+from quantities import m
 
 from structure_scripts.aisc.aisc_database import AISC_Sections
 from structure_scripts.aisc.channel import ChannelAISC36010
-from structure_scripts.aisc.criteria import StrengthType, DesignStrength
+from structure_scripts.aisc.criteria import DesignStrength
 from structure_scripts.aisc.i_section import DoublySymmetricIAISC36010
 from structure_scripts.aisc.sections import (
     ConstructionType,
     axial_flexural_critical_load,
-    convert_ansys_command,
     AxialFlexuralCombination,
 )
-from structure_scripts.ansys import (
+from structure_scripts.process_external_files.ansys import (
     get_and_process_results,
     MZ,
     MY,
     FX,
-)
-from structure_scripts.load_combination import (
-    add_load_case,
-    add_load_cases,
-    check_load_case_combined_compression_and_flexure,
-    check_multiple_load_case_combined_compression_and_flexure,
 )
 from structure_scripts.materials import steel250MPa
 

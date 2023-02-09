@@ -13,7 +13,7 @@ from structure_scripts.aisc.sections import (
     AxialFlexuralCombination,
 )
 from structure_scripts.process_external_files.ansys import (
-    get_and_process_results__,
+    get_and_process_results_per_beam_selection,
 )
 from structure_scripts.process_external_files.load_combination import (
     add_load_cases,
@@ -53,7 +53,7 @@ beams1 = axial_flexural_critical_load(
     k_factor_major_axis=2.1,
     k_factor_minor_axis=2.1,
     k_factor_torsion=2.1,
-    moment_unit="N*m",
+    moment_unit="N*mm",
 )
 beams2 = axial_flexural_critical_load(
     profile=big_channel,
@@ -63,7 +63,7 @@ beams2 = axial_flexural_critical_load(
     k_factor_major_axis=1,
     k_factor_minor_axis=1,
     k_factor_torsion=1,
-    moment_unit="N*m",
+    moment_unit="N*mm",
 )
 
 beams3 = axial_flexural_critical_load(
@@ -74,7 +74,7 @@ beams3 = axial_flexural_critical_load(
     k_factor_major_axis=1,
     k_factor_minor_axis=1,
     k_factor_torsion=1,
-    moment_unit="N*m",
+    moment_unit="N*mm",
 )
 
 beams4 = axial_flexural_critical_load(
@@ -83,7 +83,7 @@ beams4 = axial_flexural_critical_load(
     k_factor_major_axis=1,
     k_factor_minor_axis=1,
     k_factor_torsion=1,
-    moment_unit="N*m",
+    moment_unit="N*mm",
 )
 
 beams5 = axial_flexural_critical_load(
@@ -92,7 +92,7 @@ beams5 = axial_flexural_critical_load(
     k_factor_major_axis=1,
     k_factor_minor_axis=1,
     k_factor_torsion=1,
-    moment_unit="N*m",
+    moment_unit="N*mm",
 )
 
 beams = [beams1, beams2, beams3, beams4, beams5]
@@ -153,16 +153,33 @@ critical_strengths: dict[str, DesignStrength] = {
     f"{PREFIX}{i+1}": beam.result for i, beam in enumerate(beams_data)
 }
 
-angle = AngleAISC36010(
+small_angle = AngleAISC36010(
     section=AISC_Sections["L2X2X1/8"],
     construction=ConstructionType.ROLLED,
     material=steel250MPa,
 )
 
-angle_comp_ds = angle.compression(length_major_axis=1.5514 * m)
-angle_comp_ds_2 = angle.compression(length_major_axis=2.523 * m)
-print(angle_comp_ds.design_strength_asd.rescale("N"))
-print(angle_comp_ds_2.design_strength_asd.rescale("N"))
+large_angle = AngleAISC36010(
+    section=AISC_Sections["L2-1/2X2-1/2X3/16"],
+    construction=ConstructionType.ROLLED,
+    material=steel250MPa,
+)
+
+angles_ds = (
+    ("big diagonal", large_angle.compression(2.520 * m)),
+    ("Common diagonal", small_angle.compression(length_major_axis=1.5514 * m)),
+    (
+        "Common half diagonal",
+        small_angle.compression(length_major_axis=1.5514 / 2 * m),
+    ),
+    (
+        "Smaller half diagonal",
+        small_angle.compression(length_major_axis=0.732 * m),
+    ),
+)
+
+for name, ds in angles_ds:
+    print(f"{name} strength = {ds.design_strength_asd.rescale('N')}")
 
 #
 # index_tuples = [
@@ -193,9 +210,7 @@ critical_loads = {f"{PREFIX}{i+1}": beam for i, beam in enumerate(beams)}
 #     ),
 # ]
 
-base_path = Path(
-    r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\PROJE\PROJE101\Ansys\wip ops_files"
-)
+base_path = Path(r"C:\Users\U3ZO\Documents\PROJE\new_files\user_files")
 base_load_cases = {
     "vert": base_path / "acc_vert",
     "trans": base_path / "acc_long",
@@ -206,15 +221,9 @@ base_load_cases = {
     "wind_neg_y": base_path / "-wind_y",
 }
 
-df = get_and_process_results__(load_cases=base_load_cases, n_beams=5)
-
-
-# df2 = get_and_process_results(
-#     n_named_selection=2,
-#     load_cases=base_load_cases,
-#     nodes_path=base_load_cases["vert"],
-#     prefix="beams",
-# )
+df = get_and_process_results_per_beam_selection(
+    load_cases=base_load_cases, n_beams=4
+)
 
 
 comb_load_cases = [
@@ -271,23 +280,13 @@ comb_load_cases = [
         ),
     ),
 ]
-
-# null = df[df["fxi_vert"] == 0]
-# df = df[df["fxi_vert"] != 0]
 df = add_load_cases(df=df, load_cases=comb_load_cases)
-# df2 = add_load_cases(df=df2, load_cases=comb_load_cases)
-
 df = check_multiple_load_case_combined_compression_and_flexure(
     df, list(str(i) for i in range(1, 9)), critical_loads
 ).sort_values("h1_criteria_max", ascending=False)
-# df2 = check_multiple_load_case_combined_compression_and_flexure(
-#     df2, list(str(i) for i in range(1, 9)), critical_loads
-# )
-
 trans = df[df["beam"] == "beams3"]
 cols = df[df["beam"] == "beams1"]
 long = df[df["beam"] == "beams2"]
-
 h1_case_criteria = [f"h1_criteria_{str(i)}" for i in range(1, 9)]
 max_criteria = df[
     ["beam", *h1_case_criteria, "h1_criteria_max", "h1_criteria_max_case"]
@@ -296,6 +295,6 @@ max_criteria["h1_criteria_max_case"] = df["h1_criteria_max_case"].apply(
     lambda x: x[12:]
 )
 h1_result_path = Path(
-    r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\PROJE\PROJE101\Ansys\wip ops_files\h1.csv"
+    r"C:\Users\U3ZO\Documents\PROJE\new_files\user_files\\h1.csv"
 )
 max_criteria.to_csv(h1_result_path, index_label="Element")
