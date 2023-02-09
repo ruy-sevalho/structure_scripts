@@ -1,21 +1,14 @@
 from functools import partial
 from typing import Collection, Literal
 
-import numpy as np
 from pandas import DataFrame, Series
 
-from structure_scripts.ansys import (
+from structure_scripts.process_external_files.ansys import (
     BEAM_RESULTS,
     BEAM,
     FX,
     MY,
     MZ,
-    FXI,
-    FXJ,
-    MYI,
-    MYJ,
-    MZJ,
-    MZI,
 )
 
 
