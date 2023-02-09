@@ -40,7 +40,7 @@ BEAM_RESULT_VALUES = [ELEM, NODE_I, NODE_J, FXI, FXJ, MYI, MYJ, MZI, MZJ]
 DF_COLS = [ELEM, NODE_I, NODE_J]
 
 
-def rename_col(df: pd.DataFrame):
+def _rename_col(df: pd.DataFrame):
     _, cols = df.shape
     return df.rename(columns={df.columns[-1]: "value"})
 
@@ -89,7 +89,7 @@ def _read_beam_result(
     return n_df
 
 
-def _read_beams_results____(
+def _read_beams_results(
     case_path: Path,
     case_name: str,
     n_bodies: int,
@@ -127,7 +127,7 @@ def get_and_process_results_per_beam_selection(
 ):
     df = pd.DataFrame()
     for i, (name, path) in enumerate(load_cases.items()):
-        r_df = _read_beams_results____(
+        r_df = _read_beams_results(
             case_path=path,
             case_name=name,
             n_bodies=n_beams,
@@ -137,7 +137,6 @@ def get_and_process_results_per_beam_selection(
         )
         df = pd.concat((df, r_df), axis=1)
     return df
-
 
 if __name__ == "__main__":
     pass
