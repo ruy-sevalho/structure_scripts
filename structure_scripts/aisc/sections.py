@@ -15,7 +15,7 @@ from structure_scripts.aisc.section_slenderness import (
     DoublySymmetricIAndChannelSlenderness,
     DoublySymmetricIAndChannelSlendernessCalcMemory,
 )
-from structure_scripts.ansys import FX, MY, MZ
+from structure_scripts.process_external_files.ansys import FX, MY, MZ
 from structure_scripts.materials import IsotropicMaterial
 
 
