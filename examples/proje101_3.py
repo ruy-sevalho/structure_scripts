@@ -13,11 +13,13 @@ from structure_scripts.aisc.sections import (
     AxialFlexuralCombination,
 )
 from structure_scripts.process_external_files.ansys import (
-    get_and_process_results_per_beam_selection,
+    read_and_process_results_per_beam_selection,
+    read_and_process_results_per_beam_selection,
+    read_load_combination,
 )
 from structure_scripts.process_external_files.load_combination import (
-    add_load_cases,
     check_multiple_load_case_combined_compression_and_flexure,
+    add_load_cases,
 )
 from structure_scripts.materials import steel250MPa
 
@@ -178,116 +180,31 @@ angles_ds = (
     ),
 )
 
-for name, ds in angles_ds:
-    print(f"{name} strength = {ds.design_strength_asd.rescale('N')}")
-
-#
-# index_tuples = [
-#     (f"{PREFIX}{i+1}", result)
-#     for i, _ in enumerate(beams_data)
-#     for result in (FX, MY, MZ)
-# ]
-# str_values = [
-#     beam[result] for i, beam in enumerate(beams) for result in (FX, MY, MZ)
-# ]
-# data = [[value] for value in str_values]
-# index = pd.MultiIndex.from_tuples(index_tuples, names=["beam", "str"])
-# dct = {key: [value] for key, value in zip(index_tuples, str_values)}
-# strs = pd.DataFrame(data=[str_values], columns=index)
+# for name, ds in angles_ds:
+#     print(f"{name} strength = {ds.design_strength_asd.rescale('N')}")
 
 critical_loads = {f"{PREFIX}{i+1}": beam for i, beam in enumerate(beams)}
 
-
-# directories = [
-#     Path(
-#         r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\PROJE\PROJE101\Ansys\wip2022 save me_files\dp0\SYS\MECH"
-#     ),
-#     Path(
-#         r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\PROJE\PROJE101\Ansys\wip2022 save me_files\dp0\SYS-1\MECH"
-#     ),
-#     Path(
-#         r"C:\Users\U3ZO\OneDrive - PETROBRAS\Documentos\PROJE\PROJE101\Ansys\wip2022 save me_files\dp0\SYS-3\MECH"
-#     ),
-# ]
-
 base_path = Path(r"C:\Users\U3ZO\Documents\PROJE\new_files\user_files")
-base_load_cases = {
-    "vert": base_path / "acc_vert",
-    "trans": base_path / "acc_long",
-    "long": base_path / "acc_vert",
-    "wind_x": base_path / "wind_x",
-    "wind_y": base_path / "wind_y",
-    "wind_neg_x": base_path / "-wind_x",
-    "wind_neg_y": base_path / "-wind_y",
-}
 
-df = get_and_process_results_per_beam_selection(
-    load_cases=base_load_cases, n_beams=4
+
+df = read_and_process_results_per_beam_selection(
+    results_folder=Path(r"C:\Users\U3ZO\Documents\PROJE\new_files\user_files")
 )
 
+comb_load_cases_ = read_load_combination(
+    Path(r"C:\Users\U3ZO\Documents\PROJE\new_files\user_files\loading.csv")
+)
 
-comb_load_cases = [
-    (
-        "1",
-        (("vert", 1.28000), ("trans", 0.31), ("long", 0.15), ("wind_x", 1.0)),
-    ),
-    (
-        "2",
-        (
-            ("vert", 1.28000),
-            ("trans", 0.31),
-            ("long", -0.15),
-            ("wind_neg_x", 1.0),
-        ),
-    ),
-    (
-        "3",
-        (("vert", 1.28000), ("trans", -0.31), ("long", 0.15), ("wind_x", 1.0)),
-    ),
-    (
-        "4",
-        (
-            ("vert", 1.28000),
-            ("trans", -0.31),
-            ("long", -0.15),
-            ("wind_neg_x", 1.0),
-        ),
-    ),
-    (
-        "5",
-        (("vert", 1.28000), ("trans", 0.31), ("long", 0.15), ("wind_y", 1.0)),
-    ),
-    (
-        "6",
-        (
-            ("vert", 1.28000),
-            ("trans", -0.31),
-            ("long", 0.15),
-            ("wind_neg_y", 1.0),
-        ),
-    ),
-    (
-        "7",
-        (("vert", 1.28000), ("trans", 0.31), ("long", -0.15), ("wind_y", 1.0)),
-    ),
-    (
-        "8",
-        (
-            ("vert", 1.28000),
-            ("trans", -0.31),
-            ("long", -0.15),
-            ("wind_neg_y", 1.0),
-        ),
-    ),
-]
-df = add_load_cases(df=df, load_cases=comb_load_cases)
+df = add_load_cases(base_results=df, load_cases=comb_load_cases_)
+
 df = check_multiple_load_case_combined_compression_and_flexure(
-    df, list(str(i) for i in range(1, 9)), critical_loads
+    df, list(f"Combination {str(i)}" for i in range(1, 9)), critical_loads
 ).sort_values("h1_criteria_max", ascending=False)
 trans = df[df["beam"] == "beams3"]
 cols = df[df["beam"] == "beams1"]
 long = df[df["beam"] == "beams2"]
-h1_case_criteria = [f"h1_criteria_{str(i)}" for i in range(1, 9)]
+h1_case_criteria = [f"h1_criteria_Combination {str(i)}" for i in range(1, 9)]
 max_criteria = df[
     ["beam", *h1_case_criteria, "h1_criteria_max", "h1_criteria_max_case"]
 ]
