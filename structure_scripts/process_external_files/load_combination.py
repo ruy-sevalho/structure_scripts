@@ -39,6 +39,7 @@ def _add_load_case(
 def add_load_cases(
     base_results: DataFrame,
     load_cases: DataFrame,
+    results: Collection[str] = BEAM_RESULTS,
 ):
     comb = "Comb"
     for index, load_case in load_cases.iterrows():
@@ -46,7 +47,7 @@ def add_load_cases(
         lc.pop(comb)
         lc = tuple((key, value) for key, value in lc.items())
         base_results = _add_load_case(
-            base_results, load_case=lc, name=load_case[comb]
+            base_results, load_case=lc, name=load_case[comb], results=results
         )
     return base_results
 
