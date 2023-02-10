@@ -37,22 +37,9 @@ BEAM_RESULT_DICT = {FX: ANSYS_FORCE, MY: ANSYS_MY, MZ: ANSYS_MZ}
 # Order must match order of the table exported by ansys
 BEAM_RESULT_VALUES = [ELEM, NODE_I, NODE_J, FXI, FXJ, MYI, MYJ, MZI, MZJ]
 
-DF_COLS = [ELEM, NODE_I, NODE_J]
-
-
-def _rename_col(df: pd.DataFrame):
-    _, cols = df.shape
-    return df.rename(columns={df.columns[-1]: "value"})
-
 
 def _convert(x):
     return int(float(x))
-
-
-def _append_load_case_name(names: list[str], case: str, start_from: int = 3):
-    return names[:start_from] + [
-        f"{name}_{case}" for name in names[start_from:]
-    ]
 
 
 def _read_beam_result(
@@ -92,20 +79,19 @@ def _read_beam_result(
 def _read_beams_results(
     case_path: Path,
     case_name: str,
-    n_bodies: int,
-    prefix: str = "beams",
+    named_selections: Collection[str],
     include_nodes: bool = False,
     results: Collection[str] = (FX, MY, MZ),
 ):
     suffix = ".txt"
     df = pd.DataFrame()
-    for i in range(n_bodies):
-        beam_name = f"{prefix}{str(i+1)}"
-        base_file_path = case_path / f"{beam_name}"
+    for named_selection in named_selections:
+        beam_name = named_selection
+        base_file_path = case_path / f"{named_selection}"
         df_per_beam = pd.DataFrame()
-        for i, r_type in enumerate(results):
-            file = base_file_path / f"{r_type}.txt"
-            include = include_nodes and not i
+        for j, r_type in enumerate(results):
+            file = base_file_path / f"{r_type}{suffix}"
+            include = include_nodes and not j
             r_df = _read_beam_result(
                 file=file,
                 result_type=r_type,
@@ -119,24 +105,50 @@ def _read_beams_results(
     return df
 
 
-def get_and_process_results_per_beam_selection(
-    load_cases: dict[str:Path],
-    n_beams: int = 0,
-    results: Collection[str] = (FX, MY, MZ),
-    beam_prefix: str = "beams",
-):
+def read_and_process_results_per_beam_selection(results_folder: Path):
+    """Read a results per beam named selection in a structured directory.
+    In the parent directory there should be a folder per load case.
+    In each load case folder there should a folder per beam named selection.
+    In each beam result folder there should a txt file per result:\n
+    fx.txt, my.txt, mz.txt, sy.txt, sz.txt, t.txt.\n
+    fx - axial force\n
+    my - bending moment y-axis\n
+    mz - bending moment z-axis\n
+    sy - shear force y-axis\n
+    sz - shear force z-axis\n
+    t - torsion moment\n
+    """
+    combination_folders = [f for f in results_folder.iterdir() if f.is_dir()]
+    named_selections = [
+        f.name
+        for f in (results_folder / combination_folders[0]).iterdir()
+        if f.is_dir()
+    ]
     df = pd.DataFrame()
-    for i, (name, path) in enumerate(load_cases.items()):
+    for i, combination in enumerate(combination_folders):
+
         r_df = _read_beams_results(
-            case_path=path,
-            case_name=name,
-            n_bodies=n_beams,
-            prefix=beam_prefix,
+            case_path=results_folder / combination,
+            case_name=combination.name,
             include_nodes=not i,
-            results=results,
+            named_selections=named_selections,
         )
         df = pd.concat((df, r_df), axis=1)
     return df
 
+
+def read_load_combination(file: Path) -> pd.DataFrame:
+    """Read an Ansys solution combination exported csv file and returns a Dataframe of the combination"""
+    df = pd.read_csv(file)
+    df.drop(labels=range(4), inplace=True)
+    df.drop(columns="Environment", inplace=True)
+    df.rename(columns={"Unnamed: 0": "Comb"}, inplace=True)
+    return df
+
+
 if __name__ == "__main__":
-    pass
+    file = Path(r"C:\Users\U3ZO\Documents\PROJE\new_files\user_files")
+    ns = [f"beams{i}" for i in range(1, 5)]
+    l = read_and_process_results_per_beam_selection(file, ns)
+    with open(file, "w") as f:
+        f.writelines()

@@ -12,10 +12,13 @@ from structure_scripts.process_external_files.ansys import (
 )
 
 
-def add_load_case(
-    df: DataFrame, load_case: Collection[tuple[str, float]], name: str
+def _add_load_case(
+    df: DataFrame,
+    load_case: Collection[tuple[str, float]],
+    name: str,
+    results: Collection[str] = BEAM_RESULTS,
 ):
-    for result in BEAM_RESULTS:
+    for result in results:
         exp = " + ".join(
             [f"{result}_{case} * {factor}" for case, factor in load_case]
         )
@@ -23,13 +26,29 @@ def add_load_case(
     return df
 
 
+# def _add_load_cases(
+#     df: DataFrame,
+#     load_cases: Collection[tuple[str, Collection[tuple[str, float]]]],
+# ):
+#     for load_case in load_cases:
+#
+#         df = _add_load_case(df, load_case=load_case[1], name=load_case[0])
+#     return df
+
+
 def add_load_cases(
-    df: DataFrame,
-    load_cases: Collection[tuple[str, Collection[tuple[str, float]]]],
+    base_results: DataFrame,
+    load_cases: DataFrame,
 ):
-    for load_case in load_cases:
-        df = add_load_case(df, load_case=load_case[1], name=load_case[0])
-    return df
+    comb = "Comb"
+    for index, load_case in load_cases.iterrows():
+        lc = dict(load_case.to_dict())
+        lc.pop(comb)
+        lc = tuple((key, value) for key, value in lc.items())
+        base_results = _add_load_case(
+            base_results, load_case=lc, name=load_case[comb]
+        )
+    return base_results
 
 
 def _h1_comp_flex_check(
