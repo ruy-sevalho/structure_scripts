@@ -1,11 +1,10 @@
+from dataclasses import dataclass
 from typing import Collection, Literal
 
 import pandas as pd
 
-# from os import listdir
 from pathlib import Path
 
-# from quantities import Quantity
 
 BEAM = "beam"
 NODE = "node"
@@ -126,6 +125,7 @@ def _read_beam_node_result(
         inplace=True,
         drop=not include_nodes,
     )
+    df.index.set_names(names=[NODE, ELEM], inplace=True)
     df.rename(
         columns={BEAM_RESULT_DICT[result_type]: f"{result_type}_{case_name}"},
         inplace=True,
@@ -204,7 +204,7 @@ def read_and_process_results_per_beam_selection(results_folder: Path):
     return df
 
 
-def _get_folders(folder):
+def _get_folders(folder) -> list[Path]:
     return [f for f in folder.iterdir() if f.is_dir()]
 
 
@@ -221,11 +221,6 @@ def read_all_beam_results(results_folder: Path):
     t - torsion moment\n
     """
     combination_folders = [f for f in results_folder.iterdir() if f.is_dir()]
-    # named_selections = [
-    #     f.name
-    #     for f in (results_folder / combination_folders[0]).iterdir()
-    #     if f.is_file()
-    # ]
     df = pd.DataFrame()
     for i, combination in enumerate(combination_folders):
         r_df = _read_beam_node_results(
@@ -234,6 +229,7 @@ def read_all_beam_results(results_folder: Path):
             include_nodes=not i,
         )
         df = pd.concat((df, r_df), axis=1)
+    df.rename(columns={ANSYS_NODE_ID: NODE, ANSYS_ELEM_ID: ELEM}, inplace=True)
     return df
 
 
@@ -246,9 +242,42 @@ def read_load_combination(file: Path) -> pd.DataFrame:
     return df
 
 
-if __name__ == "__main__":
-    file = Path(r"C:\Users\U3ZO\Documents\PROJE\new_files\user_files")
-    ns = [f"beams{i}" for i in range(1, 5)]
-    l = read_and_process_results_per_beam_selection(file, ns)
-    with open(file, "w") as f:
-        f.writelines()
+@dataclass(frozen=True, slots=True)
+class ConnectionDef:
+    nodes: Collection[int]
+    elem: Collection[int]
+
+
+def read_connections(directory: Path):
+    connections = _get_folders(directory)
+    connections_dict = dict()
+    for connection in connections:
+        connections_dict[connection.name] = ConnectionDef(
+            nodes=pd.read_table(
+                directory / connection / "nodes.txt", usecols=[ANSYS_NODE_ID]
+            )[ANSYS_NODE_ID].values,
+            elem=pd.read_table(
+                directory / connection / "elements.txt",
+                sep="\t",
+                skiprows=1,
+                header=None
+            )[0].values
+        )
+    return connections_dict
+
+
+def _filter_results_for_connection(
+    results: pd.DataFrame, nodes: Collection[int], elem: Collection[int]
+):
+    return pd.DataFrame(
+        results[results.apply(lambda row: row[NODE] in nodes and row[ELEM] in elem, axis=1)]
+    )
+
+
+def filter_results_for_connections(
+    results: pd.DataFrame, collections: dict[str, ConnectionDef]
+):
+    return {
+        key: _filter_results_for_connection(results, value.nodes, value.elem)
+        for key, value in collections.items()
+    }
