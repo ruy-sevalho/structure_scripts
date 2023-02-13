@@ -183,48 +183,6 @@ angles_ds = (
         small_angle.compression(length_major_axis=0.732 * m),
     ),
 )
-
+critical_loads = {f"{PREFIX}{i+1}": beam for i, beam in enumerate(beams)}
 # for name, ds in angles_ds:
 #     print(f"{name} strength = {ds.design_strength_asd.rescale('N')}")
-
-critical_loads = {f"{PREFIX}{i+1}": beam for i, beam in enumerate(beams)}
-user_directory = Path(
-    r"C:\Users\U3ZO\Documents\PROJE_local\new_files\user_files"
-)
-base_path = user_directory / Path(r"load_combinations")
-
-df_per_beam = read_and_process_results_per_beam_selection(
-    results_folder=base_path
-)
-df_all = read_all_beam_results(results_folder=base_path)
-comb_load_cases_ = read_load_combination(user_directory / Path(r"loading.csv"))
-df_per_beam = add_load_cases(
-    base_results=df_per_beam, load_cases=comb_load_cases_
-)
-df_per_beam = check_multiple_load_case_combined_compression_and_flexure(
-    df_per_beam,
-    list(f"Combination {str(i)}" for i in range(1, 9)),
-    critical_loads,
-).sort_values("h1_criteria_max", ascending=False)
-
-# post-processing results
-trans = df_per_beam[df_per_beam["beam"] == "beams3"]
-cols = df_per_beam[df_per_beam["beam"] == "beams1"]
-long = df_per_beam[df_per_beam["beam"] == "beams2"]
-h1_case_criteria = [f"h1_criteria_Combination {str(i)}" for i in range(1, 9)]
-max_criteria = df_per_beam[
-    ["beam", *h1_case_criteria, "h1_criteria_max", "h1_criteria_max_case"]
-]
-max_criteria["h1_criteria_max_case"] = df_per_beam[
-    "h1_criteria_max_case"
-].apply(lambda x: x[12:])
-h1_result_path = user_directory / Path(r"h1.csv")
-max_criteria.to_csv(h1_result_path, index_label="Element")
-df_all = add_load_cases(
-    df_all, load_cases=comb_load_cases_, results=BEAM_RESULT
-)
-
-# read-connections
-connections = read_connections(user_directory / r"connections")
-
-connections_results = filter_results_for_connections(df_all, connections)
