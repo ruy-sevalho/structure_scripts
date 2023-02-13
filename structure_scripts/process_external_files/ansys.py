@@ -244,11 +244,18 @@ def read_load_combination(file: Path) -> pd.DataFrame:
 
 @dataclass(frozen=True, slots=True)
 class ConnectionDef:
+    """Stores collection of node and elements ids that define a connection group.
+    A result in a (node, pair) element is considered member of the connection group if
+    the node and element are in the nodes and elem collections respectively"""
     nodes: Collection[int]
     elem: Collection[int]
 
 
 def read_connections(directory: Path):
+    """Reads nodes and elements named selections of connections. In the parent directory there should be a folder for
+    each connection group. In each folder there should be a nodes.txt and elements.txt file
+    """
+
     connections = _get_folders(directory)
     connections_dict = dict()
     for connection in connections:
@@ -277,6 +284,7 @@ def _filter_results_for_connection(
 def filter_results_for_connections(
     results: pd.DataFrame, collections: dict[str, ConnectionDef]
 ):
+    """Filters results dataframe for results in connection definitions."""
     return {
         key: _filter_results_for_connection(results, value.nodes, value.elem)
         for key, value in collections.items()
