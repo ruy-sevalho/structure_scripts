@@ -18,6 +18,8 @@ from structure_scripts.process_external_files.ansys import (
     read_load_combination,
     read_all_beam_results,
     BEAM_RESULT,
+    read_connections,
+    filter_results_for_connections,
 )
 from structure_scripts.process_external_files.load_combination import (
     check_multiple_load_case_combined_compression_and_flexure,
@@ -186,17 +188,16 @@ angles_ds = (
 #     print(f"{name} strength = {ds.design_strength_asd.rescale('N')}")
 
 critical_loads = {f"{PREFIX}{i+1}": beam for i, beam in enumerate(beams)}
-base_path = Path(
-    r"C:\Users\U3ZO\Documents\PROJE_local\new_files\user_files\load_combinations"
+user_directory = Path(
+    r"C:\Users\U3ZO\Documents\PROJE_local\new_files\user_files"
 )
+base_path = user_directory / Path(r"load_combinations")
+
 df_per_beam = read_and_process_results_per_beam_selection(
     results_folder=base_path
 )
 df_all = read_all_beam_results(results_folder=base_path)
-comb_load_cases_ = read_load_combination(
-    Path(r"C:\Users\U3ZO\Documents\PROJE_local\new_files\user_files")
-    / Path(r"loading.csv")
-)
+comb_load_cases_ = read_load_combination(user_directory / Path(r"loading.csv"))
 df_per_beam = add_load_cases(
     base_results=df_per_beam, load_cases=comb_load_cases_
 )
@@ -205,6 +206,8 @@ df_per_beam = check_multiple_load_case_combined_compression_and_flexure(
     list(f"Combination {str(i)}" for i in range(1, 9)),
     critical_loads,
 ).sort_values("h1_criteria_max", ascending=False)
+
+# post-processing results
 trans = df_per_beam[df_per_beam["beam"] == "beams3"]
 cols = df_per_beam[df_per_beam["beam"] == "beams1"]
 long = df_per_beam[df_per_beam["beam"] == "beams2"]
@@ -215,10 +218,13 @@ max_criteria = df_per_beam[
 max_criteria["h1_criteria_max_case"] = df_per_beam[
     "h1_criteria_max_case"
 ].apply(lambda x: x[12:])
-h1_result_path = Path(
-    r"C:\Users\U3ZO\Documents\PROJE\new_files\user_files\\h1.csv"
-)
+h1_result_path = user_directory / Path(r"h1.csv")
 max_criteria.to_csv(h1_result_path, index_label="Element")
 df_all = add_load_cases(
     df_all, load_cases=comb_load_cases_, results=BEAM_RESULT
 )
+
+# read-connections
+connections = read_connections(user_directory / r"connections")
+
+connections_results = filter_results_for_connections(df_all, connections)
