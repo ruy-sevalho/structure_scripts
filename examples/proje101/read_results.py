@@ -1,16 +1,24 @@
 from pathlib import Path
 
-from structure_scripts.process_external_files.ansys import read_and_process_results_per_beam_selection, \
-    read_all_beam_results, read_load_combination, BEAM_RESULT, read_connections, filter_results_for_connections
-from structure_scripts.process_external_files.load_combination import add_load_cases, \
-    check_multiple_load_case_combined_compression_and_flexure
+from structure_scripts.process_external_files.ansys import (
+    read_and_process_results_per_beam_selection,
+    read_all_beam_results,
+    read_load_combination,
+    BEAM_RESULT,
+    read_connections,
+    filter_results_for_connections,
+)
+from structure_scripts.process_external_files.load_combination import (
+    add_load_cases,
+    check_multiple_load_case_combined_compression_and_flexure,
+)
 
 from critical_loads import critical_loads
 
 user_directory = Path(
-    r"C:\Users\U3ZO\Documents\PROJE_local\new_files\user_files"
+    r"C:\Users\U3ZO\proje\proje 101 plataforma hood compressores\ansys\new_files\user_files"
 )
-base_path = user_directory / Path(r"load_combinations")
+base_path = user_directory / Path(r"load_combinations_shear_center")
 
 df_per_beam = read_and_process_results_per_beam_selection(
     results_folder=base_path
