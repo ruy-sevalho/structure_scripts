@@ -75,7 +75,10 @@ class Strength(Protocol):
 
 
 class DesignStrengthMixin(ABC, Strength):
-    criteria: Criteria = Criteria()
+    @property
+    @abstractmethod
+    def criteria(self) -> Criteria:
+        pass
 
     @cached_property
     def design_strength_asd(self):
@@ -88,6 +91,12 @@ class DesignStrengthMixin(ABC, Strength):
         return self.criteria.design_strength(
             nominal_strength=self.nominal_strength, design_type=DesignType.LRFD
         )
+
+    def design_strength(self, design_criteria: DesignType):
+        table = {
+            DesignType.ASD: self.design_strength_asd,
+            DesignType.LRFD: self.design_strength_lrfd,
+        }
 
 
 @dataclass(frozen=True)
