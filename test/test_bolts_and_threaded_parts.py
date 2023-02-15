@@ -3,10 +3,13 @@ from pytest import mark, approx
 # from quantities import Quantity, mm, MPa, N
 from sympy.physics.units.quantities import Quantity
 from sympy.physics.units import mm, N
-from structure_scripts.units.units import MPa, kN, same_units_simplify
+from pandas import DataFrame
+from structure_scripts.aisc.criteria import DesignType
+from structure_scripts.units.sympy_units import MPa, kN, same_units_simplify
 from structure_scripts.aisc.connections.bolts import (
     BoltSpacing,
     check_bolt_minimum_spacing,
+    BoltCombinedTensionAndShear, BOLT_TENSILE_STRENGTH, BOLT_SHEAR_STRENGTH,
 )
 from structure_scripts.aisc.connections.bolts import BoltStrength
 
@@ -14,9 +17,9 @@ from structure_scripts.aisc.connections.bolts import BoltStrength
 @mark.parametrize(
     "nominal_diameter, spacing, expected_criteria",
     [
-        (10. * mm, 10. * mm, BoltSpacing.REJECTED),
-        (10. * mm, 29. * mm, BoltSpacing.ACCEPTED),
-        (10. * mm, 35. * mm, BoltSpacing.PREFERRED),
+        (10.0 * mm, 10.0 * mm, BoltSpacing.REJECTED),
+        (10.0 * mm, 29.0 * mm, BoltSpacing.ACCEPTED),
+        (10.0 * mm, 35.0 * mm, BoltSpacing.PREFERRED),
     ],
 )
 def test_minimum_spacing(
@@ -46,3 +49,74 @@ def test_bolt_strength(
         criteria.nominal_strength, expected_nominal_strength, unit=kN
     )
     assert calc == approx(exp)
+
+
+@mark.parametrize(
+    """nominal_body_area, 
+    nominal_tensile_stress, 
+    nominal_shear_stress, 
+    required_tensile_strength,
+    required_shear_strength,
+    design_criteria,
+    tensile_ratio,
+    shear_ratio
+    """,
+    [
+        (
+            10.0 * mm**2,
+            250.0 * MPa,
+            250.0 * MPa,
+            100.0 * N,
+            100.0 * N,
+            DesignType.ASD,
+            0.08,
+            0.08,
+        ),
+        (
+            10.0 * mm**2,
+            250.0 * MPa,
+            250.0 * MPa,
+            100.0 * N,
+            100.0 * N,
+            DesignType.LRFD,
+            0.053333333,
+            0.053333333,
+        ),
+        (
+            10.0 * mm**2,
+            250.0 * MPa,
+            250.0 * MPa,
+            1250.0 * N,
+            0.0 * N,
+            DesignType.LRFD,
+            0.666666667,
+            0.0
+        ),
+
+    ],
+)
+def test_bolt_combined_shear_and_tensile_strength(
+    nominal_body_area: Quantity,
+    nominal_tensile_stress: Quantity,
+    nominal_shear_stress: Quantity,
+    required_tensile_strength: Quantity,
+    required_shear_strength: Quantity,
+    design_criteria: DesignType,
+    tensile_ratio: float,
+    shear_ratio: float,
+):
+    criteria = BoltCombinedTensionAndShear(
+        Ab=nominal_body_area,
+        Fnt=nominal_tensile_stress,
+        Fnv=nominal_shear_stress,
+    )
+    # calc, exp = same_units_simplify(
+    #     criteria.nominal_strength, expected_nominal_strength, unit=kN
+    # )
+    calc = criteria.rule_check(
+        required_shear_strength=required_shear_strength,
+        required_tensile_strength=required_tensile_strength,
+        design_criteria=design_criteria,
+    )
+    calc = calc[BOLT_TENSILE_STRENGTH][0], calc[BOLT_SHEAR_STRENGTH][0]
+    assert calc == approx((tensile_ratio, shear_ratio))
