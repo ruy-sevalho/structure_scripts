@@ -68,10 +68,9 @@ class Strength(Protocol):
     def nominal_strength(self) -> Quantity:
         pass
 
-    # @property
-    # @abstractmethod
-    # def detailed_results(self) -> dict[str, Union[Quantity, float, None]]:
-    #     return {NOMINAL_STRENGTH: self.nominal_strength}
+    @property
+    def detailed_results(self) -> dict[str, Union[Quantity, float, None]]:
+        return {NOMINAL_STRENGTH: self.nominal_strength}
 
 
 class DesignStrengthMixin(ABC, Strength):
@@ -97,6 +96,7 @@ class DesignStrengthMixin(ABC, Strength):
             DesignType.ASD: self.design_strength_asd,
             DesignType.LRFD: self.design_strength_lrfd,
         }
+        return table[design_criteria]
 
 
 @dataclass(frozen=True)
@@ -132,3 +132,10 @@ class DesignStrength:
         return self.criteria.design_strength(
             nominal_strength=self.nominal_strength, design_type=DesignType.LRFD
         )
+
+    def design_strength(self, design_criteria: DesignType):
+        table = {
+            DesignType.ASD: self.design_strength_asd,
+            DesignType.LRFD: self.design_strength_lrfd,
+        }
+        return table[design_criteria]
