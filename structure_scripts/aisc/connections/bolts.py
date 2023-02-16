@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 from functools import cached_property
 from typing import Union, Callable
 
@@ -9,7 +9,7 @@ import sympy as sp
 
 from sympy.physics.units.quantities import Quantity
 from sympy.physics.units.util import convert_to
-from sympy.physics.units import m
+from sympy.physics.units import m, mm
 from structure_scripts.units.sympy_units import kN, MPa
 from structure_scripts.aisc.criteria import (
     Criteria,
@@ -72,21 +72,21 @@ class BoltStrength(DesignStrengthMixin):
         return Criteria(allowable_strength=2, load_resistance_factor=0.75)
 
     @cached_property
-    def nominal_strength_eq(self) -> sp.core.Expr:
+    def _nominal_str_eq(self) -> sp.core.Expr:
         return Fn * Ab
 
     @cached_property
     def nominal_strength(self):
-        return self.nominal_strength_eq.evalf(
+        return self._nominal_str_eq.evalf(
             subs={Fn: self.Fn, Ab: self.Ab},
         )
 
     @cached_property
     def latex_nominal_expression(self):
-        return f"R_n = {sp.latex(self.nominal_strength_eq)}"
+        return f"R_n = {sp.latex(self._nominal_str_eq)}"
 
     def numerical_strength_expression(self, unit: Quantity = kN):
-        return f"R_n = {sp.latex(self.nominal_strength_eq.evalf(subs={Fn: self.Fn, Ab: self.Ab}))} = {sp.latex(convert_to(self.nominal_strength, unit))}"
+        return f"R_n = {sp.latex(self._nominal_str_eq.evalf(subs={Fn: self.Fn, Ab: self.Ab}))} = {sp.latex(convert_to(self.nominal_strength, unit))}"
 
     @cached_property
     def detailed_results(self) -> dict[str, Union[Quantity, float, None]]:
@@ -98,7 +98,7 @@ class BoltStrength(DesignStrengthMixin):
         return required_strength / self.design_strength(design_criteria)
 
 
-def _nominal_stress_eq(F1t: sp.core.symbol.Symbol, F2t: sp.core.Symbol, f:sp.core.Symbol, design_criteria: DesignType) -> sp.core.Expr:
+def _nominal_stress_eq(F1t: sp.Symbol, F2t: sp.Symbol, f:sp.Symbol, design_criteria: DesignType) -> sp.Expr:
     design_factor = DESIGN_TYPE_FACTOR_TABLE[design_criteria]
     if design_criteria == DesignType.ASD:
         return 1.3 * F1t - design_factor * F1t / F2t * f
@@ -311,3 +311,67 @@ class BoltCombinedTensionAndShear:
         # i = rule_checks.argmax()
         # table = {0: "tensile", 1: "shear"}
         return pd.DataFrame([rule_checks], columns=[BOLT_TENSILE_STRENGTH, BOLT_SHEAR_STRENGTH])
+
+
+lc, t, Fu, d = sp.var("l_c, t, F_u, d")
+
+
+class BearingStrengthType(Enum):
+    """See J.3.10 Bearing Strength at Bolt Holes"""
+    DEFORMATION_AT_SERVICE_LOAD_NOT_ALLOWED = (1.2, 2.4)
+    DEFORMATION_AT_SERVICE_LOAD_ALLOWED = (1.5, 2.3)
+    LONG_SLOTTED_LOAD_PERPENDICULAR_TO_SLOT = (1.0, 2.0)
+
+
+@dataclass(frozen=True)
+class BoltHolesBearingStrength(DesignStrengthMixin):
+    """
+    Fu = specified minimum tensile strength of the connected material\n
+    d = nominal bolt diameter\n
+    lc = clear distance, in the direction of the force, between the edge of the hole and
+    the edge of the adjacent hole or edge of the material\n
+    t = thickness of connected material
+    """
+    Fu: Quantity
+    d: Quantity
+    lc: Quantity
+    t: Quantity
+    connection_type: BearingStrengthType = BearingStrengthType.DEFORMATION_AT_SERVICE_LOAD_NOT_ALLOWED
+
+    @cached_property
+    def criteria(self) -> Criteria:
+        return Criteria(allowable_strength=2, load_resistance_factor=0.75)
+
+    @cached_property
+    def _nominal_load1_eq(self) -> sp.Expr:
+        return self.connection_type.value[0] * lc * t * Fu
+
+    @cached_property
+    def _nominal_load2_eq(self) -> sp.Expr:
+        return self.connection_type.value[1] * d * t * Fu
+
+    @cached_property
+    def _nominal_load1(self) -> Quantity:
+        return self._nominal_load1_eq.evalf(
+            subs={lc: self.lc, t: self.t, Fu: self.Fu}
+        )
+
+    @cached_property
+    def _nominal_load2(self) -> Quantity:
+        return self._nominal_load2_eq.evalf(
+            subs={d: self.d, t: self.t, Fu: self.Fu}
+        )
+
+    @cached_property
+    def nominal_strength(self) -> Quantity:
+        return min(self._nominal_load1, self._nominal_load2)
+
+
+if __name__ == "__main__" :
+    b = BoltHolesBearingStrength(
+        Fu=350 * MPa,
+        d=25*mm,
+        lc=50*mm,
+        t=8*mm
+    )
+    sp.print_latex(b._nominal_load1_eq)
