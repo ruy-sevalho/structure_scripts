@@ -12,9 +12,13 @@ Ae = var("A_E")
 Ag = var("A_g")
 # Net Area Subjected to Shear
 Anv = var("A_nv")
+# Net Area Subjected to Tension
+Ant = var("A_nt")
 # Gross Area Subjected to Shear
 Agv = var("A_gv")
 # ASD safety factor
 Omega = var("Omega")
 # LRFD safety factor
 phi = var("phi")
+# Tension Stress factor
+Ubs = var("U_bs")
