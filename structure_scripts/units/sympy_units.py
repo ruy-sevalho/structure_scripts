@@ -1,3 +1,5 @@
+from typing import Collection
+
 from sympy.physics.units import Quantity, force, pressure, convert_to
 from sympy.physics.units.systems import SI
 
@@ -8,12 +10,12 @@ MPa = Quantity("megapascal", abbrev="MPa", is_prefixed=True)
 
 
 def same_units_simplify(
-    q1: Quantity, q2: Quantity, unit: Quantity, strip_units: bool = False
+    quantities: Collection[Quantity], unit: Quantity, strip_units: bool = False
 ):
-    q1_convert, q2_convert = (convert_to(q1, unit), convert_to(q2, unit))
+    q_convert = tuple((convert_to(q, unit) for q in quantities))
     if strip_units:
-        q1_convert, q2_convert = (q1_convert.args[0], q2_convert.args[0])
-    return q1_convert, q2_convert
+        q_convert = tuple((q.args[0] for q in q_convert))
+    return q_convert
 
 
 def ratio_simplify(q1: Quantity, q2: Quantity, unit: Quantity) -> float:

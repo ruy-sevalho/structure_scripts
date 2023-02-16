@@ -4,6 +4,9 @@ from pytest import mark, approx
 from sympy.physics.units.quantities import Quantity
 from sympy.physics.units import mm, N
 from pandas import DataFrame
+
+from structure_scripts.aisc.connections.elements import TensionDistribution, BlockShearStrength, TensileYield, \
+    TensileRupture
 from structure_scripts.aisc.criteria import DesignType
 from structure_scripts.units.sympy_units import MPa, kN, same_units_simplify
 from structure_scripts.aisc.connections.bolts import (
@@ -47,7 +50,7 @@ def test_bolt_strength(
 ):
     criteria = BoltStrength(Ab=nominal_body_area, Fn=nominal_stress)
     calc, exp = same_units_simplify(
-        criteria.nominal_strength, expected_nominal_strength, unit=kN
+        (criteria.nominal_strength, expected_nominal_strength), unit=kN
     )
     assert calc == approx(exp)
 
@@ -154,5 +157,56 @@ def test_bearing_strength(
         t=thickness,
         connection_type=connection_type
     ).nominal_strength
-    calc, exp = same_units_simplify(bearing_str, exp_str, kN)
+    calc, exp = same_units_simplify((bearing_str, exp_str), kN)
+    assert calc == approx(exp)
+
+
+@mark.parametrize(
+    "Fy, Ag, str_asd, str_lrfd",
+    [
+        (250*MPa, 50*mm**2, 7485.02994*N, 11250.*N)
+    ]
+)
+def test_tension_yield(Fy: Quantity, Ag: Quantity, str_asd: Quantity, str_lrfd: Quantity):
+    tension_yield = TensileYield(Fy=Fy, Ag=Ag)
+    calc_asd, calc_lrfd = tension_yield.design_strength_asd, tension_yield.design_strength_lrfd
+    calc_asd, calc_lrfd, str_asd, str_lrfd = same_units_simplify((calc_asd, calc_lrfd, str_asd, str_lrfd), kN, strip_units=True)
+    calc = {"asd": calc_asd, "lrfd": calc_lrfd}
+    assert calc == approx({"asd": str_asd, "lrfd": str_lrfd})
+
+
+@mark.parametrize(
+    "Fu, Ae, str_asd, str_lrfd",
+    [
+        (400*MPa, 50*mm**2, 10000.*N, 15000.*N)
+    ]
+)
+def test_tension_rupture(Fu: Quantity, Ae: Quantity, str_asd: Quantity, str_lrfd: Quantity):
+    tension_yield = TensileRupture(Fu=Fu, Ae=Ae)
+    calc_asd, calc_lrfd = tension_yield.design_strength_asd, tension_yield.design_strength_lrfd
+    calc_asd, calc_lrfd, str_asd, str_lrfd = same_units_simplify((calc_asd, calc_lrfd, str_asd, str_lrfd), kN, strip_units=True)
+    calc = {"asd": calc_asd, "lrfd": calc_lrfd}
+    assert calc == approx({"asd": str_asd, "lrfd": str_lrfd})
+
+
+@mark.parametrize(
+    "Fy, Fu, Anv, Ant, Agv, Agt, Ubs, expected_str",
+    [
+        (250*MPa, 400*MPa, 90*mm**2, 90*mm**2, 100*mm**2, 100*mm**2, TensionDistribution.NON_UNIFORM, 33.*kN)
+    ]
+)
+def test_block_shear(
+    Fy: Quantity,
+    Fu: Quantity,
+    Anv: Quantity,
+    Ant: Quantity,
+    Agv: Quantity,
+    Agt: Quantity,
+    Ubs: TensionDistribution,
+    expected_str: Quantity
+):
+    block_shear = BlockShearStrength(
+        Fy=Fy, Fu=Fu, Anv=Anv, Ant=Ant, Agv=Agv, Agt=Agt, Ubs=Ubs
+    ).nominal_strength
+    calc, exp = same_units_simplify((block_shear, expected_str), kN)
     assert calc == approx(exp)
