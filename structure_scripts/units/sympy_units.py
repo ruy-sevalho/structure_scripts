@@ -13,6 +13,9 @@ def same_units_simplify(
     quantities: Collection[Quantity], unit: Quantity, strip_units: bool = False
 ):
     q_convert = tuple((convert_to(q, unit) for q in quantities))
+    for q in q_convert:
+        if not q.args[1] == unit:
+            raise ValueError(f"Cannot convert {q} to {unit}")
     if strip_units:
         q_convert = tuple((q.args[0] for q in q_convert))
     return q_convert

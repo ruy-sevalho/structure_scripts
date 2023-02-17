@@ -1,24 +1,31 @@
 from sympy import var
 
-# Nominal strength
-Rn = var("R_n")
-# Ultimate stress
-Fu = var("F_u")
-# Yield Stress
-Fy = var("F_y")
-# Effective Net Area
-Ae = var("A_E")
-# Gross Area
-Ag = var("A_g")
-# Net Area Subjected to Shear
-Anv = var("A_nv")
-# Net Area Subjected to Tension
-Ant = var("A_nt")
-# Gross Area Subjected to Shear
-Agv = var("A_gv")
-# ASD safety factor
+
+nominal_strength = var("R_n")
+nominal_stress = var("F_n")
+nominal_body_area = var("A_b")
+ultimate_stress = var("F_u")
+yield_stress = var("F_y")
+nominal_tensile_stress = var("F_nt")
+nominal_shear_stress = var("F_nv")
+base_metal_nominal_stress = var("F_nBM")
+weld_nominal_stress = var("F_nw")
+filler_metal_strength = var("F_EXX")
+cross_sectional_area_base_metal = var("A_BM")
+effective_weld_area = var("A_we")
+effective_net_area = var("A_E")
+gross_area = var("A_g")
+net_shear_area = var("A_nv")
+net_tension_area = var("A_nt")
+gross_shear_area = var("A_gv")
 Omega = var("Omega")
-# LRFD safety factor
 phi = var("phi")
-# Tension Stress factor
-Ubs = var("U_bs")
+theta = var("theta")
+tension_distribution_factor = var("U_bs")
+weld_size = var("D")
+weld_length = var("l")
+required_tensile_stress = var("f_rt")
+required_shear_stress = var("f_rv")
+bolt_diameter = var("d")
+clear_distance = var("l_c")
+thickness = var("t")

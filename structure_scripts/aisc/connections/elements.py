@@ -6,8 +6,21 @@ from pandas import DataFrame
 from sympy.physics.units import Quantity
 from sympy import Expr
 
-from structure_scripts.aisc.criteria import DesignStrengthMixin, Criteria, DesignType
-from structure_scripts.symbols.symbols import Fy, Ag, Fu, Ae, Agv, Anv, Ubs, Ant
+from structure_scripts.aisc.criteria import (
+    DesignStrengthMixin,
+    Criteria,
+    DesignType,
+)
+from structure_scripts.symbols.symbols import (
+    yield_stress,
+    gross_area,
+    ultimate_stress,
+    effective_net_area,
+    gross_shear_area,
+    net_shear_area,
+    tension_distribution_factor,
+    net_tension_area,
+)
 
 TENSILE_YIELDING = "tensile yield"
 TENSILE_RUPTURE = "tensile rupture"
@@ -29,12 +42,12 @@ class TensileYield(DesignStrengthMixin):
 
     @cached_property
     def _nominal_str_eq(self) -> Expr:
-        return Fy * Ag
+        return yield_stress * gross_area
 
     @cached_property
     def nominal_strength(self) -> Quantity:
         return self._nominal_str_eq.evalf(
-            subs={Fy: self.Fy, Ag: self.Ag}
+            subs={yield_stress: self.Fy, gross_area: self.Ag}
         )
 
 
@@ -45,21 +58,24 @@ class TensileRupture(DesignStrengthMixin):
     Ae = net area\n
     """
 
-    Fu: Quantity
-    Ae: Quantity
+    ultimate_stress: Quantity
+    net_area: Quantity
 
     @cached_property
     def criteria(self) -> Criteria:
-        return Criteria(allowable_strength=2., load_resistance_factor=0.75)
+        return Criteria(allowable_strength=2.0, load_resistance_factor=0.75)
 
     @cached_property
     def _nominal_str_eq(self) -> Expr:
-        return Fu * Ae
+        return ultimate_stress * effective_net_area
 
     @cached_property
     def nominal_strength(self) -> Quantity:
         return self._nominal_str_eq.evalf(
-            subs={Fu: self.Fu, Ae: self.Ae}
+            subs={
+                ultimate_stress: self.ultimate_stress,
+                effective_net_area: self.net_area,
+            }
         )
 
 
@@ -70,8 +86,8 @@ class ShearYielding(DesignStrengthMixin):
     Agv = gross area subject to shear
     """
 
-    Fy: Quantity
-    Agv: Quantity
+    yield_stress: Quantity
+    gross_shear_area: Quantity
 
     @cached_property
     def criteria(self) -> Criteria:
@@ -79,12 +95,15 @@ class ShearYielding(DesignStrengthMixin):
 
     @cached_property
     def _nominal_str_eq(self) -> Expr:
-        return 0.60 * Fy * Agv
+        return 0.60 * yield_stress * gross_shear_area
 
     @cached_property
     def nominal_strength(self) -> Quantity:
         return self._nominal_str_eq.evalf(
-            subs={Fy: self.Fy, Agv: self.Agv}
+            subs={
+                yield_stress: self.yield_stress,
+                gross_shear_area: self.gross_shear_area,
+            }
         )
 
 
@@ -95,21 +114,24 @@ class ShearRupture(DesignStrengthMixin):
     Anv = net area subject to shear
     """
 
-    Fu: Quantity
-    Anv: Quantity
+    ultimate_stress: Quantity
+    net_shear_area: Quantity
 
     @cached_property
     def criteria(self) -> Criteria:
-        return Criteria(allowable_strength=2., load_resistance_factor=0.75)
+        return Criteria(allowable_strength=2.0, load_resistance_factor=0.75)
 
     @cached_property
     def _nominal_str_eq(self) -> Expr:
-        return 0.60 * Fu * Anv
+        return 0.60 * ultimate_stress * net_shear_area
 
     @cached_property
     def nominal_strength(self) -> Quantity:
         return self._nominal_str_eq.evalf(
-            subs={Fu: self.Fu, Anv: self.Anv}
+            subs={
+                ultimate_stress: self.ultimate_stress,
+                net_shear_area: self.net_shear_area,
+            }
         )
 
 
@@ -122,32 +144,28 @@ class TensileYieldAndRupture:
     Ae = net area\n
     """
 
-    Fy: Quantity
-    Ag: Quantity
-    Fu: Quantity
-    Ae: Quantity
+    yield_stress: Quantity
+    gross_area: Quantity
+    ultimate_stress: Quantity
+    net_area: Quantity
 
     @cached_property
     def tensile(self):
-        return TensileYield(self.Fy, self.Ag)
+        return TensileYield(self.yield_stress, self.gross_area)
 
     @cached_property
     def rupture(self):
-        return TensileRupture(self.Fu, self.Ae)
+        return TensileRupture(self.ultimate_stress, self.net_area)
 
     def results(self, design_criteria: DesignType = DesignType.ASD):
         return DataFrame(
-            [
-                [
-                    self.tensile.design_strength(design_criteria)
-                ]
-            ],
-            columns=[TENSILE_RUPTURE]
+            [[self.tensile.design_strength(design_criteria)]],
+            columns=[TENSILE_RUPTURE],
         )
 
 
 class TensionDistribution(Enum):
-    UNIFORM = 1.
+    UNIFORM = 1.0
     NON_UNIFORM = 0.5
 
 
@@ -162,36 +180,56 @@ class BlockShearStrength(DesignStrengthMixin):
     Agt = gross area subjected to shear\n
     Ubs = tension uniformity\n
     """
-    Fy: Quantity
-    Fu: Quantity
-    Anv: Quantity
-    Ant: Quantity
-    Agv: Quantity
-    Agt: Quantity
-    Ubs: TensionDistribution = TensionDistribution.NON_UNIFORM
+
+    yield_stress: Quantity
+    ultimate_stress: Quantity
+    net_shear_area: Quantity
+    net_tension_area: Quantity
+    gross_shear_area: Quantity
+    gross_tension_area: Quantity
+    tension_distribution_factor: TensionDistribution = (
+        TensionDistribution.NON_UNIFORM
+    )
 
     @cached_property
     def criteria(self) -> Criteria:
-        return Criteria(allowable_strength=2., load_resistance_factor=.75)
+        return Criteria(allowable_strength=2.0, load_resistance_factor=0.75)
 
     @cached_property
     def _nominal_str_eq1(self) -> Expr:
-        return 0.60 * Fu * Anv + Ubs * Fu * Ant
+        return (
+            0.60 * ultimate_stress * net_shear_area
+            + tension_distribution_factor * ultimate_stress * net_tension_area
+        )
 
     @cached_property
     def _nominal_str_eq2(self) -> Expr:
-        return 0.60 * Fy * Agv + Ubs * Fu * Ant
+        return (
+            0.60 * yield_stress * gross_shear_area
+            + tension_distribution_factor * ultimate_stress * net_tension_area
+        )
 
     @cached_property
     def _nominal_str1(self) -> Quantity:
         return self._nominal_str_eq1.evalf(
-            subs={Fu: self.Fu, Anv: self.Anv, Ant: self.Ant, Ubs: self.Ubs.value}
+            subs={
+                ultimate_stress: self.ultimate_stress,
+                net_shear_area: self.net_shear_area,
+                net_tension_area: self.net_tension_area,
+                tension_distribution_factor: self.tension_distribution_factor.value,
+            }
         )
 
     @cached_property
     def _nominal_str2(self) -> Quantity:
         return self._nominal_str_eq2.evalf(
-            subs={Fu: self.Fu, Fy: self.Fy, Agv: self.Agv, Ant: self.Ant, Ubs: self.Ubs.value}
+            subs={
+                ultimate_stress: self.ultimate_stress,
+                yield_stress: self.yield_stress,
+                gross_shear_area: self.gross_shear_area,
+                net_tension_area: self.net_tension_area,
+                tension_distribution_factor: self.tension_distribution_factor.value,
+            }
         )
 
     @cached_property
