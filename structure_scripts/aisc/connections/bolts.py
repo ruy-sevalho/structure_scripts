@@ -41,7 +41,7 @@ class BoltGroupMaterial:
 # Table J3.2  Nominal Strength of Fasteners and Threaded Parts
 BOLT_GROUPS = {
     BoltGroup.GROUP_A: BoltGroupMaterial(
-        nominal_shear_strength_threaded=272 * MPa,
+        nominal_shear_strength_threaded=372 * MPa,
         nominal_shear_not_threaded=457 * MPa,
         nominal_tensile_strength=620 * MPa,
     )
