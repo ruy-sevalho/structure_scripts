@@ -4,7 +4,7 @@ from functools import cached_property
 from sympy import Expr, sqrt, sin
 from sympy.physics.units import Quantity, rad, degrees, convert_to, radian
 
-from structure_scripts.aisc.criteria import DesignStrengthMixin, Criteria
+from structure_scripts.aisc.criteria import DesignStrengthFromNominalMixin, Criteria
 from structure_scripts.symbols.symbols import (
     weld_nominal_stress,
     effective_weld_area,
@@ -17,7 +17,7 @@ from structure_scripts.units.sympy_units import kN
 
 
 @dataclass(frozen=True)
-class FilletWeld(DesignStrengthMixin):
+class FilletWeld(DesignStrengthFromNominalMixin):
     """
     FEXX = filler metal classification strength\n
     D = weld size\n

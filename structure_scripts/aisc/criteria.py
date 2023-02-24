@@ -1,10 +1,12 @@
 from abc import abstractmethod, ABC
 from dataclasses import dataclass
 from enum import Enum
-from functools import cached_property
+from functools import cached_property, partial
 from typing import Protocol, Callable, Optional, Union
 
+from pandas import DataFrame
 from quantities import Quantity
+from sympy.physics.units import convert_to
 
 NOMINAL_STRENGTH = "nominal_strength"
 
@@ -52,7 +54,7 @@ class Criteria:
         return function(nominal_strength, factor)
 
 
-def nominal_strength(
+def _nominal_strength(
     nominal_strengths: dict[StrengthType, Optional[Quantity]],
 ) -> tuple[Quantity, StrengthType]:
     strength_type, strength = min(
@@ -73,7 +75,30 @@ class Strength(Protocol):
         return {NOMINAL_STRENGTH: self.nominal_strength}
 
 
-class DesignStrengthMixin(ABC, Strength):
+class DesignStrengthMixin(ABC):
+    @property
+    @abstractmethod
+    def design_strength_asd(self) -> Quantity:
+        pass
+
+    @property
+    @abstractmethod
+    def design_strength_lrfd(self) -> Quantity:
+        pass
+
+    def design_strength(self, design_criteria: DesignType):
+        table = {
+            DesignType.ASD: self.design_strength_asd,
+            DesignType.LRFD: self.design_strength_lrfd,
+        }
+        return table[design_criteria]
+
+    @cached_property
+    def design_strengths(self) -> tuple[Quantity, Quantity]:
+        return self.design_strength_asd, self.design_strength_lrfd
+
+
+class DesignStrengthFromNominalMixin(Strength, DesignStrengthMixin):
     @property
     @abstractmethod
     def criteria(self) -> Criteria:
@@ -91,12 +116,12 @@ class DesignStrengthMixin(ABC, Strength):
             nominal_strength=self.nominal_strength, design_type=DesignType.LRFD
         )
 
-    def design_strength(self, design_criteria: DesignType):
-        table = {
-            DesignType.ASD: self.design_strength_asd,
-            DesignType.LRFD: self.design_strength_lrfd,
-        }
-        return table[design_criteria]
+    # def design_strength(self, design_criteria: DesignType):
+        # table = {
+        #     DesignType.ASD: self.design_strength_asd,
+        #     DesignType.LRFD: self.design_strength_lrfd,
+        # }
+        # return table[design_criteria]
 
 
 @dataclass(frozen=True)
@@ -106,7 +131,7 @@ class DesignStrength:
 
     @cached_property
     def nominal_strength_tuple(self):
-        return nominal_strength(
+        return _nominal_strength(
             {
                 key: value.nominal_strength
                 for key, value in self.nominal_strengths.items()
@@ -139,3 +164,42 @@ class DesignStrength:
             DesignType.LRFD: self.design_strength_lrfd,
         }
         return table[design_criteria]
+
+
+# Should only be one class representing a collection of strengths, eventually both DesignStrength and DesignStrengths
+# should be merged
+@dataclass(frozen=True)
+class DesignStrengths(DesignStrengthMixin):
+    strengths: dict[str, DesignStrengthMixin]
+    unit: Quantity
+
+    @cached_property
+    def _design_strength_tuple(self):
+        convert = partial(convert_to, target_units=self.unit)
+        return min(
+            (
+                (key, convert(value.design_strength_asd), convert(value.design_strength_lrfd))
+                for key, value in self.strengths.items()
+            ),
+            key=lambda x: x[1]
+        )
+
+    @cached_property
+    def design_strength_asd(self):
+        return self._design_strength_tuple[1]
+
+    @cached_property
+    def design_strength_lrfd(self):
+        return self._design_strength_tuple[2]
+
+    @cached_property
+    def design_strength_type(self):
+        return self._design_strength_tuple[0]
+
+    def to_df(self, unit: Quantity | None = None, design_criteria: DesignType = DesignType.ASD) -> DataFrame:
+        unit = unit or self.unit
+        return DataFrame(
+            data={
+                key: [convert_to(value.design_strength(design_criteria), unit)] for key, value in self.strengths.items()
+            }
+        )

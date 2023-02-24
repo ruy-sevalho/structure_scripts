@@ -1,15 +1,18 @@
 from dataclasses import dataclass
 from enum import Enum
 from functools import cached_property
+from typing import Collection
 
+import sympy as sp
 from pandas import DataFrame
-from sympy.physics.units import Quantity
+from sympy.physics.units import Quantity, convert_to
 from sympy import Expr
 
+from examples.sp import kN
 from structure_scripts.aisc.criteria import (
-    DesignStrengthMixin,
+    DesignStrengthFromNominalMixin,
     Criteria,
-    DesignType,
+    DesignType, DesignStrengthMixin,
 )
 from structure_scripts.symbols.symbols import (
     yield_stress,
@@ -19,7 +22,7 @@ from structure_scripts.symbols.symbols import (
     gross_shear_area,
     net_shear_area,
     tension_distribution_factor,
-    net_tension_area,
+    net_tension_area, clear_distance, thickness, bolt_diameter,
 )
 
 TENSILE_YIELDING = "tensile yield"
@@ -27,14 +30,13 @@ TENSILE_RUPTURE = "tensile rupture"
 
 
 @dataclass(frozen=True)
-class TensileYield(DesignStrengthMixin):
+class TensileYield(DesignStrengthFromNominalMixin):
     """
-    Fy = yield stress\n
-    Ag = gross area\n
+    J4.1 Strength of Elements in Tension (a)
     """
 
-    Fy: Quantity
-    Ag: Quantity
+    yield_stress: Quantity
+    gross_area: Quantity
 
     @cached_property
     def criteria(self) -> Criteria:
@@ -47,15 +49,14 @@ class TensileYield(DesignStrengthMixin):
     @cached_property
     def nominal_strength(self) -> Quantity:
         return self._nominal_str_eq.evalf(
-            subs={yield_stress: self.Fy, gross_area: self.Ag}
+            subs={yield_stress: self.yield_stress, gross_area: self.gross_area}
         )
 
 
 @dataclass(frozen=True)
-class TensileRupture(DesignStrengthMixin):
+class TensileRupture(DesignStrengthFromNominalMixin):
     """
-    Fu = ultimate stress\n
-    Ae = net area\n
+    J4.1 Strength of Elements in Tension (b)
     """
 
     ultimate_stress: Quantity
@@ -80,10 +81,9 @@ class TensileRupture(DesignStrengthMixin):
 
 
 @dataclass(frozen=True)
-class ShearYielding(DesignStrengthMixin):
+class ShearYield(DesignStrengthFromNominalMixin):
     """
-    Fy = yield stress
-    Agv = gross area subject to shear
+    J4.2 Strength of Elements in Shear (a)
     """
 
     yield_stress: Quantity
@@ -108,10 +108,9 @@ class ShearYielding(DesignStrengthMixin):
 
 
 @dataclass(frozen=True)
-class ShearRupture(DesignStrengthMixin):
+class ShearRupture(DesignStrengthFromNominalMixin):
     """
-    Fu = Ultimate stress
-    Anv = net area subject to shear
+    J4.2 Strength of Elements in Shear (b)
     """
 
     ultimate_stress: Quantity
@@ -170,15 +169,9 @@ class TensionDistribution(Enum):
 
 
 @dataclass(frozen=True)
-class BlockShearStrength(DesignStrengthMixin):
+class BlockShearStrength(DesignStrengthFromNominalMixin):
     """
-    Fy = yield stress\n
-    Fu = ultimate stress\n
-    Anv = net area subjected to shear\n
-    Ant = net area subjected to tension\n
-    Agv = gross area subjected to shear\n
-    Agt = gross area subjected to shear\n
-    Ubs = tension uniformity\n
+    J4.3 Block Shear Strength
     """
 
     yield_stress: Quantity
@@ -186,7 +179,6 @@ class BlockShearStrength(DesignStrengthMixin):
     net_shear_area: Quantity
     net_tension_area: Quantity
     gross_shear_area: Quantity
-    gross_tension_area: Quantity
     tension_distribution_factor: TensionDistribution = (
         TensionDistribution.NON_UNIFORM
     )
@@ -235,3 +227,110 @@ class BlockShearStrength(DesignStrengthMixin):
     @cached_property
     def nominal_strength(self) -> Quantity:
         return min(self._nominal_str1, self._nominal_str2)
+
+
+class BearingStrengthType(Enum):
+    """See J.3.10 Bearing Strength at Bolt Holes"""
+
+    DEFORMATION_AT_SERVICE_LOAD_NOT_ALLOWED = (1.2, 2.4)
+    DEFORMATION_AT_SERVICE_LOAD_ALLOWED = (1.5, 2.3)
+    LONG_SLOTTED_LOAD_PERPENDICULAR_TO_SLOT = (1.0, 2.0)
+
+
+@dataclass(frozen=True)
+class BoltHolesBearingStrength(DesignStrengthFromNominalMixin):
+    """
+    J4.10 Bearing Strength at Bolt Holes
+    """
+
+    ultimate_stress: Quantity
+    bolt_diameter: Quantity
+    clear_distance: Quantity
+    thickness: Quantity
+    n_bolts: int = 1
+    connection_type: BearingStrengthType = (
+        BearingStrengthType.DEFORMATION_AT_SERVICE_LOAD_NOT_ALLOWED
+    )
+
+    @cached_property
+    def criteria(self) -> Criteria:
+        return Criteria(allowable_strength=2, load_resistance_factor=0.75)
+
+    @cached_property
+    def _nominal_load1_eq(self) -> sp.Expr:
+        return (
+            self.connection_type.value[0]
+            * clear_distance
+            * thickness
+            * ultimate_stress
+        )
+
+    @cached_property
+    def _nominal_load2_eq(self) -> sp.Expr:
+        return (
+            self.connection_type.value[1]
+            * bolt_diameter
+            * thickness
+            * ultimate_stress
+        )
+
+    @cached_property
+    def _nominal_load1(self) -> Quantity:
+        return self._nominal_load1_eq.evalf(
+            subs={
+                clear_distance: self.clear_distance,
+                thickness: self.thickness,
+                ultimate_stress: self.ultimate_stress,
+            }
+        )
+
+    @cached_property
+    def _nominal_load2(self) -> Quantity:
+        return self._nominal_load2_eq.evalf(
+            subs={
+                bolt_diameter: self.bolt_diameter,
+                thickness: self.thickness,
+                ultimate_stress: self.ultimate_stress,
+            }
+        )
+
+    @cached_property
+    def nominal_strength(self) -> Quantity:
+        return min(convert_to(self._nominal_load1, kN), convert_to(self._nominal_load2, kN)) * self.n_bolts
+
+
+@dataclass
+class BoltHolesBearingStrengthMultiple(DesignStrengthMixin):
+    ultimate_stress: Quantity
+    bolt_diameter: Quantity
+    clear_distance_n_bolts_tuples: Collection[tuple[Quantity, int]]
+    thickness: Quantity
+    connection_type: BearingStrengthType = (
+        BearingStrengthType.DEFORMATION_AT_SERVICE_LOAD_NOT_ALLOWED
+    )
+
+    @cached_property
+    def _strength_per_clear_distance(self):
+        return tuple(
+            (
+                BoltHolesBearingStrength(
+                    ultimate_stress=self.ultimate_stress,
+                    bolt_diameter=self.bolt_diameter,
+                    clear_distance=value[0],
+                    thickness=self.thickness,
+                    n_bolts=value[1],
+                    connection_type=self.connection_type
+                )
+                for value in self.clear_distance_n_bolts_tuples
+            )
+        )
+
+    @cached_property
+    def design_strength_asd(self) -> Quantity:
+        return sum((strength.design_strength(DesignType.ASD) for strength in self._strength_per_clear_distance))
+
+    @cached_property
+    def design_strength_lrfd(self) -> Quantity:
+        return sum((strength.design_strength(DesignType.LRFD) for strength in self._strength_per_clear_distance))
+
+

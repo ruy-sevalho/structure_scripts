@@ -4,7 +4,7 @@ from structure_scripts.api_rpa.elements import (
     CircularSectionGeometry,
 )
 from structure_scripts.helpers import same_units_simplify
-from structure_scripts.materials import IsotropicIsotropicMaterialUserDefined
+from structure_scripts.materials import IsotropicMaterialUserDefined
 from quantities import Quantity, N, m, mm, MPa, GPa, UnitQuantity
 from pytest import approx, mark
 
@@ -12,7 +12,7 @@ dm = UnitQuantity("decimeter", 0.1 * m, symbol="dm")
 kN = UnitQuantity("kilo newton", 1000 * N, symbol="kN")
 MN = UnitQuantity("mega newton", 1000000 * N, symbol="MN")
 
-steel = IsotropicIsotropicMaterialUserDefined(
+steel = IsotropicMaterialUserDefined(
     modulus_linear=200 * GPa,
     modulus_shear=77 * GPa,
     poisson_ratio=0.3,

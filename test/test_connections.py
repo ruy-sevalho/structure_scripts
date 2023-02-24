@@ -10,21 +10,19 @@ from structure_scripts.aisc.connections.elements import (
     TensionDistribution,
     BlockShearStrength,
     TensileYield,
-    TensileRupture,
+    TensileRupture, BoltHolesBearingStrength, BearingStrengthType,
 )
 from structure_scripts.aisc.connections.welds import FilletWeld
 from structure_scripts.aisc.criteria import DesignType
 from structure_scripts.units.sympy_units import MPa, kN, same_units_simplify
-from structure_scripts.aisc.connections.bolts import (
+from structure_scripts.aisc.connections.bolt_criteria import (
     BoltSpacing,
     check_bolt_minimum_spacing,
     BoltCombinedTensionAndShear,
     BOLT_TENSILE_STRENGTH,
     BOLT_SHEAR_STRENGTH,
-    BearingStrengthType,
-    BoltHolesBearingStrength,
 )
-from structure_scripts.aisc.connections.bolts import BoltStrength
+from structure_scripts.aisc.connections.bolt_criteria import BoltStrength
 
 
 @mark.parametrize(
@@ -47,18 +45,20 @@ def test_minimum_spacing(
 
 
 @mark.parametrize(
-    "nominal_body_area, nominal_stress, expected_nominal_strength",
+    "nominal_body_area, nominal_stress, n_bolts, expected_nominal_strength",
     [
-        (10.0 * mm**2, 250.0 * MPa, 2500.0 * N),
+        (10.0 * mm**2, 250.0 * MPa, 1, 2500.0 * N),
+        (10.0 * mm**2, 250.0 * MPa, 2, 5000.0 * N),
     ],
 )
 def test_bolt_strength(
     nominal_body_area: Quantity,
     nominal_stress: Quantity,
+    n_bolts: int,
     expected_nominal_strength: Quantity,
 ):
     criteria = BoltStrength(
-        nominal_body_area=nominal_body_area, nominal_stress=nominal_stress
+        nominal_body_area=nominal_body_area, nominal_stress=nominal_stress, n_bolts=n_bolts
     )
     calc, exp = same_units_simplify(
         (criteria.nominal_strength, expected_nominal_strength), unit=kN
@@ -209,7 +209,7 @@ def test_tension_yield(
     str_asd: Quantity,
     str_lrfd: Quantity,
 ):
-    tension_yield = TensileYield(Fy=yield_stress, Ag=gross_area)
+    tension_yield = TensileYield(yield_stress=yield_stress, gross_area=gross_area)
     calc_asd, calc_lrfd = (
         tension_yield.design_strength_asd,
         tension_yield.design_strength_lrfd,
@@ -336,7 +336,7 @@ def test_fillet_weld(
         weld_length=weld_length,
         theta=theta,
     )
-    calc_asd, calc_lrfd = weld.design_strength_asd, weld.design_strength_lrfd
+    calc_asd, calc_lrfd = weld.design_strength(DesignType.ASD), weld.design_strength(DesignType.LRFD)
     calc_asd, calc_lrfd, str_asd, str_lrfd = same_units_simplify(
         (calc_asd, calc_lrfd, exp_asd, exp_lrfd), kN, strip_units=True
     )

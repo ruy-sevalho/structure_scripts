@@ -37,8 +37,8 @@ class IsotropicMaterial(Protocol):
         return MaterialLatex(self)
 
 
-@dataclass
-class IsotropicIsotropicMaterialUserDefined(IsotropicMaterial):
+@dataclass(frozen=True)
+class IsotropicMaterialUserDefined(IsotropicMaterial):
     modulus_linear: Quantity
     modulus_shear: Quantity
     poisson_ratio: float
@@ -96,21 +96,21 @@ class MaterialLatex:
 
 
 # Commonly used materials
-steel355MPa = IsotropicIsotropicMaterialUserDefined(
+steel355MPa = IsotropicMaterialUserDefined(
     modulus_linear=200 * GPa,
     modulus_shear=77 * GPa,
     poisson_ratio=0.3,
     yield_stress=355 * MPa,
 )
 
-steel250MPa = IsotropicIsotropicMaterialUserDefined(
+steel250MPa = IsotropicMaterialUserDefined(
     modulus_linear=200 * GPa,
     modulus_shear=77 * GPa,
     poisson_ratio=0.3,
     yield_stress=250 * MPa,
 )
 
-steel50ksi = IsotropicIsotropicMaterialUserDefined(
+steel50ksi = IsotropicMaterialUserDefined(
     modulus_linear=200 * GPa,
     modulus_shear=77 * GPa,
     poisson_ratio=0.3,
