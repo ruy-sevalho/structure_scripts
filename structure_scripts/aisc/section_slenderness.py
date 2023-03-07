@@ -133,11 +133,11 @@ class DoublySymmetricIAndChannelSlendernessCalcMemory:
 #     compact_limit_ratio: float
 #
 #
-# class ElementSlendernessDefinition(Protocol):
-#     slenderness_ratio: float
-#     shear_area: Quantity
-#
-#
+class ElementSlendernessDefinition(Protocol):
+    slenderness_ratio: float
+    shear_area: Quantity
+
+
 # class ElementSlendernessLimits(Protocol):
 #     axial_compression: AxialSlenderness
 #     flexural_minor_axis: FlexuralSlenderness

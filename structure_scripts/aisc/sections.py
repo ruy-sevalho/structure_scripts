@@ -256,15 +256,15 @@ class Profile(Protocol):
     material: IsotropicMaterial
     construction: ConstructionType
 
-    @property
-    @abstractmethod
-    def flex_yield_major_axis(self) -> Strength:
-        ...
-
-    @property
-    @abstractmethod
-    def flex_yield_minor_axis(self) -> Strength:
-        ...
+    # @property
+    # @abstractmethod
+    # def flex_yield_major_axis(self) -> Strength:
+    #     ...
+    #
+    # @property
+    # @abstractmethod
+    # def flex_yield_minor_axis(self) -> Strength:
+    #     ...
 
 
 class ProfileFlangeWeb(Profile, Protocol):
