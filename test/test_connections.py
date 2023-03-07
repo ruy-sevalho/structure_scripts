@@ -132,7 +132,7 @@ def test_bolt_combined_shear_and_tensile_strength(
         required_tensile_strength_=required_tensile_strength,
         design_criteria=design_criteria,
     )
-    calc = calc[BOLT_TENSILE_STRENGTH][0], calc[BOLT_SHEAR_STRENGTH][0]
+    calc = calc[BOLT_TENSILE_STRENGTH], calc[BOLT_SHEAR_STRENGTH]
     assert calc == approx((tensile_ratio, shear_ratio))
 
 
@@ -252,7 +252,6 @@ def test_tension_rupture(
     net_shear_area, 
     net_tension_area, 
     gross_shear_area, 
-    gross_tension_area, 
     tension_distribution_factor, 
     expected_str
     """,
@@ -262,7 +261,6 @@ def test_tension_rupture(
             400 * MPa,
             90 * mm**2,
             90 * mm**2,
-            100 * mm**2,
             100 * mm**2,
             TensionDistribution.NON_UNIFORM,
             33.0 * kN,
@@ -275,7 +273,6 @@ def test_block_shear(
     net_shear_area: Quantity,
     net_tension_area: Quantity,
     gross_shear_area: Quantity,
-    gross_tension_area: Quantity,
     tension_distribution_factor: TensionDistribution,
     expected_str: Quantity,
 ):
@@ -285,7 +282,6 @@ def test_block_shear(
         net_shear_area=net_shear_area,
         net_tension_area=net_tension_area,
         gross_shear_area=gross_shear_area,
-        gross_tension_area=gross_tension_area,
         tension_distribution_factor=tension_distribution_factor,
     ).nominal_strength
     calc, exp = same_units_simplify((block_shear, expected_str), kN)

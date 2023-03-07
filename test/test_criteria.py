@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from pytest import mark
 from quantities import Quantity, N
 
@@ -5,6 +7,7 @@ from structure_scripts.aisc.criteria import Criteria, DesignType
 from test.helpers import same_units_dictionary_simplify_for_test_assert
 
 
+@lru_cache
 @mark.parametrize(
     "nominal_strength, asd_factor, lrfd_factor, expected_asd_str, expected_lrfd_str",
     [(100 * N, 2, 0.9, 50 * N, 90 * N)],

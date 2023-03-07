@@ -6,6 +6,7 @@ from typing import Union, Callable
 import numpy as np
 import pandas as pd
 import sympy as sp
+from pandas import Series
 
 from sympy.physics.units.quantities import Quantity
 from sympy.physics.units.util import convert_to
@@ -19,7 +20,8 @@ from structure_scripts.symbols.symbols import (
     nominal_tensile_stress,
     nominal_shear_stress,
     required_shear_stress,
-    required_tensile_stress, )
+    required_tensile_stress,
+)
 from structure_scripts.units.sympy_units import kN, MPa
 from structure_scripts.aisc.criteria import (
     Criteria,
@@ -79,8 +81,7 @@ DESIGN_TYPE_FACTOR_TABLE: dict[DesignType, sp.core.Symbol] = {
 @dataclass(frozen=True)
 class BoltStrength(DesignStrengthFromNominalMixin):
     """
-    Fn = Nominal tensile or shear stress\n
-    Ab = Nominal body area of bolt (threaded or unthreaded)
+    J3.6 Tensile and Shear Strength of Bolts and Threaded Parts
     """
 
     nominal_stress: Quantity
@@ -99,13 +100,13 @@ class BoltStrength(DesignStrengthFromNominalMixin):
     @cached_property
     def nominal_strength(self):
         return (
-                    self._nominal_str_eq.evalf(
-                        subs={
-                            nominal_stress: self.nominal_stress,
-                            nominal_body_area: self.nominal_body_area,
-                        },
-                    )
-                    * self.n_bolts
+            self._nominal_str_eq.evalf(
+                subs={
+                    nominal_stress: self.nominal_stress,
+                    nominal_body_area: self.nominal_body_area,
+                },
+            )
+            * self.n_bolts
         )
 
     @cached_property
@@ -137,10 +138,7 @@ def _nominal_stress_eq(
 @dataclass(frozen=True)
 class BoltCombinedTensionAndShear:
     """
-    Fnt = nominal tensile stress\n
-    Fnv = nominal shear stress\n
-    Ab = Nominal body area of bolt (threaded or unthreaded)\n
-    frv = required shear stress
+    J3.7 Combined Tension and Shear in Bearing-Type Connections
     """
 
     nominal_body_area: Quantity
@@ -275,24 +273,30 @@ class BoltCombinedTensionAndShear:
     def _corrected_nominal_tensile_stress_asd(
         self, required_shear_stress_: Quantity
     ) -> Quantity:
-        return min(
-            convert_to(
-                self._corrected_nominal_tensile_stress_eq_asd.evalf(
-                    subs={
-                        nominal_tensile_stress: self.nominal_tensile_stress,
-                        nominal_shear_stress: self.nominal_shear_stress,
-                        Omega: self.criteria.allowable_strength,
-                        required_shear_stress: required_shear_stress_,
-                    }
-                ),
-                MPa,
+        required_shear_stress_ = (
+            convert_to(required_shear_stress_, MPa).args[0] * MPa
+        )
+        nominal_tens_str_1 = convert_to(
+            self._corrected_nominal_tensile_stress_eq_asd.evalf(
+                subs={
+                    nominal_tensile_stress: self.nominal_tensile_stress,
+                    nominal_shear_stress: self.nominal_shear_stress,
+                    Omega: self.criteria.allowable_strength,
+                    required_shear_stress: required_shear_stress_,
+                }
             ),
-            convert_to(self.nominal_tensile_stress, MPa),
+            MPa,
+        )
+        nominal_tens_str_2 = convert_to(self.nominal_tensile_stress, MPa)
+        return min(
+            nominal_tens_str_1,
+            nominal_tens_str_2,
         )
 
     def _corrected_nominal_shear_stress_asd(
         self, required_tensile_stress_: Quantity
     ) -> Quantity:
+        required_tensile_stress_ = convert_to(required_tensile_stress_, MPa)
         return min(
             convert_to(
                 self._corrected_nominal_shear_stress_eq_asd.evalf(
@@ -331,7 +335,7 @@ class BoltCombinedTensionAndShear:
         required_shear_strength_: Quantity,
         required_tensile_strength_: Quantity,
         design_criteria: DesignType = DesignType.ASD,
-    ) -> pd.DataFrame:
+    ) -> pd.Series:
         required_shear_stress_ = (
             required_shear_strength_ / self.nominal_body_area
         )
@@ -374,9 +378,20 @@ class BoltCombinedTensionAndShear:
         )
         # i = rule_checks.argmax()
         # table = {0: "tensile", 1: "shear"}
-        return pd.DataFrame(
-            [rule_checks], columns=[BOLT_TENSILE_STRENGTH, BOLT_SHEAR_STRENGTH]
+        return pd.Series(
+            {
+                BOLT_TENSILE_STRENGTH: rule_checks[0],
+                BOLT_SHEAR_STRENGTH: rule_checks[1],
+            }
         )
+
+    def check_result(
+        self,
+        row: Series,
+        case_name: str,
+        design_criteria: DesignType = DesignType.ASD,
+    ) -> Series:
+        return
 
 
 if __name__ == "__main__":

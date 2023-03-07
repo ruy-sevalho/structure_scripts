@@ -25,6 +25,14 @@ def _add_load_case(
         df[f"{result}_{name}"] = df.eval(exp)
     return df
 
+def _add_multiindex_load_case(
+    df: DataFrame,
+    load_case: Collection[tuple[str, float]],
+    name: str,
+    results: Collection[str] = BEAM_RESULTS,
+):
+
+
 
 # def _add_load_cases(
 #     df: DataFrame,
@@ -138,6 +146,24 @@ def check_load_case_combined_compression_and_flexure(
     df[f"h1_criteria_{case_name}"] = df[
         [f"h1_criteria_i_{case_name}", f"h1_criteria_j_{case_name}"]
     ].max(axis=1)
+    return df
+
+
+def check_multiple_load_case_combined_compression_and_flexure(
+    df: DataFrame,
+    case_names: list[str],
+    beams_strengths: dict[str, dict[str, float]],
+):
+    for name in case_names:
+        df = check_load_case_combined_compression_and_flexure(
+            df=df, case_name=name, beams_strengths=beams_strengths
+        )
+    df[f"h1_criteria_max"] = df[
+        [f"h1_criteria_{name}" for name in case_names]
+    ].max(axis=1)
+    df[f"h1_criteria_max_case"] = df[
+        [f"h1_criteria_{name}" for name in case_names]
+    ].idxmax(axis=1)
     return df
 
 

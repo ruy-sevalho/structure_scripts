@@ -86,7 +86,7 @@ class DesignStrengthMixin(ABC):
     def design_strength_lrfd(self) -> Quantity:
         pass
 
-    def design_strength(self, design_criteria: DesignType):
+    def design_strength(self, design_criteria: DesignType = DesignType.ASD):
         table = {
             DesignType.ASD: self.design_strength_asd,
             DesignType.LRFD: self.design_strength_lrfd,
@@ -117,11 +117,11 @@ class DesignStrengthFromNominalMixin(Strength, DesignStrengthMixin):
         )
 
     # def design_strength(self, design_criteria: DesignType):
-        # table = {
-        #     DesignType.ASD: self.design_strength_asd,
-        #     DesignType.LRFD: self.design_strength_lrfd,
-        # }
-        # return table[design_criteria]
+    # table = {
+    #     DesignType.ASD: self.design_strength_asd,
+    #     DesignType.LRFD: self.design_strength_lrfd,
+    # }
+    # return table[design_criteria]
 
 
 @dataclass(frozen=True)
@@ -178,10 +178,14 @@ class DesignStrengths(DesignStrengthMixin):
         convert = partial(convert_to, target_units=self.unit)
         return min(
             (
-                (key, convert(value.design_strength_asd), convert(value.design_strength_lrfd))
+                (
+                    key,
+                    convert(value.design_strength_asd),
+                    convert(value.design_strength_lrfd),
+                )
                 for key, value in self.strengths.items()
             ),
-            key=lambda x: x[1]
+            key=lambda x: x[1],
         )
 
     @cached_property
@@ -196,10 +200,15 @@ class DesignStrengths(DesignStrengthMixin):
     def design_strength_type(self):
         return self._design_strength_tuple[0]
 
-    def to_df(self, unit: Quantity | None = None, design_criteria: DesignType = DesignType.ASD) -> DataFrame:
+    def to_df(
+        self,
+        unit: Quantity | None = None,
+        design_criteria: DesignType = DesignType.ASD,
+    ) -> DataFrame:
         unit = unit or self.unit
         return DataFrame(
             data={
-                key: [convert_to(value.design_strength(design_criteria), unit)] for key, value in self.strengths.items()
+                key: [convert_to(value.design_strength(design_criteria), unit)]
+                for key, value in self.strengths.items()
             }
         )

@@ -101,6 +101,15 @@ AISC_BOLT_GEOMETRIES = {
         short_slot_length=11 / 16 * inch,
         long_slot_width=9 / 16 * inch,
         long_slot_length=(1 + 1 / 4) * inch,
+    ),
+    BoltDenomination.IMP5_8: BoltGeo.new_convert_to_mm(
+        nominal_dia=5 / 8 * inch,
+        standard_hole_dia=11 / 16 * inch,
+        oversize_hole_dia=13 / 8 * inch,
+        short_slot_width=11 / 16 * inch,
+        short_slot_length=7 / 8 * inch,
+        long_slot_width=11 / 16 * inch,
+        long_slot_length=(1 + 9 / 16) * inch,
     )
 }
 

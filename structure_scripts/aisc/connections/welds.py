@@ -1,10 +1,13 @@
 from dataclasses import dataclass
 from functools import cached_property
 
-from sympy import Expr, sqrt, sin
+from sympy import Expr, sqrt, sin, Symbol
 from sympy.physics.units import Quantity, rad, degrees, convert_to, radian
 
-from structure_scripts.aisc.criteria import DesignStrengthFromNominalMixin, Criteria
+from structure_scripts.aisc.criteria import (
+    DesignStrengthFromNominalMixin,
+    Criteria,
+)
 from structure_scripts.symbols.symbols import (
     weld_nominal_stress,
     effective_weld_area,
@@ -13,7 +16,9 @@ from structure_scripts.symbols.symbols import (
     weld_size,
     weld_length,
 )
-from structure_scripts.units.sympy_units import kN
+from structure_scripts.units.sympy_units import kN, MPa
+
+WELD_STRENGTH = "weld_strength"
 
 
 @dataclass(frozen=True)
@@ -35,7 +40,7 @@ class FilletWeld(DesignStrengthFromNominalMixin):
         return Criteria(allowable_strength=2.0, load_resistance_factor=0.75)
 
     _nominal_str_eq: Expr = weld_nominal_stress * effective_weld_area
-    _Awe_eq: Expr = weld_size * weld_length * sqrt(2) / 2
+    _Awe_eq: Expr = weld_size * weld_length * sqrt(2.0) / 2
     _Fnw_eq: Expr = (
         0.60 * filler_metal_strength * (1.0 + 0.50 * sin(theta) ** 1.5)
     )
@@ -66,3 +71,28 @@ class FilletWeld(DesignStrengthFromNominalMixin):
             ),
             kN,
         )
+
+
+def _Fnw(filler_metal_strength: Quantity | Symbol) -> Quantity | Expr:
+    return 0.60 * filler_metal_strength
+
+
+@dataclass
+class FilletWeldDirectStress(DesignStrengthFromNominalMixin):
+    filler_metal_strength: Quantity
+
+    @cached_property
+    def criteria(self) -> Criteria:
+        return Criteria(allowable_strength=2.0, load_resistance_factor=0.75)
+
+    @cached_property
+    def nominal_strength(self) -> Quantity:
+        return _Fnw(self.filler_metal_strength)
+
+    @cached_property
+    def nominal_strength_eq(self) -> Expr:
+        return _Fnw(filler_metal_strength)
+
+
+if __name__ == "__main__":
+    f = FilletWeldDirectStress(10 * MPa)
