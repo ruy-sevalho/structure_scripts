@@ -1,10 +1,11 @@
 from dataclasses import dataclass
-from typing import Collection, Literal
+from typing import Collection, Literal, Tuple
 
 import pandas as pd
 
 from pathlib import Path
 
+from pandas import DataFrame
 
 BEAM = "beam"
 NODE = "node"
@@ -175,7 +176,7 @@ def _read_beam_results(
     return df
 
 
-def read_and_process_results_per_beam_selection(results_folder: Path):
+def read_and_process_results_per_beam_selection(results_folder: Path) -> tuple[DataFrame, tuple[str, ...]]:
     """Reads results per beam named selection in a structured directory.
     In the parent directory there should be a folder per load case.
     In each load case folder there should a folder per beam named selection.
@@ -201,7 +202,7 @@ def read_and_process_results_per_beam_selection(results_folder: Path):
             named_selections=named_selections,
         )
         df = pd.concat((df, r_df), axis=1)
-    return df
+    return df, tuple((folder.name for folder in combination_folders))
 
 
 def _get_folders(folder) -> list[Path]:
@@ -247,6 +248,7 @@ class ConnectionDef:
     """Stores collection of node and elements ids that define a connection group.
     A result in a (node, pair) element is considered member of the connection group if
     the node and element are in the nodes and elem collections respectively"""
+
     nodes: Collection[int]
     elem: Collection[int]
 
@@ -267,23 +269,27 @@ def read_connections(directory: Path):
                 directory / connection / "elements.txt",
                 sep="\t",
                 skiprows=1,
-                header=None
-            )[0].values
+                header=None,
+            )[0].values,
         )
     return connections_dict
 
 
 def _filter_results_for_connection(
     results: pd.DataFrame, nodes: Collection[int], elem: Collection[int]
-):
+) -> pd.DataFrame:
     return pd.DataFrame(
-        results[results.apply(lambda row: row[NODE] in nodes and row[ELEM] in elem, axis=1)]
+        results[
+            results.apply(
+                lambda row: row[NODE] in nodes and row[ELEM] in elem, axis=1
+            )
+        ]
     )
 
 
 def filter_results_for_connections(
     results: pd.DataFrame, collections: dict[str, ConnectionDef]
-):
+) -> dict[str, pd.DataFrame]:
     """Filters results dataframe for results in connection definitions."""
     return {
         key: _filter_results_for_connection(results, value.nodes, value.elem)
