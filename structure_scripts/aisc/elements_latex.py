@@ -826,7 +826,7 @@ class BeamCompressionEffectiveLengthLatex:
     def axial_strength_ratio(self):
         return _process_quantity_entry_config(
             entry=self.model.axial_strength_ratio,
-            print_config=config_dict.strengths,
+            print_config=config_dict._strengths,
         )
 
     @cached_property
@@ -1445,7 +1445,7 @@ class BeamCompressionFlexureDoublySymmetricEffectiveLengthLatex:
     def flexure_compression_h1_criteria(self):
         return _process_quantity_entry_config(
             entry=self.model.compression_flexure_combined_criteria_h1_1,
-            print_config=config_dict.strengths,
+            print_config=config_dict._strengths,
         )
 
     @cached_property
