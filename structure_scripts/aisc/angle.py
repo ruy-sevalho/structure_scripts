@@ -1,9 +1,11 @@
 from dataclasses import dataclass
+from functools import cached_property
 
 from quantities import Quantity
 
 from structure_scripts.aisc.compression import FlexuralBucklingStrength
-from structure_scripts.aisc.criteria import DesignStrength, StrengthType
+from structure_scripts.aisc.criteria import DesignStrength, StrengthType, Strength
+from structure_scripts.aisc.flexure import MinorAxisFlexurePlasticYielding, MajorAxisFlexurePlasticYielding
 from structure_scripts.aisc.sections import (
     AISC_360_10_Rule_Check,
     AISC_Section,
@@ -42,7 +44,7 @@ class AngleAISC36010:
             profile=self,
             length=length_minor_axis,
             factor_k=factor_k_minor_axis,
-            axis=Axis.W,
+            axis=Axis.PRINCIPAL_MINOR,
         )
         # torsional_buckling_strength = TorsionalBucklingDoublySymmetricI(
         #     profile=self, length=length_torsion, factor_k=factor_k_torsion
@@ -52,3 +54,30 @@ class AngleAISC36010:
                 StrengthType.FLEXURAL_BUCKLING_MINOR_AXIS: flexural_buckling_minor_axis,
             }
         )
+
+    @cached_property
+    def flex_yield_major_axis(self) -> Strength:
+        return MajorAxisFlexurePlasticYielding(self)
+
+    @cached_property
+    def flex_yield_minor_axis(self) -> Strength:
+        return MinorAxisFlexurePlasticYielding(self)
+
+    def flexure_major_axis(
+            self,
+            length: Quantity,
+            lateral_torsional_buckling_modification_factor: float = 1.0,
+    ) -> DesignStrength:
+        nominal_strengths = {
+            StrengthType.YIELD: self.flex_yield_major_axis,
+        }
+        return DesignStrength(nominal_strengths=nominal_strengths)
+
+    def flexure_minor_axis(
+            self,
+    ) -> DesignStrength:
+        nominal_strengths = {
+            StrengthType.YIELD: MinorAxisFlexurePlasticYielding(self)
+        }
+
+        return DesignStrength(nominal_strengths=nominal_strengths)

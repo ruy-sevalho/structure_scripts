@@ -1,8 +1,11 @@
 from dataclasses import dataclass
-from functools import partial
-from typing import Protocol, TYPE_CHECKING
+from functools import partial, cached_property
+from typing import Protocol, TYPE_CHECKING, Union
 from abc import ABC, abstractmethod
 
+from quantities import Quantity
+
+from structure_scripts.aisc.criteria import NOMINAL_STRENGTH
 from structure_scripts.aisc.helpers import (
     _web_shear_coefficient_limit,
     web_shear_coefficient_iii,
@@ -19,6 +22,8 @@ if TYPE_CHECKING:
     from structure_scripts.aisc.sections import (
         SectionWithWebFlange,
         ConstructionType,
+        AISC_360_10_Rule_Check,
+        ProfileFlangeWeb,
     )
 
 SHEAR_STRENGTH = "shear_strength"
@@ -198,7 +203,7 @@ class StandardShearStrengthMixin(
 @dataclass
 class ShearStrength:
     material: IsotropicMaterial
-    element: ElementSlendernessDefinition
+    shear_area: Quantity
     shear_coefficient: float
 
     # @property
@@ -225,7 +230,7 @@ class ShearStrength:
     def nominal_strength(self):
         return _nominal_shear_strength(
             yield_stress=self.material.yield_stress,
-            web_area=self.element.shear_area,
+            web_area=self.shear_area,
             web_shear_coefficient=self.shear_coefficient,
         )
 
@@ -240,17 +245,17 @@ class ShearBucklingCoefficient(Protocol):
 
 @dataclass
 class StandardShearCoefficient:
-    section: "SectionWithWebFlange"
+    material: "IsotropicMaterial"
     shear_buckling_coefficient: float
-    element: ElementSlendernessDefinition
+    slenderness_ratio: float
 
     @property
     def shear_coefficient_limit_i(self):
         return _web_shear_coefficient_limit(
             factor=1.1,
             web_shear_buckling_coefficient=self.shear_buckling_coefficient,
-            modulus_linear=self.section.material.modulus_linear,
-            yield_stress=self.section.material.yield_stress,
+            modulus_linear=self.material.modulus_linear,
+            yield_stress=self.material.yield_stress,
         )
 
     @property
@@ -258,27 +263,25 @@ class StandardShearCoefficient:
         return _web_shear_coefficient_limit(
             factor=1.37,
             web_shear_buckling_coefficient=self.shear_buckling_coefficient,
-            modulus_linear=self.section.material.modulus_linear,
-            yield_stress=self.section.material.yield_stress,
+            modulus_linear=self.material.modulus_linear,
+            yield_stress=self.material.yield_stress,
         )
 
     @property
     def shear_coefficient_iii(self):
         return web_shear_coefficient_iii(
             shear_buckling_coefficient=self.shear_buckling_coefficient,
-            modulus_linear=self.section.material.modulus_linear,
-            yield_stress=self.section.material.yield_stress,
-            web_slenderness=self.section.slenderness.web.slenderness_ratio,
+            modulus_linear=self.material.modulus_linear,
+            yield_stress=self.material.yield_stress,
+            web_slenderness=self.slenderness_ratio,
         )
 
     @property
     def shear_coefficient(self):
-        if self.element.slenderness_ratio < self.shear_coefficient_limit_i:
+        if self.slenderness_ratio < self.shear_coefficient_limit_i:
             return 1.0
-        elif self.element.slenderness_ratio < self.shear_coefficient_limit_ii:
-            return (
-                self.shear_coefficient_limit_i / self.element.slenderness_ratio
-            )
+        elif self.slenderness_ratio < self.shear_coefficient_limit_ii:
+            return self.shear_coefficient_limit_i / self.slenderness_ratio
         else:
             return self.shear_coefficient_iii
 
@@ -335,7 +338,7 @@ class DefaultWebShearCoefficientCalcMemory:
 
 @dataclass
 class StandardShearCriteriaAdaptor:
-    section: "SectionWithWebFlange"
+    section: "ProfileFlangeWeb"
     # beam: "Beam"
     axis: Axis
 
@@ -358,36 +361,48 @@ class StandardShearCriteriaAdaptor:
         return table[self.axis]
 
     @property
-    def element(self):
+    def slenderness_ratio(self):
         table = {
-            Axis.MAJOR: self.section.slenderness.web,
-            Axis.MINOR: self.section.slenderness.flange,
+            Axis.MAJOR: self.section.slenderness_calc_memory.flexure_major_axis.web.ratio,
+            Axis.MINOR: self.section.slenderness_calc_memory.flexure_minor_axis.flange.ratio,
         }
         return table[self.axis]
 
     @property
     def shear_coefficient_model(self):
         return StandardShearCoefficient(
-            section=self.section,
+            material=self.section.material,
             shear_buckling_coefficient=self.shear_buckling_coefficient,
-            element=self.element,
+            slenderness_ratio=self.slenderness_ratio,
         )
+
+    @cached_property
+    def _shear_area(self) -> Quantity:
+        table = {
+            Axis.MAJOR: self.section.shear_major_axis_area,
+            Axis.MINOR: self.section.shear_minor_axis_area,
+        }
+        return table[self.axis]
 
     @property
     def nominal_strength(self):
         return ShearStrength(
-            element=self.element,
+            shear_area=self._shear_area,
             material=self.section.material,
             shear_coefficient=self.shear_coefficient_model.shear_coefficient,
-        )
+        ).nominal_strength
+
+    @cached_property
+    def detailed_results(self) -> dict[str, Union[Quantity, float, None]]:
+        return {NOMINAL_STRENGTH: self.nominal_strength}
 
 
 StandardShearMajorAxisCriteriaAdaptor = partial(
     StandardShearCriteriaAdaptor, axis=Axis.MAJOR
 )
-StandardShearMajorAxisCriteriaAdaptor = partial(
-    StandardShearCriteriaAdaptor, axis=Axis.MINOR
-)
+# StandardShearMajorAxisCriteriaAdaptor = partial(
+#     StandardShearCriteriaAdaptor, axis=Axis.MINOR
+# )
 
 # @dataclass
 # class ShearStrength(Criteria):

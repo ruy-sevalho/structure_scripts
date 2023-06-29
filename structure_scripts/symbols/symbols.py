@@ -1,4 +1,4 @@
-from sympy import var
+from sympy import var, Expr, latex, Symbol
 
 
 nominal_strength = var("R_n")
@@ -40,3 +40,15 @@ moment_y = var("M_y")
 moment_z = var("M_z")
 shear_y = var("S_y")
 shear_z = var("S_z")
+
+
+def _expression(
+    nominal_stress: float | Symbol = nominal_stress,
+    nominal_body_area: float | Symbol = nominal_body_area,
+) -> float | Expr:
+    return nominal_stress * nominal_body_area
+
+
+if __name__ == "__main__":
+    print(latex(_expression()))
+    print(_expression(10.0, 10.0))

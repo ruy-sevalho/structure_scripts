@@ -188,6 +188,8 @@ def read_and_process_results_per_beam_selection(results_folder: Path) -> tuple[D
     sy - shear force y-axis\n
     sz - shear force z-axis\n
     t - torsion moment\n
+    returns a tuple with a DataFrame with the results, and a tuple with the
+    names of the combinations
     """
     combination_folders = _get_folders(results_folder)
     named_selections = [

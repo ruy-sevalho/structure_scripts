@@ -1,8 +1,9 @@
 from functools import partial
-from typing import Collection, Literal
+from typing import Collection, Literal, Callable
 
 from pandas import DataFrame, Series
 
+from structure_scripts.aisc.sections import SectionType, AISC_SECTION_TYPE
 from structure_scripts.process_external_files.ansys import (
     BEAM_RESULTS,
     BEAM,
@@ -25,13 +26,14 @@ def _add_load_case(
         df[f"{result}_{name}"] = df.eval(exp)
     return df
 
+
 def _add_multiindex_load_case(
     df: DataFrame,
     load_case: Collection[tuple[str, float]],
     name: str,
     results: Collection[str] = BEAM_RESULTS,
 ):
-
+    return
 
 
 # def _add_load_cases(
@@ -60,22 +62,22 @@ def add_load_cases(
     return base_results
 
 
-def _h1_comp_flex_check(
-    comp_load: float,
-    flex_major_load: float,
-    flex_minor_load: float,
-    comp_str: float,
-    flex_major_str: float,
-    flex_minor_str: float,
-):
-    comp_ratio = comp_load / comp_str
-    moment_ratio = (
-        flex_major_load / flex_major_str + flex_minor_load / flex_minor_str
-    )
-    if comp_ratio < 0.2:
-        return comp_ratio / 2 + moment_ratio
-    else:
-        return comp_ratio + 8 / 9 * moment_ratio
+# def _h1_comp_flex_check(
+#     comp_load: float,
+#     flex_major_load: float,
+#     flex_minor_load: float,
+#     comp_str: float,
+#     flex_major_str: float,
+#     flex_minor_str: float,
+# ):
+#     comp_ratio = comp_load / comp_str
+#     moment_ratio = (
+#         flex_major_load / flex_major_str + flex_minor_load / flex_minor_str
+#     )
+#     if comp_ratio < 0.2:
+#         return comp_ratio / 2 + moment_ratio
+#     else:
+#         return comp_ratio + 8 / 9 * moment_ratio
 
 
 def _ratio(
@@ -94,19 +96,69 @@ def _ratio(
     )
 
 
-def _row_check_load_case_combined_compression_and_flexure(
+# def _row_check_load_case_combined_compression_and_flexure_default(
+#     row: Series,
+#     case_name: str,
+#     elem_node: Literal["i", "j"],
+#     beams_strengths: dict[str, dict[str, float]],
+# ):
+#     beam_str = beams_strengths.get(row[BEAM], None)
+#     if not beam_str:
+#         return None
+#     comp_str = beam_str[FX]
+#     flex_major_str = beam_str[MY]
+#     flex_minor_str = beam_str[MZ]
+#     comp_load = abs(row[f"{FX}{elem_node}_{case_name}"])
+#     flex_major_load = abs(row[f"{MY}{elem_node}_{case_name}"])
+#     flex_minor_load = abs(row[f"{MZ}{elem_node}_{case_name}"])
+#     comp_ratio = comp_load / comp_str
+#     moment_ratio = (
+#         flex_major_load / flex_major_str + flex_minor_load / flex_minor_str
+#     )
+#     if comp_ratio < 0.2:
+#         return comp_ratio / 2 + moment_ratio
+#     else:
+#         return comp_ratio + 8 / 9 * moment_ratio
+
+
+def _row_check_load_case_combined_compression_and_flexure_pipe(
     row: Series,
     case_name: str,
     elem_node: Literal["i", "j"],
-    beams_strengths: dict[str, dict[str, float]],
+    beam_strengths: dict[str, float],
 ):
 
-    beam_str = beams_strengths.get(row[BEAM], None)
-    if not beam_str:
+    if not beam_strengths:
         return None
-    comp_str = beam_str[FX]
-    flex_major_str = beam_str[MY]
-    flex_minor_str = beam_str[MZ]
+    comp_str = beam_strengths[FX]
+    flex_major_str = beam_strengths[MY]
+    # flex_minor_str = beam_strengths[MZ]
+    comp_load = abs(row[f"{FX}{elem_node}_{case_name}"])
+    flex_major_load = abs(row[f"{MY}{elem_node}_{case_name}"])
+    flex_minor_load = abs(row[f"{MZ}{elem_node}_{case_name}"])
+    flex_load = (flex_major_load**2 + flex_minor_load**2)**0.5
+    comp_ratio = comp_load / comp_str
+    moment_ratio = (
+        flex_load / flex_major_str
+    )
+    if comp_ratio < 0.2:
+        return comp_ratio / 2 + moment_ratio
+    else:
+        return comp_ratio + 8 / 9 * moment_ratio
+
+# CheckFunction = Callable[[Series, str, Literal["i", "j"], dict[str, dict[str, float]]], float]
+
+
+def _row_check_load_case_combined_compression_and_flexure_default(
+    row: Series,
+    case_name: str,
+    elem_node: Literal["i", "j"],
+    beam_strengths: dict[str, float]
+) -> float:
+
+    comp_str = beam_strengths[FX]
+    flex_major_str = beam_strengths[MY]
+    flex_minor_str = beam_strengths[MZ]
     comp_load = abs(row[f"{FX}{elem_node}_{case_name}"])
     flex_major_load = abs(row[f"{MY}{elem_node}_{case_name}"])
     flex_minor_load = abs(row[f"{MZ}{elem_node}_{case_name}"])
@@ -119,22 +171,46 @@ def _row_check_load_case_combined_compression_and_flexure(
     else:
         return comp_ratio + 8 / 9 * moment_ratio
 
+table_check_functions = {
+    SectionType.PIPE: _row_check_load_case_combined_compression_and_flexure_pipe
+}
+
+
+def _row_check_load_case_combined_compression_and_flexure(
+    row: Series,
+    case_name: str,
+    elem_node: Literal["i", "j"],
+    beams_strengths: dict[str, dict[str, float | SectionType]],
+):
+    beam_results = beams_strengths[row[BEAM]]
+    check_function = table_check_functions.get(
+        beam_results[AISC_SECTION_TYPE],
+        _row_check_load_case_combined_compression_and_flexure_default
+    )
+    return check_function(
+        row=row,
+        case_name=case_name,
+        elem_node=elem_node,
+        beam_strengths=beam_results
+    )
+
 
 def check_load_case_combined_compression_and_flexure(
     df: DataFrame,
     case_name: str,
-    beams_strengths: dict[str, dict[str, float]],
+    beams_strengths: dict[str, dict[str, float | SectionType]],
 ):
     for node in ("i", "j"):
-        for load in (FX, MY, MZ):
-            func = partial(
-                _ratio,
-                case_name=case_name,
-                elem_node=node,
-                beams_strengths=beams_strengths,
-                load_type=load,
-            )
-            df[f"{load}{node}_{case_name}_ratio"] = df.apply(func, axis=1)
+
+        # for load in (FX, MY, MZ):
+        #     func = partial(
+        #         _ratio,
+        #         case_name=case_name,
+        #         elem_node=node,
+        #         beams_strengths=beams_strengths,
+        #         load_type=load,
+        #     )
+        #     df[f"{load}{node}_{case_name}_ratio"] = df.apply(func, axis=1)
         func = partial(
             _row_check_load_case_combined_compression_and_flexure,
             case_name=case_name,
@@ -152,11 +228,12 @@ def check_load_case_combined_compression_and_flexure(
 def check_multiple_load_case_combined_compression_and_flexure(
     df: DataFrame,
     case_names: list[str],
-    beams_strengths: dict[str, dict[str, float]],
+    beams_strengths: dict[str, dict[str, float | SectionType]],
 ):
+
     for name in case_names:
         df = check_load_case_combined_compression_and_flexure(
-            df=df, case_name=name, beams_strengths=beams_strengths
+            df=df, case_name=name, beams_strengths=beams_strengths,
         )
     df[f"h1_criteria_max"] = df[
         [f"h1_criteria_{name}" for name in case_names]
@@ -167,19 +244,19 @@ def check_multiple_load_case_combined_compression_and_flexure(
     return df
 
 
-def check_multiple_load_case_combined_compression_and_flexure(
-    df: DataFrame,
-    case_names: list[str],
-    beams_strengths: dict[str, dict[str, float]],
-):
-    for name in case_names:
-        df = check_load_case_combined_compression_and_flexure(
-            df=df, case_name=name, beams_strengths=beams_strengths
-        )
-    df[f"h1_criteria_max"] = df[
-        [f"h1_criteria_{name}" for name in case_names]
-    ].max(axis=1)
-    df[f"h1_criteria_max_case"] = df[
-        [f"h1_criteria_{name}" for name in case_names]
-    ].idxmax(axis=1)
-    return df
+# def check_multiple_load_case_combined_compression_and_flexure(
+#     df: DataFrame,
+#     case_names: list[str],
+#     beams_strengths: dict[str, dict[str, float]],
+# ):
+#     for name in case_names:
+#         df = check_load_case_combined_compression_and_flexure(
+#             df=df, case_name=name, beams_strengths=beams_strengths
+#         )
+#     df[f"h1_criteria_max"] = df[
+#         [f"h1_criteria_{name}" for name in case_names]
+#     ].max(axis=1)
+#     df[f"h1_criteria_max_case"] = df[
+#         [f"h1_criteria_{name}" for name in case_names]
+#     ].idxmax(axis=1)
+#     return df

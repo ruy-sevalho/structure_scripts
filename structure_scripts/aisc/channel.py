@@ -32,6 +32,7 @@ from structure_scripts.aisc.section_slenderness import (
     FlexuralSlendernessCalcMemory,
     DoublySymmetricIAndChannelFlexureMinorAxisCalcMemory,
 )
+from structure_scripts.aisc.shear import StandardShearCriteriaAdaptor
 from structure_scripts.helpers import (
     Axis,
     member_slenderness_ratio,
@@ -61,6 +62,14 @@ class ChannelAISC36010(AISC_360_10_Rule_Check):
     section: AISC_Section
     construction: ConstructionType = ConstructionType.ROLLED
     # coefficient_c: float = 1.0
+
+    @cached_property
+    def shear_major_axis_area(self) -> Quantity:
+        return self.section.d * self.section.tw
+
+    @cached_property
+    def shear_minor_axis_area(self) -> Quantity:
+        return self.section.bf * self.section.tf * 2
 
     @cached_property
     def _flange_slenderness(self):
@@ -192,11 +201,33 @@ class ChannelAISC36010(AISC_360_10_Rule_Check):
             }
         )
 
+    @cached_property
+    def _shear_major_axis(self) -> DesignStrength:
+        return DesignStrength(
+            nominal_strengths={
+                StrengthType.YIELD: StandardShearCriteriaAdaptor(
+                    section=self,
+                    axis=Axis.MAJOR,
+                ),
+            }
+        )
+
     def shear_major_axis(self) -> DesignStrength:
-        ...
+        return self._shear_major_axis
+
+    @cached_property
+    def _shear_minor_axis(self) -> DesignStrength:
+        return DesignStrength(
+            nominal_strengths={
+                StrengthType.YIELD: StandardShearCriteriaAdaptor(
+                    section=self,
+                    axis=Axis.MINOR,
+                ),
+            }
+        )
 
     def shear_minor_axis(self) -> DesignStrength:
-        ...
+        return self._shear_minor_axis
 
 
 @dataclass(frozen=True)

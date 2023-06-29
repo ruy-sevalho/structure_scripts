@@ -4,7 +4,8 @@ from typing import Collection
 from pandas import DataFrame, concat
 
 from structure_scripts.aisc.connections.compositions import (
-    ConnectionRuleCheckAndStrengths, ConnectionRuleCheck,
+    ConnectionRuleCheckAndStrengths,
+    ConnectionRuleCheck,
 )
 from structure_scripts.aisc.criteria import DesignType
 
@@ -23,6 +24,9 @@ def _check_connection(
             design_criteria=design_criteria,
         )
         new_df = concat((new_df, results.apply(func, axis=1)), axis=1)
+    new_df["critical_criteria"] = new_df.max(axis=1)
+    new_df = new_df.astype(float)
+    new_df["critical_case"] = new_df.idxmax(axis=1)
     return new_df
 
 
@@ -34,26 +38,36 @@ def _check_connections(
 ):
     df = DataFrame()
     if isinstance(connections, ConnectionRuleCheck):
-        connections = connections,
-    for connection in connections:
-        df = concat(
-            (
-                df,
-                _check_connection(
-                    results=results,
-                    connection=connection,
-                    case_names=case_names,
-                    design_criteria=design_criteria
-                )
-            ),
-            axis=1
+        connections = (connections,)
+    # for connection in connections:
+    #     df = concat(
+    #         (
+    #             df,
+    #             _check_connection(
+    #                 results=results,
+    #                 connection=connection,
+    #                 case_names=case_names,
+    #                 design_criteria=design_criteria
+    #             )
+    #         ),
+    #         axis=1
+    #     )
+    return tuple(
+        _check_connection(
+            results=results,
+            connection=connection,
+            case_names=case_names,
+            design_criteria=design_criteria,
         )
-    return df
+        for connection in connections
+    )
 
 
 def check_connections(
     results: dict[str, DataFrame],
-    connections: dict[str, Collection[ConnectionRuleCheck] | ConnectionRuleCheck],
+    connections: dict[
+        str, Collection[ConnectionRuleCheck] | ConnectionRuleCheck
+    ],
     case_names: Collection[str],
     design_criteria: DesignType = DesignType.ASD,
 ):

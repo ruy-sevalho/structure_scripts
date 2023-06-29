@@ -587,8 +587,6 @@ class TensionTabMomentConnection(TensionTab, TensionTabMomentConnection_):
         criteria = moment_tension_load + axial_load
         return Series(
             {
-                f"criteria_tension_tab_{MY}_{case_name}": moment_tension_load,
-                f"criteria_tension_tab_{FX}_{case_name}": axial_load,
                 f"criteria_tension_tab_{case_name}": criteria,
             }
         )
@@ -722,8 +720,6 @@ class WeldSide(int, Enum):
 
 @dataclass(frozen=True)
 class BasePlateWeld:
-
-
     i_section: AISC_Section
     flanges_type: WeldSide = WeldSide.DOUBLE
     flanges_size: Quantity = 6 * mm
@@ -825,3 +821,48 @@ class BasePlateWeld:
                 f"criteria_{WELD_STRENGTH}_{case_name}": criteria,
             }
         )
+
+
+@dataclass(frozen=True)
+class BoltAxialConnection:
+    bolt: AiscBolt
+    n_bolts: int = 1
+    thread_in_plane: ThreadCond = ThreadCond.NOT_EXCLUDED
+
+    def strengths(
+        self, case_name: str = None, row: Series = None
+    ) -> DesignStrengths:
+        return self._strengths
+
+    @cached_property
+    def _strengths(self) -> DesignStrengths:
+        return DesignStrengths(
+            strengths={
+                BOLT_SHEAR: BoltStrength(
+                    nominal_stress=self.bolt.group.nominal_shear_strength(
+                        thread_condition=self.thread_in_plane
+                    ),
+                    n_bolts=self.n_bolts,
+                    nominal_body_area=self.bolt.geo.area,
+                )
+            },
+            unit=kN,
+        )
+
+    def check_result(
+        self,
+        row: Series,
+        case_name: str,
+        design_criteria: DesignType = DesignType.ASD,
+    ) -> Series:
+        identifier = f"{FX}_{case_name}"
+        tension_criteria = (
+            row[identifier]
+            / convert_to(
+                self.strengths(case_name=case_name, row=row).design_strength(
+                    design_criteria
+                ),
+                N,
+            ).args[0]
+        )
+        return Series(data={f"criteria_{identifier}": abs(tension_criteria)})

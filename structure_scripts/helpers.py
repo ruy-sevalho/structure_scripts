@@ -5,11 +5,10 @@ from typing import Collection, TYPE_CHECKING
 from quantities import Quantity, dimensionless
 
 
-
 class Axis(str, Enum):
     MAJOR = "MAJOR"
     MINOR = "MINOR"
-    W = "w"
+    PRINCIPAL_MINOR = "PRINCIPAL_MINOR"
 
 
 def ratio_simplify(q1: Quantity, q2: Quantity) -> float:

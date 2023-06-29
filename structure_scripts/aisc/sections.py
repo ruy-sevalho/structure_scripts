@@ -15,7 +15,7 @@ from structure_scripts.aisc.section_slenderness import (
     DoublySymmetricIAndChannelSlenderness,
     DoublySymmetricIAndChannelSlendernessCalcMemory,
 )
-from structure_scripts.process_external_files.ansys import FX, MY, MZ
+from structure_scripts.process_external_files.ansys import FX, MY, MZ, SZ, SY
 from structure_scripts.materials import IsotropicMaterial
 
 
@@ -256,6 +256,16 @@ class Profile(Protocol):
     material: IsotropicMaterial
     construction: ConstructionType
 
+    @property
+    @abstractmethod
+    def shear_major_axis_area(self) -> Quantity:
+        ...
+
+    @property
+    @abstractmethod
+    def shear_minor_axis_area(self) -> Quantity:
+        ...
+
     # @property
     # @abstractmethod
     # def flex_yield_major_axis(self) -> Strength:
@@ -376,6 +386,7 @@ def get_axial_and_flexural_strengths(data: AxialFlexuralCombination):
         k_factor_torsion=data.k_factor_torsion,
     )
 
+AISC_SECTION_TYPE = "aisc_section_type"
 
 def axial_flexural_critical_load(
     profile: AISC_360_10_Rule_Check,
@@ -388,7 +399,7 @@ def axial_flexural_critical_load(
     k_factor_torsion: float = 1,
     force_unit: str = "N",
     moment_unit: str = "N*mm",
-):
+) -> dict[str, float | SectionType]:
     length_minor_axis = length_minor_axis or length_major_axis
     length_torsion = length_torsion or length_major_axis
     length_flex = length_flex or length_minor_axis
@@ -416,8 +427,25 @@ def axial_flexural_critical_load(
         .design_strength_asd.rescale(moment_unit)
         .magnitude.item()
     )
-    df = pd.DataFrame({""})
-    return {FX: comp_ds, MY: flex_major_axis_ds, MZ: flex_minor_axis_ds}
+    # shear_major_axis = (
+    #     profile.shear_major_axis()
+    #     .design_strength_asd.rescale(force_unit)
+    #     .magnitude.item()
+    # )
+    # shear_minor_axis = (
+    #     profile.shear_minor_axis()
+    #     .design_strength_asd.rescale(force_unit)
+    #     .magnitude.item()
+    # )
+    # df = pd.DataFrame({""})
+    return {
+        FX: comp_ds,
+        MY: flex_major_axis_ds,
+        MZ: flex_minor_axis_ds,
+        # SY: shear_minor_axis,
+        # SZ: shear_major_axis,
+        AISC_SECTION_TYPE: profile.section.type
+    }
 
 
 def convert_ansys_command(str: dict[str, dict[str, float]]):
