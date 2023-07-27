@@ -11,3 +11,5 @@ __pychace__/
 /structure_scripts/shared/__pycache__/
 /structure_scripts/aisc/test/__pycache__/
 /structure_scripts/api_rpa/test_api_rpa/__pycache__/
+/structure_scripts/aisc_360_10/__pycache__/
+/structure_scripts/aisc_360_10/test/__pycache__/
