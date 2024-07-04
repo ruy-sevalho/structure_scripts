@@ -1,4 +1,5 @@
 /.idea/
+venv/
 .vscode/
 /structure_scripts/aisc/.pytest_cache/
 /structure_scripts/api_rpa/.pytest_cache/
@@ -13,3 +14,9 @@ __pychace__/
 /structure_scripts/api_rpa/test_api_rpa/__pycache__/
 /structure_scripts/aisc_360_10/__pycache__/
 /structure_scripts/aisc_360_10/test/__pycache__/
+/structure_scripts/aisc/connections/__pycache__/
+/structure_scripts/symbols/__pycache__/
+/structure_scripts/units/__pycache__/
+/structure_scripts/process_external_files/__pycache__/
+structure_scripts.egg-info
+/test/__pycache__/
