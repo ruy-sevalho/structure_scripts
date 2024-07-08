@@ -140,9 +140,7 @@ def process_entry(name: str, value: Any):
 
 
 def process_aisc_database_v150_row(section: dict[str, Any]):
-    return {
-        name: process_entry(name, value) for name, value in section.items()
-    }
+    return {name: process_entry(name, value) for name, value in section.items()}
 
 
 def read_xls_table(file_path):
@@ -237,9 +235,7 @@ def read_xls_table(file_path):
 
     # renaming columns, remove .1 from metric values and substitute invalid "/" character
     df.rename(
-        columns={
-            name: name[:-2].replace("/", "_") for name in list(df.columns)[6:]
-        },
+        columns={name: name[:-2].replace("/", "_") for name in list(df.columns)[6:]},
         inplace=True,
     )
 

@@ -1,7 +1,7 @@
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from functools import cached_property
+from functools import cached_property, partial
 
 from sympy import pi
 from sympy.physics.units import Quantity, inch, convert_to, mm
@@ -19,7 +19,7 @@ class HoleType(str, Enum):
     OVERSIZE = "oversize"
 
 
-class BoltGroup(str,Enum):
+class BoltGroup(str, Enum):
     GROUP_A = "group_a"
     GROUP_B = "group_b"
 
@@ -33,14 +33,15 @@ class BoltGroupMaterial:
     def nominal_shear_strength(self, thread_condition: ThreadCond):
         table = {
             ThreadCond.NOT_EXCLUDED: self.nominal_shear_strength_threaded,
-            ThreadCond.EXCLUDED: self.nominal_shear_not_threaded
+            ThreadCond.EXCLUDED: self.nominal_shear_not_threaded,
         }
         return table[thread_condition]
 
 
 # Table J3.2  Nominal Strength of Fasteners and Threaded Parts
 BOLT_GROUPS = {
-    BoltGroup.GROUP_A: BoltGroupMaterial(
+    BoltGroup.GROUP_A: partial(
+        BoltGroupMaterial,
         nominal_shear_strength_threaded=372 * MPa,
         nominal_shear_not_threaded=457 * MPa,
         nominal_tensile_strength=620 * MPa,
@@ -65,18 +66,14 @@ class BoltGeo:
     def hole_dia(self, hole_type: HoleType) -> Quantity:
         table = {
             HoleType.STANDARD: self.standard_hole_dia,
-            HoleType.OVERSIZE: self.oversize_hole_dia
+            HoleType.OVERSIZE: self.oversize_hole_dia,
         }
         return table[hole_type]
 
     @classmethod
-    def new_convert_to_mm(
-        cls,
-        **kwargs
-    ) -> "BoltGeo":
-        return cls(
-            **{key: convert_to(value, mm) for key, value in kwargs.items()}
-        )
+    def new_convert_to_mm(cls, **kwargs) -> "BoltGeo":
+        return cls(**{key: convert_to(value, mm) for key, value in kwargs.items()})
+
 
 class BoltDenomination(str, Enum):
     M16 = "M16"
@@ -110,14 +107,14 @@ AISC_BOLT_GEOMETRIES = {
         short_slot_length=7 / 8 * inch,
         long_slot_width=11 / 16 * inch,
         long_slot_length=(1 + 9 / 16) * inch,
-    )
+    ),
 }
 
 
 @dataclass
 class AiscBolt:
     geo: BoltGeo
-    group: BoltGroupMaterial = BOLT_GROUPS[BoltGroup.GROUP_A]
+    group: BoltGroupMaterial = field(default_factory=BOLT_GROUPS[BoltGroup.GROUP_A])
 
 
 if __name__ == "__main__":

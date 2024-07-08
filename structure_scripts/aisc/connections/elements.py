@@ -8,12 +8,12 @@ from pandas import DataFrame
 from sympy.physics.units import Quantity, convert_to
 from sympy import Expr
 
-from examples.sp import kN
 from structure_scripts.aisc.criteria import (
     DesignStrengthFromNominalMixin,
     Criteria,
     DesignType, DesignStrengthMixin,
 )
+from structure_scripts.units.sympy_units import kN
 from structure_scripts.symbols.symbols import (
     yield_stress,
     gross_area,

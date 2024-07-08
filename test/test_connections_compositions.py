@@ -13,12 +13,15 @@ from structure_scripts.aisc.connections.bolts import (
     BoltGroupMaterial,
 )
 from structure_scripts.aisc.connections.compositions import (
-    SimpleShearTabBolted, SimpleShearTabBoltedAndWelded,
+    SimpleShearTabBolted,
+    SimpleShearTabBoltedAndWelded,
 )
 from structure_scripts.aisc.connections.elements import BearingStrengthType
 from structure_scripts.aisc.connections.materials import (
     IsotropicMaterial,
-    ASTM_A_36, WeldFillerMaterial, EXX_60_KSI,
+    ASTM_A_36,
+    WeldFillerMaterial,
+    EXX_60_KSI,
 )
 from structure_scripts.units.sympy_units import same_units_simplify, kN
 
@@ -46,7 +49,7 @@ from structure_scripts.units.sympy_units import same_units_simplify, kN
             ASTM_A_36,
             2,
             AISC_BOLT_GEOMETRIES[BoltDenomination.IMP1_2],
-            BOLT_GROUPS[BoltGroup.GROUP_A],
+            BOLT_GROUPS[BoltGroup.GROUP_A](),
             50 * mm,
             50 * mm,
             ThreadCond.NOT_EXCLUDED,
@@ -61,7 +64,7 @@ from structure_scripts.units.sympy_units import same_units_simplify, kN
             ASTM_A_36,
             2,
             AISC_BOLT_GEOMETRIES[BoltDenomination.IMP1_2],
-            BOLT_GROUPS[BoltGroup.GROUP_A],
+            BOLT_GROUPS[BoltGroup.GROUP_A](),
             17 * mm,
             24 * mm,
             ThreadCond.NOT_EXCLUDED,
@@ -149,14 +152,14 @@ def test_simple_shear_tab_bolted(
         # ),
         (
             EXX_60_KSI,
-            100*mm,
-            6*mm,
+            100 * mm,
+            6 * mm,
             6.4 * mm,
             (17 + 38 + 17) * mm,
             ASTM_A_36,
             2,
             AISC_BOLT_GEOMETRIES[BoltDenomination.IMP1_2],
-            BOLT_GROUPS[BoltGroup.GROUP_A],
+            BOLT_GROUPS[BoltGroup.GROUP_A](),
             17 * mm,
             24 * mm,
             ThreadCond.NOT_EXCLUDED,
@@ -200,5 +203,5 @@ def test_simple_shear_tab_bolted_and_welded(
         hole_type=hole_type,
         connection_type=connection_type,
     )
-    s = analysis.strengths(1,1)
+    s = analysis.strengths(1, 1)
     assert True
