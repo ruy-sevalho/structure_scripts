@@ -53,24 +53,6 @@ class MajorAxisFlexurePlasticYielding:
         return {NOMINAL_STRENGTH: self.nominal_strength.rescale("N*mm")}
 
 
-@dataclass
-class MinorAxisFlexurePlasticYielding:
-    """F6.1 see page 111"""
-
-    profile: "Profile"
-
-    @cached_property
-    def nominal_strength(self):
-        return flexural_minor_axis_yield_strength(
-            yield_stress=self.profile.material.yield_stress,
-            plastic_section_modulus=self.profile.section.Zy,
-            elastic_section_modulus=self.profile.section.Sy,
-        )
-
-    @cached_property
-    def detailed_results(self):
-        return {NOMINAL_STRENGTH: self.nominal_strength.rescale("N*mm")}
-
 @dataclass(frozen=True)
 class MajorAxisFlexureElasticYielding:
     """F2.1 see page 103"""
@@ -106,8 +88,6 @@ class MinorAxisFlexurePlasticYielding:
     @cached_property
     def detailed_results(self):
         return {NOMINAL_STRENGTH: self.nominal_strength.rescale("N*mm")}
-
-
 
 
 @dataclass(frozen=True)
@@ -160,8 +140,7 @@ class LateralTorsionalBuckling(ABC):
             limiting_length_torsional_buckling=self.limit_length_torsional_buckling,
             limiting_length_yield=self.limit_length_yield,
             mod_factor=self.modification_factor,
-            plastic_moment=self.profile.section.Zx
-            * self.profile.material.yield_stress,
+            plastic_moment=self.profile.section.Zx * self.profile.material.yield_stress,
             section_modulus=self.profile.section.Sx,
             yield_stress=self.profile.material.yield_stress,
         )
